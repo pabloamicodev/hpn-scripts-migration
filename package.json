@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@hookform/resolvers": "latest",
+    "@react-router/node": "^7.17.0",
     "@shopify/polaris-types": "latest",
     "@shopify/shopify-app-react-router": "latest",
     "@shopify/shopify-app-session-storage-postgresql": "latest",

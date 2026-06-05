@@ -11,6 +11,9 @@ importers:
       '@hookform/resolvers':
         specifier: latest
         version: 5.4.0(react-hook-form@7.77.0(react@19.2.7))
+      '@react-router/node':
+        specifier: ^7.17.0
+        version: 7.17.0(react-router@7.17.0(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(typescript@6.0.3)
       '@shopify/polaris-types':
         specifier: latest
         version: 1.0.7

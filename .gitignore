@@ -22,3 +22,4 @@ extensions/*/dist/
 Cargo.lock
 playwright-report/
 test-results/
+.codegraph/

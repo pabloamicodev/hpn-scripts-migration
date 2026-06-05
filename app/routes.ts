@@ -11,5 +11,6 @@ export default [
     route("graphql", "routes/app.graphql.tsx"),
     route("settings", "routes/app.settings.tsx"),
   ]),
+  route("auth/login", "routes/auth.login.tsx"),
   route("auth/*", "routes/auth.$.tsx"),
 ] satisfies RouteConfig;

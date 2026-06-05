@@ -7,7 +7,13 @@ import {
 import { PostgreSQLSessionStorage } from "@shopify/shopify-app-session-storage-postgresql";
 
 const pgSessionStorage = process.env.DATABASE_URL
-  ? new PostgreSQLSessionStorage(new URL(process.env.DATABASE_URL))
+  ? (() => {
+      const url = new URL(process.env.DATABASE_URL!);
+      if (!url.searchParams.has('sslmode')) {
+        url.searchParams.append('sslmode', 'require');
+      }
+      return new PostgreSQLSessionStorage(url);
+    })()
   : undefined;
 
 const shopify = shopifyApp({

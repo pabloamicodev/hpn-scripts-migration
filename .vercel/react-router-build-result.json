@@ -10,7 +10,7 @@
       }
     },
     "routeIdToServerBundleId": {
-      "root": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/_index": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/app._index": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/app.promos": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/app.promos.new": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
@@ -25,6 +25,13 @@
         "id": "root",
         "file": "app/root.tsx",
         "path": "",
+        "config": {}
+      },
+      "routes/_index": {
+        "id": "routes/_index",
+        "parentId": "root",
+        "file": "app/routes/_index.tsx",
+        "index": true,
         "config": {
           "runtime": "nodejs"
         }
@@ -41,56 +48,72 @@
         "parentId": "routes/app",
         "file": "app/routes/app._index.tsx",
         "index": true,
-        "config": {}
+        "config": {
+          "runtime": "nodejs"
+        }
       },
       "routes/app.promos": {
         "id": "routes/app.promos",
         "parentId": "routes/app",
         "file": "app/routes/app.promos.tsx",
         "path": "promos",
-        "config": {}
+        "config": {
+          "runtime": "nodejs"
+        }
       },
       "routes/app.promos.new": {
         "id": "routes/app.promos.new",
         "parentId": "routes/app",
         "file": "app/routes/app.promos.new.tsx",
         "path": "promos/new",
-        "config": {}
+        "config": {
+          "runtime": "nodejs"
+        }
       },
       "routes/app.promos.$id": {
         "id": "routes/app.promos.$id",
         "parentId": "routes/app",
         "file": "app/routes/app.promos.$id.tsx",
         "path": "promos/:id",
-        "config": {}
+        "config": {
+          "runtime": "nodejs"
+        }
       },
       "routes/app.discount": {
         "id": "routes/app.discount",
         "parentId": "routes/app",
         "file": "app/routes/app.discount.tsx",
         "path": "discount",
-        "config": {}
+        "config": {
+          "runtime": "nodejs"
+        }
       },
       "routes/app.graphql": {
         "id": "routes/app.graphql",
         "parentId": "routes/app",
         "file": "app/routes/app.graphql.tsx",
         "path": "graphql",
-        "config": {}
+        "config": {
+          "runtime": "nodejs"
+        }
       },
       "routes/app.settings": {
         "id": "routes/app.settings",
         "parentId": "routes/app",
         "file": "app/routes/app.settings.tsx",
         "path": "settings",
-        "config": {}
+        "config": {
+          "runtime": "nodejs"
+        }
       },
       "routes/auth.$": {
         "id": "routes/auth.$",
         "parentId": "root",
         "file": "app/routes/auth.$.tsx",
         "path": "auth/*",
-        "config": {}
+        "config": {
+          "runtime": "nodejs"
+        }
       }
     }
   },
@@ -112,6 +135,12 @@
         "id": "root",
         "file": "root.tsx",
         "path": ""
+      },
+      "routes/_index": {
+        "id": "routes/_index",
+        "parentId": "root",
+        "file": "routes/_index.tsx",
+        "index": true
       },
       "routes/app": {
         "id": "routes/app",
@@ -183,6 +212,10 @@
         "path": "",
         "file": "root.tsx",
         "children": [
+          {
+            "file": "routes/_index.tsx",
+            "index": true
+          },
           {
             "file": "routes/app.tsx",
             "children": [

@@ -6,7 +6,7 @@ import {
 } from "@shopify/shopify-app-react-router/server";
 import { PostgreSQLSessionStorage } from "@shopify/shopify-app-session-storage-postgresql";
 
-const sessionStorage = process.env.DATABASE_URL
+const pgSessionStorage = process.env.DATABASE_URL
   ? new PostgreSQLSessionStorage(new URL(process.env.DATABASE_URL))
   : undefined;
 
@@ -17,7 +17,7 @@ const shopify = shopifyApp({
   scopes: ["write_discounts", "read_products"],
   apiVersion: ApiVersion.October24,
   distribution: AppDistribution.AppStore,
-  ...(sessionStorage ? { sessionStorage } : {}),
+  ...(pgSessionStorage ? { sessionStorage: pgSessionStorage } : {}),
 });
 
 export default shopify;
@@ -25,4 +25,4 @@ export const authenticate = shopify.authenticate;
 export const unauthenticated = shopify.unauthenticated;
 export const login = shopify.login;
 export const registerWebhooks = shopify.registerWebhooks;
-export const sessionStorage = shopify.sessionStorage;
+export const shopifySessionStorage = shopify.sessionStorage;

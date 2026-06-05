@@ -1,10 +1,6 @@
 import { useState, useCallback } from "react";
 
-interface GraphqlConsoleProps {
-  enabled: boolean;
-}
-
-export function GraphqlConsole({ enabled }: GraphqlConsoleProps) {
+export function GraphqlConsole() {
   const [query, setQuery] = useState("");
   const [variables, setVariables] = useState("{}");
   const [result, setResult] = useState<unknown>(null);
@@ -57,21 +53,6 @@ export function GraphqlConsole({ enabled }: GraphqlConsoleProps) {
       setLoading(false);
       setConfirmMutation(false);
     }
-  }
-
-  if (!enabled) {
-    return (
-      <div style={{
-        textAlign: "center", padding: "4rem 1rem",
-        backgroundColor: "#fef2f2", borderRadius: "0.5rem",
-        border: "1px solid #fecaca",
-      }}>
-        <h2 style={{ color: "#991b1b" }}>GraphQL Console Disabled</h2>
-        <p style={{ color: "#7f1d1d" }}>
-          Set <code>ENABLE_GRAPHQL_CONSOLE=true</code> in your environment to enable this feature.
-        </p>
-      </div>
-    );
   }
 
   return (

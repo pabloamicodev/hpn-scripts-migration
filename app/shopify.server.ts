@@ -3,7 +3,7 @@ export {
   unauthenticated,
   login,
   registerWebhooks,
-  sessionStorage,
+  shopifySessionStorage,
 } from "../shopify.server";
 
 import { authenticate } from "../shopify.server";

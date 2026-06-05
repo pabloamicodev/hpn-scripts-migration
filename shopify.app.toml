@@ -1,6 +1,6 @@
 # HPN Scripts Migration - Shopify App Configuration
 name = "hpn-scripts-migration"
-client_id = "YOUR_CLIENT_ID"
+client_id = "819b1c9f7db3b989c8138940a6078afd"
 handle = "hpn-scripts-migration"
 application_url = "https://localhost:8081"
 embedded = true

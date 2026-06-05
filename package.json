@@ -5,23 +5,27 @@
   "type": "module",
   "scripts": {
     "dev": "shopify app dev",
-    "build": "shopify app build",
-    "deploy": "shopify app deploy",
+    "build": "react-router build",
+    "shopify:build": "shopify app build",
+    "shopify:deploy": "shopify app deploy",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "lint": "eslint .",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@hookform/resolvers": "latest",
     "@shopify/polaris-types": "latest",
     "@shopify/shopify-app-react-router": "latest",
+    "@shopify/shopify-app-session-storage-postgresql": "latest",
     "@tanstack/react-table": "latest",
     "date-fns": "latest",
     "graphiql": "latest",
     "graphql": "latest",
     "isbot": "latest",
+    "pg": "^8.13.0",
     "react": "latest",
     "react-dom": "latest",
     "react-hook-form": "latest",
@@ -30,14 +34,19 @@
   },
   "devDependencies": {
     "@playwright/test": "latest",
+    "@react-router/dev": "latest",
     "@shopify/api-codegen-preset": "latest",
     "@shopify/cli": "latest",
     "@types/node": "^25.9.1",
+    "@types/pg": "^8.11.10",
     "@types/react": "^19.2.16",
     "@types/react-dom": "^19.2.3",
+    "@vercel/react-router": "latest",
     "eslint": "latest",
     "prettier": "latest",
     "typescript": "latest",
+    "vite": "latest",
+    "vite-tsconfig-paths": "latest",
     "vitest": "latest"
   }
 }

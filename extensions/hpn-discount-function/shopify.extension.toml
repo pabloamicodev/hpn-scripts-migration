@@ -4,6 +4,7 @@ api_version = "2025-01"
 type = "function"
 name = "HPN Discount Function"
 handle = "hpn-discount-function"
+uid = "de6cdaf3-253c-88a0-f7b3-33911939c29ca783c038"
 
 [[extensions.targeting]]
 module = "./src/index.js"

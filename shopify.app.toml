@@ -2,7 +2,7 @@
 name = "hpn-scripts-migration"
 client_id = "819b1c9f7db3b989c8138940a6078afd"
 handle = "hpn-scripts-migration"
-application_url = "https://localhost:8081"
+application_url = "https://hpn-scripts-migration.vercel.app"
 embedded = true
 
 [access_scopes]
@@ -10,6 +10,8 @@ scopes = "write_discounts,read_products"
 
 [auth]
 redirect_urls = [
+  "https://hpn-scripts-migration.vercel.app/auth/callback",
+  "https://hpn-scripts-migration.vercel.app/api/auth/callback",
   "https://localhost:8081/auth/callback",
   "https://localhost:8081/api/auth/callback"
 ]

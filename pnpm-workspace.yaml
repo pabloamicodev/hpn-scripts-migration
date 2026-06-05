@@ -1,0 +1,7 @@
+packages:
+  - '.'
+  - 'extensions/*'
+
+allowBuilds:
+  '@parcel/watcher': false
+  esbuild: false

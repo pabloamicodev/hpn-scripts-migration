@@ -1,0 +1,43 @@
+{
+  "name": "hpn-scripts-migration",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "shopify app dev",
+    "build": "shopify app build",
+    "deploy": "shopify app deploy",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "lint": "eslint .",
+    "format": "prettier --write ."
+  },
+  "dependencies": {
+    "@hookform/resolvers": "latest",
+    "@shopify/polaris-types": "latest",
+    "@shopify/shopify-app-react-router": "latest",
+    "@tanstack/react-table": "latest",
+    "date-fns": "latest",
+    "graphiql": "latest",
+    "graphql": "latest",
+    "isbot": "latest",
+    "react": "latest",
+    "react-dom": "latest",
+    "react-hook-form": "latest",
+    "react-router": "latest",
+    "zod": "latest"
+  },
+  "devDependencies": {
+    "@playwright/test": "latest",
+    "@shopify/api-codegen-preset": "latest",
+    "@shopify/cli": "latest",
+    "@types/node": "^25.9.1",
+    "@types/react": "^19.2.16",
+    "@types/react-dom": "^19.2.3",
+    "eslint": "latest",
+    "prettier": "latest",
+    "typescript": "latest",
+    "vitest": "latest"
+  }
+}

@@ -1,0 +1,12 @@
+api_version = "2025-01"
+
+[[extensions]]
+type = "function"
+name = "HPN Discount Function"
+handle = "hpn-discount-function"
+
+[[extensions.targeting]]
+module = "./src/index.js"
+target = "purchase.product-discount.run"
+input_query = "./src/run.graphql"
+export = "run"

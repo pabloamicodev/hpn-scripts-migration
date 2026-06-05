@@ -179,3 +179,34 @@ export async function searchDiscounts(graphqlProxy: GraphQLProxy, query: string)
   const result = await graphqlProxy(SEARCH_DISCOUNTS_QUERY, { query });
   return result.data?.automaticDiscountNodes?.nodes || [];
 }
+
+const GET_SHOPIFY_FUNCTIONS_QUERY = `
+  query GetShopifyFunctions {
+    shopifyFunctions(first: 25) {
+      nodes {
+        id
+        title
+        apiType
+        app {
+          title
+        }
+      }
+    }
+  }
+`;
+
+export async function findHpnFunctionId(graphqlProxy: GraphQLProxy): Promise<string | null> {
+  try {
+    const result = await graphqlProxy(GET_SHOPIFY_FUNCTIONS_QUERY);
+    const nodes: any[] = result.data?.shopifyFunctions?.nodes ?? [];
+    const fn = nodes.find(
+      (n) =>
+        n.apiType === "product_discounts" &&
+        (n.app?.title?.toLowerCase().includes("hpn") ||
+          n.title?.toLowerCase().includes("hpn"))
+    ) ?? nodes.find((n) => n.apiType === "product_discounts");
+    return fn?.id ?? null;
+  } catch {
+    return null;
+  }
+}

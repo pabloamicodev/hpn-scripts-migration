@@ -12,6 +12,7 @@ import {
   activateDiscount,
   deactivateDiscount,
   deleteDiscount,
+  findHpnFunctionId,
 } from "~/lib/shopifyDiscounts.server";
 import { StatusBadge } from "~/components/StatusBadge";
 
@@ -25,8 +26,10 @@ function makeProxy(admin: any) {
 export async function loader({ request }: LoaderFunctionArgs) {
   const { admin } = await authenticate.admin(request);
   const proxy = makeProxy(admin);
-  const loaded = await loadActiveDiscount(proxy);
-  const functionId = process.env[FUNCTION_ID_ENV] ?? null;
+  const [loaded, functionId] = await Promise.all([
+    loadActiveDiscount(proxy),
+    findHpnFunctionId(proxy),
+  ]);
   return { ...loaded, functionId };
 }
 
@@ -38,10 +41,10 @@ export async function action({ request }: ActionFunctionArgs) {
   const intent = String(formData.get("intent") ?? "");
 
   if (intent === "create") {
-    const functionId = process.env[FUNCTION_ID_ENV];
+    const functionId = await findHpnFunctionId(proxy);
     if (!functionId) {
       return {
-        error: `SHOPIFY_DISCOUNT_FUNCTION_ID is not set. Deploy the function first with "shopify app deploy" and set that env variable.`,
+        error: `No se encontró la Shopify Function. Asegurate de que la app esté instalada en esta store y que la función esté deployada.`,
       };
     }
 
@@ -125,21 +128,8 @@ export default function DiscountPage() {
             fontSize: "0.875rem",
           }}
         >
-          <strong>Function not configured.</strong> Deploy the Shopify Function
-          first:
-          <pre
-            style={{
-              backgroundColor: "#fde68a",
-              padding: "0.5rem",
-              borderRadius: "0.25rem",
-              marginTop: "0.5rem",
-              fontSize: "0.8rem",
-            }}
-          >
-            shopify app deploy
-          </pre>
-          Then set <code>SHOPIFY_DISCOUNT_FUNCTION_ID</code> in your{" "}
-          <code>.env</code> file.
+          <strong>Function no encontrada.</strong> Instalá la app en esta store.
+          La función se detecta automáticamente una vez instalada.
         </div>
       )}
 

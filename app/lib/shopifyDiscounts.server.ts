@@ -79,13 +79,36 @@ const SEARCH_DISCOUNTS_QUERY = `
   query SearchDiscounts($query: String!) {
     automaticDiscountNodes(first: 10, query: $query) {
       nodes {
+        id
         automaticDiscount {
-          discountId
-          title
-          status
-          startsAt
-          metafield(namespace: "hpn_scripts", key: "function_configuration") {
-            value
+          __typename
+
+          ... on DiscountAutomaticApp {
+            discountId
+            title
+            status
+            startsAt
+            metafield(namespace: "hpn_scripts", key: "function_configuration") {
+              value
+            }
+          }
+
+          ... on DiscountAutomaticBasic {
+            title
+            status
+            startsAt
+          }
+
+          ... on DiscountAutomaticBxgy {
+            title
+            status
+            startsAt
+          }
+
+          ... on DiscountAutomaticFreeShipping {
+            title
+            status
+            startsAt
           }
         }
       }
@@ -93,8 +116,73 @@ const SEARCH_DISCOUNTS_QUERY = `
   }
 `;
 
+const GET_SHOPIFY_FUNCTIONS_QUERY = `
+  query GetShopifyFunctions {
+    shopifyFunctions(first: 25) {
+      nodes {
+        id
+        title
+        apiType
+        app {
+          title
+        }
+      }
+    }
+  }
+`;
+
 interface GraphQLProxy {
-  (query: string, variables?: Record<string, unknown>): Promise<{ data: any; errors?: any[] }>;
+  (
+    query: string,
+    variables?: Record<string, unknown>
+  ): Promise<{ data: any; errors?: any[] }>;
+}
+
+interface CombinesWithInput {
+  orderDiscounts: boolean;
+  productDiscounts: boolean;
+  shippingDiscounts: boolean;
+}
+
+interface SearchDiscountNode {
+  id: string;
+  automaticDiscount:
+    | {
+        __typename: "DiscountAutomaticApp";
+        discountId: string;
+        title: string;
+        status: string;
+        startsAt: string | null;
+        metafield?: {
+          value: string;
+        } | null;
+      }
+    | {
+        __typename:
+          | "DiscountAutomaticBasic"
+          | "DiscountAutomaticBxgy"
+          | "DiscountAutomaticFreeShipping";
+        title: string;
+        status: string;
+        startsAt: string | null;
+      }
+    | null;
+}
+
+type AutomaticDiscountTypename =
+  | "DiscountAutomaticApp"
+  | "DiscountAutomaticBasic"
+  | "DiscountAutomaticBxgy"
+  | "DiscountAutomaticFreeShipping";
+
+export interface SearchDiscountResult {
+  id: string;
+  discountId: string;
+  type: AutomaticDiscountTypename;
+  title: string;
+  status: string;
+  startsAt: string | null;
+  configMetafield: string | null;
 }
 
 export async function createAutomaticDiscount(
@@ -103,7 +191,7 @@ export async function createAutomaticDiscount(
   functionId: string,
   startsAt: string,
   config: HpnPromoConfig,
-  combinesWith: { orderDiscounts: boolean; productDiscounts: boolean; shippingDiscounts: boolean }
+  combinesWith: CombinesWithInput
 ) {
   const configJson = JSON.stringify(config);
 
@@ -134,13 +222,23 @@ export async function updateAutomaticDiscount(
     title?: string;
     startsAt?: string;
     config?: HpnPromoConfig;
-    combinesWith?: { orderDiscounts: boolean; productDiscounts: boolean; shippingDiscounts: boolean };
+    combinesWith?: CombinesWithInput;
   }
 ) {
-  const input: any = {};
-  if (updates.title) input.title = updates.title;
-  if (updates.startsAt) input.startsAt = updates.startsAt;
-  if (updates.combinesWith) input.combinesWith = updates.combinesWith;
+  const input: Record<string, unknown> = {};
+
+  if (updates.title) {
+    input.title = updates.title;
+  }
+
+  if (updates.startsAt) {
+    input.startsAt = updates.startsAt;
+  }
+
+  if (updates.combinesWith) {
+    input.combinesWith = updates.combinesWith;
+  }
+
   if (updates.config) {
     input.metafields = [
       {
@@ -160,51 +258,92 @@ export async function updateAutomaticDiscount(
   return result.data?.discountAutomaticAppUpdate;
 }
 
-export async function activateDiscount(graphqlProxy: GraphQLProxy, discountId: string) {
-  const result = await graphqlProxy(ACTIVATE_DISCOUNT_MUTATION, { id: discountId });
+export async function activateDiscount(
+  graphqlProxy: GraphQLProxy,
+  discountId: string
+) {
+  const result = await graphqlProxy(ACTIVATE_DISCOUNT_MUTATION, {
+    id: discountId,
+  });
+
   return result.data?.discountAutomaticActivate;
 }
 
-export async function deactivateDiscount(graphqlProxy: GraphQLProxy, discountId: string) {
-  const result = await graphqlProxy(DEACTIVATE_DISCOUNT_MUTATION, { id: discountId });
+export async function deactivateDiscount(
+  graphqlProxy: GraphQLProxy,
+  discountId: string
+) {
+  const result = await graphqlProxy(DEACTIVATE_DISCOUNT_MUTATION, {
+    id: discountId,
+  });
+
   return result.data?.discountAutomaticDeactivate;
 }
 
-export async function deleteDiscount(graphqlProxy: GraphQLProxy, discountId: string) {
-  const result = await graphqlProxy(DELETE_DISCOUNT_MUTATION, { id: discountId });
+export async function deleteDiscount(
+  graphqlProxy: GraphQLProxy,
+  discountId: string
+) {
+  const result = await graphqlProxy(DELETE_DISCOUNT_MUTATION, {
+    id: discountId,
+  });
+
   return result.data?.discountAutomaticDelete;
 }
 
-export async function searchDiscounts(graphqlProxy: GraphQLProxy, query: string) {
+export async function searchDiscounts(
+  graphqlProxy: GraphQLProxy,
+  query: string
+): Promise<SearchDiscountResult[]> {
   const result = await graphqlProxy(SEARCH_DISCOUNTS_QUERY, { query });
-  return result.data?.automaticDiscountNodes?.nodes || [];
+
+  const nodes: SearchDiscountNode[] =
+    result.data?.automaticDiscountNodes?.nodes ?? [];
+
+  const discounts: SearchDiscountResult[] = [];
+
+  for (const node of nodes) {
+    const discount = node.automaticDiscount;
+
+    if (!discount) {
+      continue;
+    }
+
+    discounts.push({
+      id: node.id,
+      discountId:
+        discount.__typename === "DiscountAutomaticApp"
+          ? discount.discountId
+          : node.id,
+      type: discount.__typename,
+      title: discount.title,
+      status: discount.status,
+      startsAt: discount.startsAt,
+      configMetafield:
+        discount.__typename === "DiscountAutomaticApp"
+          ? discount.metafield?.value ?? null
+          : null,
+    });
+  }
+
+  return discounts;
 }
 
-const GET_SHOPIFY_FUNCTIONS_QUERY = `
-  query GetShopifyFunctions {
-    shopifyFunctions(first: 25) {
-      nodes {
-        id
-        title
-        apiType
-        app {
-          title
-        }
-      }
-    }
-  }
-`;
-
-export async function findHpnFunctionId(graphqlProxy: GraphQLProxy): Promise<string | null> {
+export async function findHpnFunctionId(
+  graphqlProxy: GraphQLProxy
+): Promise<string | null> {
   try {
     const result = await graphqlProxy(GET_SHOPIFY_FUNCTIONS_QUERY);
     const nodes: any[] = result.data?.shopifyFunctions?.nodes ?? [];
-    const fn = nodes.find(
-      (n) =>
-        n.apiType === "product_discounts" &&
-        (n.app?.title?.toLowerCase().includes("hpn") ||
-          n.title?.toLowerCase().includes("hpn"))
-    ) ?? nodes.find((n) => n.apiType === "product_discounts");
+
+    const fn =
+      nodes.find(
+        (node) =>
+          node.apiType === "product_discounts" &&
+          (node.app?.title?.toLowerCase().includes("hpn") ||
+            node.title?.toLowerCase().includes("hpn"))
+      ) ?? nodes.find((node) => node.apiType === "product_discounts");
+
     return fn?.id ?? null;
   } catch {
     return null;

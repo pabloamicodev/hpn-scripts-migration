@@ -80,6 +80,9 @@ const SEARCH_DISCOUNTS_QUERY = `
     automaticDiscountNodes(first: 10, query: $query) {
       nodes {
         id
+        metafield(namespace: "hpn_scripts", key: "function_configuration") {
+          value
+        }
         automaticDiscount {
           __typename
 
@@ -88,9 +91,6 @@ const SEARCH_DISCOUNTS_QUERY = `
             title
             status
             startsAt
-            metafield(namespace: "hpn_scripts", key: "function_configuration") {
-              value
-            }
           }
 
           ... on DiscountAutomaticBasic {
@@ -144,8 +144,17 @@ interface CombinesWithInput {
   shippingDiscounts: boolean;
 }
 
+type AutomaticDiscountTypename =
+  | "DiscountAutomaticApp"
+  | "DiscountAutomaticBasic"
+  | "DiscountAutomaticBxgy"
+  | "DiscountAutomaticFreeShipping";
+
 interface SearchDiscountNode {
   id: string;
+  metafield?: {
+    value: string;
+  } | null;
   automaticDiscount:
     | {
         __typename: "DiscountAutomaticApp";
@@ -153,9 +162,6 @@ interface SearchDiscountNode {
         title: string;
         status: string;
         startsAt: string | null;
-        metafield?: {
-          value: string;
-        } | null;
       }
     | {
         __typename:
@@ -168,12 +174,6 @@ interface SearchDiscountNode {
       }
     | null;
 }
-
-type AutomaticDiscountTypename =
-  | "DiscountAutomaticApp"
-  | "DiscountAutomaticBasic"
-  | "DiscountAutomaticBxgy"
-  | "DiscountAutomaticFreeShipping";
 
 export interface SearchDiscountResult {
   id: string;
@@ -321,7 +321,7 @@ export async function searchDiscounts(
       startsAt: discount.startsAt,
       configMetafield:
         discount.__typename === "DiscountAutomaticApp"
-          ? discount.metafield?.value ?? null
+          ? node.metafield?.value ?? null
           : null,
     });
   }

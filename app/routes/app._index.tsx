@@ -5,50 +5,70 @@ import { searchDiscounts } from "~/lib/shopifyDiscounts.server";
 import { StatusBadge } from "~/components/StatusBadge";
 import { DISCOUNT_TITLE } from "~/lib/hpnPromoConfig.server";
 
+interface HpnPromoRule {
+  enabled: boolean;
+}
+
+interface HpnPromoConfig {
+  rules?: HpnPromoRule[];
+}
+
 export async function loader({ request }: LoaderFunctionArgs) {
   const { admin } = await authenticate.admin(request);
 
-  const graphqlProxy = async (q: string, v?: Record<string, unknown>): Promise<{ data: unknown; errors?: unknown[] }> => {
-    const res = await admin.graphql(q, { variables: v });
-    const json = await res.json();
-    return json as unknown as { data: unknown; errors?: unknown[] };
+  const graphqlProxy = async (
+    query: string,
+    variables?: Record<string, unknown>
+  ): Promise<{ data: any; errors?: any[] }> => {
+    const response = await admin.graphql(query, { variables });
+    const json = await response.json();
+
+    return json as { data: any; errors?: any[] };
   };
 
   const discounts = await searchDiscounts(graphqlProxy, DISCOUNT_TITLE);
 
-  const activeDiscount = discounts.find(
-    (d: any) => d.automaticDiscount?.status === "ACTIVE"
-  );
+  const activeDiscount =
+    discounts.find((discount) => discount.status === "ACTIVE") ?? null;
 
   let activeRulesCount = 0;
   let pausedRulesCount = 0;
 
-  if (activeDiscount?.automaticDiscount?.metafield?.value) {
+  if (activeDiscount?.configMetafield) {
     try {
-      const config = JSON.parse(activeDiscount.automaticDiscount.metafield.value);
-      activeRulesCount = config.rules?.filter((r: any) => r.enabled).length ?? 0;
-      pausedRulesCount = config.rules?.filter((r: any) => !r.enabled).length ?? 0;
-    } catch {
-      // ignore parse errors
+      const config = JSON.parse(activeDiscount.configMetafield) as HpnPromoConfig;
+      const rules = config.rules ?? [];
+
+      activeRulesCount = rules.filter((rule) => rule.enabled).length;
+      pausedRulesCount = rules.filter((rule) => !rule.enabled).length;
+    } catch (error) {
+      console.error("Failed to parse discount configuration metafield", error);
     }
   }
 
   return {
-    discount: activeDiscount?.automaticDiscount ?? null,
+    discount: activeDiscount,
     activeRulesCount,
     pausedRulesCount,
-    lastUpdate: activeDiscount?.automaticDiscount?.startsAt ?? null,
+    lastUpdate: activeDiscount?.startsAt ?? null,
   };
 }
 
 export default function AppIndex() {
   const { discount, activeRulesCount, pausedRulesCount, lastUpdate } =
     useLoaderData<typeof loader>();
+
   const navigate = useNavigate();
 
   return (
     <div>
-      <h1 style={{ fontSize: "1.5rem", fontWeight: 700, marginBottom: "1.5rem" }}>
+      <h1
+        style={{
+          fontSize: "1.5rem",
+          fontWeight: 700,
+          marginBottom: "1.5rem",
+        }}
+      >
         HPN Scripts Migration — Dashboard
       </h1>
 
@@ -68,9 +88,17 @@ export default function AppIndex() {
             borderRadius: "0.5rem",
           }}
         >
-          <h3 style={{ fontSize: "0.8rem", color: "#166534", fontWeight: 600, marginBottom: "0.5rem" }}>
+          <h3
+            style={{
+              fontSize: "0.8rem",
+              color: "#166534",
+              fontWeight: 600,
+              marginBottom: "0.5rem",
+            }}
+          >
             Discount Status
           </h3>
+
           <StatusBadge status={discount ? "active" : "inactive"} />
         </div>
 
@@ -82,10 +110,24 @@ export default function AppIndex() {
             borderRadius: "0.5rem",
           }}
         >
-          <h3 style={{ fontSize: "0.8rem", color: "#1e40af", fontWeight: 600, marginBottom: "0.5rem" }}>
+          <h3
+            style={{
+              fontSize: "0.8rem",
+              color: "#1e40af",
+              fontWeight: 600,
+              marginBottom: "0.5rem",
+            }}
+          >
             Active Rules
           </h3>
-          <p style={{ fontSize: "2rem", fontWeight: 700, color: "#1e3a5f" }}>
+
+          <p
+            style={{
+              fontSize: "2rem",
+              fontWeight: 700,
+              color: "#1e3a5f",
+            }}
+          >
             {activeRulesCount}
           </p>
         </div>
@@ -98,10 +140,24 @@ export default function AppIndex() {
             borderRadius: "0.5rem",
           }}
         >
-          <h3 style={{ fontSize: "0.8rem", color: "#92400e", fontWeight: 600, marginBottom: "0.5rem" }}>
+          <h3
+            style={{
+              fontSize: "0.8rem",
+              color: "#92400e",
+              fontWeight: 600,
+              marginBottom: "0.5rem",
+            }}
+          >
             Paused Rules
           </h3>
-          <p style={{ fontSize: "2rem", fontWeight: 700, color: "#78350f" }}>
+
+          <p
+            style={{
+              fontSize: "2rem",
+              fontWeight: 700,
+              color: "#78350f",
+            }}
+          >
             {pausedRulesCount}
           </p>
         </div>
@@ -114,10 +170,24 @@ export default function AppIndex() {
             borderRadius: "0.5rem",
           }}
         >
-          <h3 style={{ fontSize: "0.8rem", color: "#374151", fontWeight: 600, marginBottom: "0.5rem" }}>
+          <h3
+            style={{
+              fontSize: "0.8rem",
+              color: "#374151",
+              fontWeight: 600,
+              marginBottom: "0.5rem",
+            }}
+          >
             Last Config Update
           </h3>
-          <p style={{ fontSize: "1rem", fontWeight: 600, color: "#111827" }}>
+
+          <p
+            style={{
+              fontSize: "1rem",
+              fontWeight: 600,
+              color: "#111827",
+            }}
+          >
             {lastUpdate ? new Date(lastUpdate).toLocaleDateString() : "N/A"}
           </p>
         </div>
@@ -131,9 +201,16 @@ export default function AppIndex() {
           borderRadius: "0.5rem",
         }}
       >
-        <h2 style={{ fontSize: "1.1rem", fontWeight: 600, marginBottom: "1rem" }}>
+        <h2
+          style={{
+            fontSize: "1.1rem",
+            fontWeight: 600,
+            marginBottom: "1rem",
+          }}
+        >
           Quick Actions
         </h2>
+
         <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
           {!discount ? (
             <button
@@ -168,6 +245,7 @@ export default function AppIndex() {
               >
                 Manage Promos
               </button>
+
               <button
                 type="button"
                 onClick={() => navigate("/app/discount")}
@@ -185,6 +263,7 @@ export default function AppIndex() {
               </button>
             </>
           )}
+
           <button
             type="button"
             onClick={() => navigate("/app/settings")}

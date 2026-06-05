@@ -1,0 +1,101 @@
+scalar Decimal
+scalar ID
+
+schema {
+  query: Input
+}
+
+type Input {
+  cart: Cart!
+  discountNode: DiscountNode!
+}
+
+type Cart {
+  lines: [CartLine!]!
+}
+
+type CartLine {
+  id: ID!
+  quantity: Int!
+  merchandise: Merchandise!
+}
+
+union Merchandise = ProductVariant
+
+type ProductVariant {
+  id: ID!
+  product: Product!
+}
+
+type Product {
+  id: ID!
+}
+
+type DiscountNode {
+  metafield(namespace: String!, key: String!): Metafield
+}
+
+type Metafield {
+  value: String!
+}
+
+type FunctionRunResult {
+  discountApplicationStrategy: DiscountApplicationStrategy!
+  discounts: [Discount!]!
+}
+
+enum DiscountApplicationStrategy {
+  ALL
+  FIRST
+  MAXIMUM
+}
+
+type Discount {
+  targets: [Target!]!
+  value: Value!
+  message: String
+  conditions: [Condition!]
+}
+
+union Target = CartLineTarget | ProductVariantTarget
+
+type CartLineTarget {
+  id: ID!
+  quantity: Int
+}
+
+type ProductVariantTarget {
+  id: ID!
+  quantity: Int
+}
+
+union Value = Percentage | FixedAmount
+
+type Percentage {
+  value: Decimal!
+}
+
+type FixedAmount {
+  amount: Decimal!
+  appliesToEachItem: Boolean
+}
+
+type Condition {
+  field: ConditionField!
+  operator: ConditionOperator!
+  value: String!
+}
+
+enum ConditionField {
+  CART_LINE_QUANTITY
+  CART_SUBTOTAL_AMOUNT
+  CART_TOTAL_QUANTITY
+}
+
+enum ConditionOperator {
+  EQUAL_TO
+  GREATER_THAN
+  LESS_THAN
+  GREATER_THAN_OR_EQUAL_TO
+  LESS_THAN_OR_EQUAL_TO
+}

@@ -97,6 +97,23 @@ const CREATE_MUTATION = `
   }
 `;
 
+const UPDATE_MUTATION = `
+  mutation UpdateHpnDiscount($id: ID!, $automaticAppDiscount: DiscountAutomaticAppInput!) {
+    discountAutomaticAppUpdate(id: $id, automaticAppDiscount: $automaticAppDiscount) {
+      automaticAppDiscount {
+        discountId
+        title
+        status
+        startsAt
+      }
+      userErrors {
+        field
+        message
+      }
+    }
+  }
+`;
+
 const FIND_EXISTING_QUERY = `
   query FindExisting($query: String!) {
     discountNodes(first: 10, query: $query) {
@@ -106,6 +123,7 @@ const FIND_EXISTING_QUERY = `
           discount {
             __typename
             ... on DiscountAutomaticApp {
+              discountId
               title
               status
               appDiscountType {
@@ -233,8 +251,33 @@ try {
 
   const existingNodes = existing.data?.discountNodes?.edges ?? [];
   if (existingNodes.length > 0) {
-    console.log("Discount already exists:");
+    const existingDiscount = existingNodes[0]?.node?.discount;
+    console.log("Discount already exists. Updating config metafield:");
     console.log(JSON.stringify(existingNodes, null, 2));
+
+    const updated = await shopifyGraphql(
+      session.shop,
+      session.accessToken,
+      UPDATE_MUTATION,
+      {
+        id: existingDiscount.discountId,
+        automaticAppDiscount: {
+          title: DISCOUNT_TITLE,
+          combinesWith: config.combinesWith,
+          metafields: [
+            {
+              namespace: "hpn_scripts",
+              key: "function_configuration",
+              type: "json",
+              value: JSON.stringify(config),
+            },
+          ],
+        },
+      },
+    );
+
+    console.log("Update result:");
+    console.log(JSON.stringify(updated.data.discountAutomaticAppUpdate, null, 2));
     process.exit(0);
   }
 

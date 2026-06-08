@@ -5,9 +5,8 @@ import { guardGraphQLConsole } from "~/lib/guards.server";
 import { GraphqlConsole } from "~/components/GraphqlConsole";
 
 export async function loader({ request }: LoaderFunctionArgs) {
-  guardGraphQLConsole();
   await authenticate.admin(request);
-  return { enabled: true };
+  return { enabled: process.env.ENABLE_GRAPHQL_CONSOLE === "true" };
 }
 
 export async function action({ request }: ActionFunctionArgs) {

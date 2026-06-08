@@ -1,4 +1,9 @@
-import { Outlet, useLoaderData, useRouteError } from "react-router";
+import {
+  isRouteErrorResponse,
+  Outlet,
+  useLoaderData,
+  useRouteError,
+} from "react-router";
 import type { LoaderFunctionArgs } from "react-router";
 import { AppProvider } from "@shopify/shopify-app-react-router/react";
 import { authenticate } from "~/shopify.server";
@@ -29,22 +34,26 @@ export default function AppLayout() {
 
 export function ErrorBoundary() {
   const error = useRouteError();
+  const message = isRouteErrorResponse(error)
+    ? typeof error.data === "string"
+      ? error.data
+      : error.statusText
+    : error instanceof Error
+      ? error.message
+      : "Unexpected application error.";
+
   return (
-    <div
-      style={{
-        padding: "2rem",
-        backgroundColor: "#fef2f2",
-        border: "1px solid #fecaca",
-        borderRadius: "0.5rem",
-        margin: "2rem",
-      }}
-    >
-      <h2 style={{ color: "#991b1b", marginBottom: "0.5rem" }}>
+    <div className="app-shell">
+      <main className="app-main">
+    <div className="alert alert--critical">
+      <h2 className="card__title" style={{ marginBottom: "8px" }}>
         Something went wrong
       </h2>
-      <pre style={{ fontSize: "0.85rem", color: "#7f1d1d", whiteSpace: "pre-wrap" }}>
-        {error instanceof Error ? error.message : String(error)}
+      <pre style={{ whiteSpace: "pre-wrap", margin: 0 }}>
+        {message}
       </pre>
+    </div>
+      </main>
     </div>
   );
 }

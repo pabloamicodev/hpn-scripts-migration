@@ -1,110 +1,286 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+
+interface ProductImage {
+  url: string;
+  altText?: string | null;
+}
+
+interface ProductVariantNode {
+  id: string;
+  title: string;
+  sku?: string | null;
+  price: string;
+  inventoryQuantity?: number | null;
+  image?: ProductImage | null;
+}
 
 interface ProductNode {
   id: string;
   title: string;
   handle: string;
+  vendor?: string | null;
+  featuredImage?: ProductImage | null;
   variants: {
-    nodes: Array<{
-      id: string;
-      title: string;
-      sku?: string;
-      price: string;
-    }>;
+    nodes: ProductVariantNode[];
   };
 }
 
-interface ProductPickerProps {
-  onSelect: (productId: string, productTitle: string) => void;
-  onClose: () => void;
-  searchFn?: (query: string) => Promise<ProductNode[]>;
+export interface ProductPickerSelection {
+  productId: string;
+  productTitle: string;
+  productHandle: string;
+  vendor?: string | null;
+  variantId: string;
+  variantTitle: string;
+  sku?: string | null;
+  price: string;
+  imageUrl?: string;
+  imageAlt?: string | null;
 }
 
-export function ProductPicker({ onSelect, onClose, searchFn }: ProductPickerProps) {
+interface ProductPickerProps {
+  onSelect: (selection: ProductPickerSelection) => void;
+  onClose: () => void;
+}
+
+function getGidTail(gid: string) {
+  return gid.split("/").pop() ?? gid;
+}
+
+function getProductImage(product: ProductNode, variant?: ProductVariantNode) {
+  return variant?.image ?? product.featuredImage ?? null;
+}
+
+export function ProductPicker({ onSelect, onClose }: ProductPickerProps) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<ProductNode[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function handleSearch(q: string) {
-    setQuery(q);
-    if (q.length < 2) {
+  const normalizedQuery = query.trim();
+
+  useEffect(() => {
+    if (normalizedQuery.length < 2) {
       setResults([]);
+      setError(null);
+      setLoading(false);
       return;
     }
 
-    setLoading(true);
-    setError(null);
+    const controller = new AbortController();
+    const timeout = window.setTimeout(async () => {
+      setLoading(true);
+      setError(null);
 
-    try {
-      const response = await fetch(`/app/api/products?query=${encodeURIComponent(q)}`);
-      if (!response.ok) throw new Error("Search failed");
-      const data = await response.json();
-      setResults(data.products || []);
-    } catch (err) {
-      setError("Failed to search products");
-      setResults([]);
-    } finally {
-      setLoading(false);
+      try {
+        const response = await fetch(
+          `/app/api/products?query=${encodeURIComponent(normalizedQuery)}&first=12`,
+          { signal: controller.signal },
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data?.error || "Product search failed.");
+        }
+
+        setResults(data.products || []);
+      } catch (err) {
+        if (err instanceof DOMException && err.name === "AbortError") return;
+        setError(err instanceof Error ? err.message : "Failed to search products.");
+        setResults([]);
+      } finally {
+        setLoading(false);
+      }
+    }, 250);
+
+    return () => {
+      controller.abort();
+      window.clearTimeout(timeout);
+    };
+  }, [normalizedQuery]);
+
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        onClose();
+      }
     }
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [onClose]);
+
+  const resultCount = useMemo(() => {
+    return results.reduce(
+      (count, product) => count + (product.variants?.nodes?.length ?? 0),
+      0,
+    );
+  }, [results]);
+
+  function selectVariant(product: ProductNode, variant: ProductVariantNode) {
+    const image = getProductImage(product, variant);
+
+    onSelect({
+      productId: product.id,
+      productTitle: product.title,
+      productHandle: product.handle,
+      vendor: product.vendor,
+      variantId: variant.id,
+      variantTitle: variant.title,
+      sku: variant.sku,
+      price: variant.price,
+      imageUrl: image?.url,
+      imageAlt: image?.altText,
+    });
   }
 
   return (
-    <div className="product-picker-overlay" style={{
-      position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.4)",
-      display: "flex", alignItems: "center", justifyContent: "center",
-      zIndex: 1000,
-    }}>
-      <div className="product-picker" style={{
-        backgroundColor: "#fff", borderRadius: "0.5rem", padding: "1.5rem",
-        width: "90%", maxWidth: "600px", maxHeight: "80vh", overflow: "auto",
-      }}>
-        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "1rem" }}>
-          <h3>Select Product</h3>
-          <button onClick={onClose} aria-label="Close" style={{ background: "none", border: "none", cursor: "pointer", fontSize: "1.5rem" }}>×</button>
+    <div className="picker-backdrop" role="presentation" onMouseDown={onClose}>
+      <section
+        className="picker-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="product-picker-title"
+        onMouseDown={(event) => event.stopPropagation()}
+      >
+        <header className="picker-header">
+          <div>
+            <h2 id="product-picker-title" className="picker-title">
+              Select product
+            </h2>
+            <p className="picker-subtitle">
+              Search Shopify products and choose the exact variant to add.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={onClose}
+            className="btn btn--small"
+            aria-label="Close product picker"
+          >
+            Close
+          </button>
+        </header>
+
+        <div className="picker-search">
+          <label htmlFor="product-picker-search" className="form-label">
+            Search products
+          </label>
+          <div className="search-field">
+            <input
+              id="product-picker-search"
+              type="search"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search by product name, handle, or SKU"
+              autoFocus
+            />
+          </div>
         </div>
 
-        <input
-          type="text"
-          value={query}
-          onChange={(e) => handleSearch(e.target.value)}
-          placeholder="Search by product name, handle, or SKU..."
-          style={{ width: "100%", padding: "0.5rem", marginBottom: "1rem", border: "1px solid #d1d5db", borderRadius: "0.375rem" }}
-          autoFocus
-        />
-
-        {loading && <p>Searching...</p>}
-        {error && <p style={{ color: "#dc2626" }}>{error}</p>}
-
-        <div className="product-results">
-          {results.map((product) => (
-            <div
-              key={product.id}
-              className="product-result-item"
-              onClick={() => onSelect(product.id, product.title)}
-              style={{
-                padding: "0.75rem", border: "1px solid #e5e7eb", borderRadius: "0.375rem",
-                marginBottom: "0.5rem", cursor: "pointer",
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#f9fafb")}
-              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "#fff")}
-            >
-              <strong>{product.title}</strong>
-              <span style={{ color: "#6b7280", marginLeft: "0.5rem", fontSize: "0.8rem" }}>{product.handle}</span>
-              <div style={{ fontSize: "0.75rem", color: "#9ca3af" }}>{product.id}</div>
-              {product.variants?.nodes && (
-                <div style={{ fontSize: "0.7rem", color: "#6b7280", marginTop: "0.25rem" }}>
-                  {product.variants.nodes.length} variant(s)
-                </div>
-              )}
+        <div className="picker-body">
+          {normalizedQuery.length < 2 && (
+            <div className="picker-empty">
+              <strong>Start with at least 2 characters.</strong>
+              <span>Try PA7, NAD3, C2, T5, pouch, or a product handle.</span>
             </div>
-          ))}
-        </div>
+          )}
 
-        {!loading && results.length === 0 && query.length >= 2 && (
-          <p style={{ color: "#6b7280", textAlign: "center" }}>No products found</p>
-        )}
-      </div>
+          {loading && (
+            <div className="picker-empty">
+              <strong>Searching products...</strong>
+              <span>Looking through Shopify Admin products.</span>
+            </div>
+          )}
+
+          {error && (
+            <div className="alert alert--critical">
+              <strong>Search failed</strong>
+              <pre style={{ margin: "8px 0 0", whiteSpace: "pre-wrap" }}>
+                {error}
+              </pre>
+            </div>
+          )}
+
+          {!loading &&
+            !error &&
+            normalizedQuery.length >= 2 &&
+            results.length === 0 && (
+              <div className="picker-empty">
+                <strong>No products found.</strong>
+                <span>Try a different title, handle, SKU, or product keyword.</span>
+              </div>
+            )}
+
+          {!loading && results.length > 0 && (
+            <div className="picker-results">
+              <div className="picker-results__meta">
+                {results.length} products · {resultCount} variants
+              </div>
+
+              <div className="product-picker-grid">
+                {results.map((product) => {
+                  const variants = product.variants?.nodes ?? [];
+                  const image = getProductImage(product, variants[0]);
+
+                  return (
+                    <article key={product.id} className="product-picker-card">
+                      <div className="product-picker-card__media">
+                        {image?.url ? (
+                          <img
+                            src={image.url}
+                            alt={image.altText || product.title}
+                            loading="lazy"
+                          />
+                        ) : (
+                          <span>{product.title.slice(0, 2).toUpperCase()}</span>
+                        )}
+                      </div>
+
+                      <div className="product-picker-card__content">
+                        <div>
+                          <h3>{product.title}</h3>
+                          <p>
+                            {product.vendor ? `${product.vendor} · ` : ""}
+                            /{product.handle}
+                          </p>
+                          <p className="mono">{getGidTail(product.id)}</p>
+                        </div>
+
+                        <div className="variant-choice-list">
+                          {variants.map((variant) => (
+                            <button
+                              key={variant.id}
+                              type="button"
+                              onClick={() => selectVariant(product, variant)}
+                              className="variant-choice"
+                            >
+                              <span>
+                                <strong>{variant.title}</strong>
+                                <span>
+                                  {variant.sku ? `SKU ${variant.sku}` : "No SKU"}
+                                </span>
+                              </span>
+                              <span className="variant-choice__price">
+                                ${variant.price}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      </section>
     </div>
   );
 }

@@ -33,6 +33,10 @@ const SEARCH_PRODUCTS_QUERY = `
             sku
             price
             inventoryQuantity
+            image {
+              url
+              altText
+            }
           }
         }
       }
@@ -72,10 +76,18 @@ const GET_VARIANT_BY_ID_QUERY = `
       sku
       price
       inventoryQuantity
+      image {
+        url
+        altText
+      }
       product {
         id
         title
         handle
+        featuredImage {
+          url
+          altText
+        }
       }
     }
   }
@@ -87,6 +99,10 @@ export interface ProductVariantNode {
   sku?: string | null;
   price: string;
   inventoryQuantity?: number | null;
+  image?: {
+    url: string;
+    altText?: string | null;
+  } | null;
 }
 
 export interface ProductNode {
@@ -108,6 +124,10 @@ export interface ProductVariantWithProductNode extends ProductVariantNode {
     id: string;
     title: string;
     handle: string;
+    featuredImage?: {
+      url: string;
+      altText?: string | null;
+    } | null;
   };
 }
 

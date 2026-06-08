@@ -16,8 +16,11 @@
       "routes/app.promos.new": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/app.promos.$id": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/app.discount": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/app.graphql.execute": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/app.graphql": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/app.settings": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/app.api.products": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/auth.login": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/auth.$": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0"
     },
     "routes": {
@@ -88,6 +91,15 @@
           "runtime": "nodejs"
         }
       },
+      "routes/app.graphql.execute": {
+        "id": "routes/app.graphql.execute",
+        "parentId": "routes/app",
+        "file": "app/routes/app.graphql.execute.tsx",
+        "path": "graphql/execute",
+        "config": {
+          "runtime": "nodejs"
+        }
+      },
       "routes/app.graphql": {
         "id": "routes/app.graphql",
         "parentId": "routes/app",
@@ -102,6 +114,24 @@
         "parentId": "routes/app",
         "file": "app/routes/app.settings.tsx",
         "path": "settings",
+        "config": {
+          "runtime": "nodejs"
+        }
+      },
+      "routes/app.api.products": {
+        "id": "routes/app.api.products",
+        "parentId": "routes/app",
+        "file": "app/routes/app.api.products.tsx",
+        "path": "api/products",
+        "config": {
+          "runtime": "nodejs"
+        }
+      },
+      "routes/auth.login": {
+        "id": "routes/auth.login",
+        "parentId": "root",
+        "file": "app/routes/auth.login.tsx",
+        "path": "auth/login",
         "config": {
           "runtime": "nodejs"
         }
@@ -178,6 +208,12 @@
         "file": "routes/app.discount.tsx",
         "path": "discount"
       },
+      "routes/app.graphql.execute": {
+        "id": "routes/app.graphql.execute",
+        "parentId": "routes/app",
+        "file": "routes/app.graphql.execute.tsx",
+        "path": "graphql/execute"
+      },
       "routes/app.graphql": {
         "id": "routes/app.graphql",
         "parentId": "routes/app",
@@ -189,6 +225,18 @@
         "parentId": "routes/app",
         "file": "routes/app.settings.tsx",
         "path": "settings"
+      },
+      "routes/app.api.products": {
+        "id": "routes/app.api.products",
+        "parentId": "routes/app",
+        "file": "routes/app.api.products.tsx",
+        "path": "api/products"
+      },
+      "routes/auth.login": {
+        "id": "routes/auth.login",
+        "parentId": "root",
+        "file": "routes/auth.login.tsx",
+        "path": "auth/login"
       },
       "routes/auth.$": {
         "id": "routes/auth.$",
@@ -240,15 +288,27 @@
                 "path": "discount"
               },
               {
+                "file": "routes/app.graphql.execute.tsx",
+                "path": "graphql/execute"
+              },
+              {
                 "file": "routes/app.graphql.tsx",
                 "path": "graphql"
               },
               {
                 "file": "routes/app.settings.tsx",
                 "path": "settings"
+              },
+              {
+                "file": "routes/app.api.products.tsx",
+                "path": "api/products"
               }
             ],
             "path": "app"
+          },
+          {
+            "file": "routes/auth.login.tsx",
+            "path": "auth/login"
           },
           {
             "file": "routes/auth.$.tsx",

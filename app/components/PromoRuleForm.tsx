@@ -12,6 +12,19 @@ import {
 
 type PromoRuleType = HpnPromoRule["type"];
 
+interface SelectedProductMeta {
+  productId: string;
+  productTitle: string;
+  productHandle: string;
+  vendor?: string | null;
+  variantId?: string;
+  variantTitle?: string;
+  sku?: string | null;
+  price?: string;
+  imageUrl?: string;
+  imageAlt?: string | null;
+}
+
 interface PromoRuleFormProps {
   defaultValues?: HpnPromoRule;
   onSubmit: (data: HpnPromoRule) => void;
@@ -171,6 +184,9 @@ export function PromoRuleForm({
     | "bundleFreeVariant"
     | null
   >(null);
+  const [selectionMetaById, setSelectionMetaById] = useState<
+    Record<string, SelectedProductMeta>
+  >({});
 
   const {
     register,
@@ -192,6 +208,7 @@ export function PromoRuleForm({
 
   function handleRuleTypeChange(nextType: PromoRuleType) {
     reset(DEFAULT_RULES[nextType]);
+    setSelectionMetaById({});
     setSchemaError(null);
   }
 
@@ -210,10 +227,27 @@ export function PromoRuleForm({
   }
 
   function handlePickerSelect(selection: ProductPickerSelection) {
+    const selectedProductMeta: SelectedProductMeta = {
+      productId: selection.productId,
+      productTitle: selection.productTitle,
+      productHandle: selection.productHandle,
+      vendor: selection.vendor,
+      variantId: selection.variantId,
+      variantTitle: selection.variantTitle,
+      sku: selection.sku,
+      price: selection.price,
+      imageUrl: selection.imageUrl,
+      imageAlt: selection.imageAlt,
+    };
+
     if (
       productPickerMode === "crossSellTriggerProduct" ||
       productPickerMode === "bundleTriggerProduct"
     ) {
+      setSelectionMetaById((current) => ({
+        ...current,
+        [selection.productId]: selectedProductMeta,
+      }));
       setValue("triggerProductId", selection.productId, {
         shouldDirty: true,
         shouldValidate: false,
@@ -224,6 +258,10 @@ export function PromoRuleForm({
       const currentIds = targetProductIds ?? [];
 
       if (!currentIds.includes(selection.productId)) {
+        setSelectionMetaById((current) => ({
+          ...current,
+          [selection.productId]: selectedProductMeta,
+        }));
         setValue("targetProductIds", [...currentIds, selection.productId], {
           shouldDirty: true,
           shouldValidate: false,
@@ -238,6 +276,10 @@ export function PromoRuleForm({
       const currentIds = requiredVariantIds ?? [];
 
       if (!currentIds.includes(selection.variantId)) {
+        setSelectionMetaById((current) => ({
+          ...current,
+          [selection.variantId]: selectedProductMeta,
+        }));
         setValue("requiredVariantIds", [...currentIds, selection.variantId], {
           shouldDirty: true,
           shouldValidate: false,
@@ -252,6 +294,10 @@ export function PromoRuleForm({
       const currentIds = freeVariantIds ?? [];
 
       if (!currentIds.includes(selection.variantId)) {
+        setSelectionMetaById((current) => ({
+          ...current,
+          [selection.variantId]: selectedProductMeta,
+        }));
         setValue("freeVariantIds", [...currentIds, selection.variantId], {
           shouldDirty: true,
           shouldValidate: false,
@@ -366,6 +412,11 @@ export function PromoRuleForm({
 
             <ProductIdSelector
               productId={triggerProductId}
+              meta={
+                triggerProductId
+                  ? selectionMetaById[triggerProductId]
+                  : undefined
+              }
               emptyText="Choose the product that unlocks the cross-sell."
               onPick={() => setProductPickerMode("crossSellTriggerProduct")}
               onClear={() =>
@@ -382,6 +433,7 @@ export function PromoRuleForm({
 
             <ProductIdListSelector
               productIds={targetProductIds ?? []}
+              metaById={selectionMetaById}
               emptyText="Choose one or more products that receive the discount."
               itemLabel="Product"
               onPick={() => setProductPickerMode("crossSellTargetProduct")}
@@ -440,6 +492,7 @@ export function PromoRuleForm({
 
             <ProductIdListSelector
               productIds={requiredVariantIds ?? []}
+              metaById={selectionMetaById}
               emptyText="Choose the variants that must be in the cart."
               itemLabel="Variant"
               addLabel="Add required variant"
@@ -455,6 +508,7 @@ export function PromoRuleForm({
 
             <ProductIdListSelector
               productIds={freeVariantIds ?? []}
+              metaById={selectionMetaById}
               emptyText="Choose the variants that should become free."
               itemLabel="Variant"
               addLabel="Add free variant"
@@ -505,6 +559,11 @@ export function PromoRuleForm({
 
             <ProductIdSelector
               productId={triggerProductId}
+              meta={
+                triggerProductId
+                  ? selectionMetaById[triggerProductId]
+                  : undefined
+              }
               emptyText="Choose the product that unlocks the bundle."
               onPick={() => setProductPickerMode("bundleTriggerProduct")}
               onClear={() =>
@@ -521,6 +580,7 @@ export function PromoRuleForm({
 
             <ProductIdListSelector
               productIds={requiredVariantIds ?? []}
+              metaById={selectionMetaById}
               emptyText="Choose the variants that must be in the cart."
               itemLabel="Variant"
               addLabel="Add required variant"
@@ -536,6 +596,7 @@ export function PromoRuleForm({
 
             <ProductIdListSelector
               productIds={freeVariantIds ?? []}
+              metaById={selectionMetaById}
               emptyText="Choose the variants that should become free."
               itemLabel="Variant"
               addLabel="Add free variant"
@@ -582,11 +643,13 @@ export function PromoRuleForm({
 
 function ProductIdSelector({
   productId,
+  meta,
   emptyText,
   onPick,
   onClear,
 }: {
   productId?: string;
+  meta?: SelectedProductMeta;
   emptyText: string;
   onPick: () => void;
   onClear: () => void;
@@ -595,10 +658,11 @@ function ProductIdSelector({
     <div className="product-id-selector">
       {productId ? (
         <div className="product-id-card">
-          <div>
-            <strong>Product {getGidTail(productId)}</strong>
-            <span className="mono">{productId}</span>
-          </div>
+          <SelectionSummary
+            id={productId}
+            itemLabel="Product"
+            meta={meta}
+          />
 
           <div className="btn-row btn-row--end">
             <button type="button" onClick={onPick} className="btn btn--small">
@@ -628,6 +692,7 @@ function ProductIdSelector({
 
 function ProductIdListSelector({
   productIds,
+  metaById,
   emptyText,
   itemLabel = "Product",
   addLabel = "Add target product",
@@ -635,6 +700,7 @@ function ProductIdListSelector({
   onRemove,
 }: {
   productIds: string[];
+  metaById?: Record<string, SelectedProductMeta>;
   emptyText: string;
   itemLabel?: string;
   addLabel?: string;
@@ -655,12 +721,11 @@ function ProductIdListSelector({
         <div className="product-id-list">
           {productIds.map((productId) => (
             <div key={productId} className="product-id-chip">
-              <span>
-                <strong>
-                  {itemLabel} {getGidTail(productId)}
-                </strong>
-                <span className="mono">{productId}</span>
-              </span>
+              <SelectionSummary
+                id={productId}
+                itemLabel={itemLabel}
+                meta={metaById?.[productId]}
+              />
 
               <button
                 type="button"
@@ -673,6 +738,46 @@ function ProductIdListSelector({
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+function SelectionSummary({
+  id,
+  itemLabel,
+  meta,
+}: {
+  id: string;
+  itemLabel: string;
+  meta?: SelectedProductMeta;
+}) {
+  const title = meta?.productTitle ?? `${itemLabel} ${getGidTail(id)}`;
+  const variantTitle = meta?.variantTitle;
+  const imageAlt = meta?.imageAlt || meta?.productTitle || title;
+
+  return (
+    <div className="selection-summary">
+      <div className="selection-summary__media">
+        {meta?.imageUrl ? (
+          <img src={meta.imageUrl} alt={imageAlt} loading="lazy" />
+        ) : (
+          <span>{title.slice(0, 2).toUpperCase()}</span>
+        )}
+      </div>
+
+      <div className="selection-summary__body">
+        <strong>{title}</strong>
+        <div className="selection-summary__badges">
+          <span>{itemLabel} ID {getGidTail(id)}</span>
+          {meta?.productId && id !== meta.productId && (
+            <span>Product ID {getGidTail(meta.productId)}</span>
+          )}
+          {variantTitle && <span>Variant {variantTitle}</span>}
+          {meta?.variantId && <span>Variant ID {getGidTail(meta.variantId)}</span>}
+          {meta?.sku && <span>SKU {meta.sku}</span>}
+        </div>
+        <span className="mono">{id}</span>
+      </div>
     </div>
   );
 }

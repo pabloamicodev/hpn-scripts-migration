@@ -92,17 +92,6 @@ function normalizeDefaultValues(defaultValues?: HpnPromoRule): PromoRuleFormValu
   };
 }
 
-function toMultilineValue(values?: string[]) {
-  return values?.join("\n") ?? "";
-}
-
-function fromMultilineValue(value: string) {
-  return value
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean);
-}
-
 function getGidTail(gid: string) {
   return gid.split("/").pop() ?? gid;
 }
@@ -173,7 +162,14 @@ export function PromoRuleForm({
 }: PromoRuleFormProps) {
   const [schemaError, setSchemaError] = useState<string | null>(null);
   const [productPickerMode, setProductPickerMode] = useState<
-    "trigger" | "target" | null
+    | "crossSellTriggerProduct"
+    | "crossSellTargetProduct"
+    | "requiredVariant"
+    | "freeVariant"
+    | "bundleTriggerProduct"
+    | "bundleRequiredVariant"
+    | "bundleFreeVariant"
+    | null
   >(null);
 
   const {
@@ -213,15 +209,18 @@ export function PromoRuleForm({
     onSubmit(parsedRule.data);
   }
 
-  function handleCrossSellProductSelect(selection: ProductPickerSelection) {
-    if (productPickerMode === "trigger") {
+  function handlePickerSelect(selection: ProductPickerSelection) {
+    if (
+      productPickerMode === "crossSellTriggerProduct" ||
+      productPickerMode === "bundleTriggerProduct"
+    ) {
       setValue("triggerProductId", selection.productId, {
         shouldDirty: true,
         shouldValidate: false,
       });
     }
 
-    if (productPickerMode === "target") {
+    if (productPickerMode === "crossSellTargetProduct") {
       const currentIds = targetProductIds ?? [];
 
       if (!currentIds.includes(selection.productId)) {
@@ -232,18 +231,47 @@ export function PromoRuleForm({
       }
     }
 
+    if (
+      productPickerMode === "requiredVariant" ||
+      productPickerMode === "bundleRequiredVariant"
+    ) {
+      const currentIds = requiredVariantIds ?? [];
+
+      if (!currentIds.includes(selection.variantId)) {
+        setValue("requiredVariantIds", [...currentIds, selection.variantId], {
+          shouldDirty: true,
+          shouldValidate: false,
+        });
+      }
+    }
+
+    if (
+      productPickerMode === "freeVariant" ||
+      productPickerMode === "bundleFreeVariant"
+    ) {
+      const currentIds = freeVariantIds ?? [];
+
+      if (!currentIds.includes(selection.variantId)) {
+        setValue("freeVariantIds", [...currentIds, selection.variantId], {
+          shouldDirty: true,
+          shouldValidate: false,
+        });
+      }
+    }
+
     setProductPickerMode(null);
   }
 
-  function removeTargetProductId(productId: string) {
-    setValue(
-      "targetProductIds",
-      (targetProductIds ?? []).filter((id) => id !== productId),
-      {
-        shouldDirty: true,
-        shouldValidate: false,
-      },
-    );
+  function removeListValue(
+    fieldName: "targetProductIds" | "requiredVariantIds" | "freeVariantIds",
+    value: string,
+  ) {
+    const values = watch(fieldName) ?? [];
+
+    setValue(fieldName, values.filter((id) => id !== value), {
+      shouldDirty: true,
+      shouldValidate: false,
+    });
   }
 
   return (
@@ -339,7 +367,7 @@ export function PromoRuleForm({
             <ProductIdSelector
               productId={triggerProductId}
               emptyText="Choose the product that unlocks the cross-sell."
-              onPick={() => setProductPickerMode("trigger")}
+              onPick={() => setProductPickerMode("crossSellTriggerProduct")}
               onClear={() =>
                 setValue("triggerProductId", "", {
                   shouldDirty: true,
@@ -355,8 +383,11 @@ export function PromoRuleForm({
             <ProductIdListSelector
               productIds={targetProductIds ?? []}
               emptyText="Choose one or more products that receive the discount."
-              onPick={() => setProductPickerMode("target")}
-              onRemove={removeTargetProductId}
+              itemLabel="Product"
+              onPick={() => setProductPickerMode("crossSellTargetProduct")}
+              onRemove={(productId) =>
+                removeListValue("targetProductIds", productId)
+              }
             />
           </div>
 
@@ -405,54 +436,32 @@ export function PromoRuleForm({
         <section className="form-section">
           <h2 className="form-section__title">Variant bundle configuration</h2>
           <div className="form-group">
-            <label
-              htmlFor="requiredVariantIds"
-              className="form-label"
-            >
-              Required Variant GIDs one per line
-            </label>
+            <span className="form-label">Required variants</span>
 
-            <textarea
-              id="requiredVariantIds"
-              value={toMultilineValue(requiredVariantIds)}
-              onChange={(event) =>
-                setValue(
-                  "requiredVariantIds",
-                  fromMultilineValue(event.target.value),
-                  {
-                    shouldDirty: true,
-                    shouldValidate: false,
-                  },
-                )
+            <ProductIdListSelector
+              productIds={requiredVariantIds ?? []}
+              emptyText="Choose the variants that must be in the cart."
+              itemLabel="Variant"
+              addLabel="Add required variant"
+              onPick={() => setProductPickerMode("requiredVariant")}
+              onRemove={(variantId) =>
+                removeListValue("requiredVariantIds", variantId)
               }
-              rows={3}
-              placeholder="gid://shopify/ProductVariant/..."
             />
           </div>
 
           <div className="form-group">
-            <label
-              htmlFor="freeVariantIds"
-              className="form-label"
-            >
-              Free Variant GIDs one per line
-            </label>
+            <span className="form-label">Free variants</span>
 
-            <textarea
-              id="freeVariantIds"
-              value={toMultilineValue(freeVariantIds)}
-              onChange={(event) =>
-                setValue(
-                  "freeVariantIds",
-                  fromMultilineValue(event.target.value),
-                  {
-                    shouldDirty: true,
-                    shouldValidate: false,
-                  },
-                )
+            <ProductIdListSelector
+              productIds={freeVariantIds ?? []}
+              emptyText="Choose the variants that should become free."
+              itemLabel="Variant"
+              addLabel="Add free variant"
+              onPick={() => setProductPickerMode("freeVariant")}
+              onRemove={(variantId) =>
+                removeListValue("freeVariantIds", variantId)
               }
-              rows={3}
-              placeholder="gid://shopify/ProductVariant/..."
             />
           </div>
 
@@ -492,70 +501,48 @@ export function PromoRuleForm({
         <section className="form-section">
           <h2 className="form-section__title">Product bundle configuration</h2>
           <div className="form-group">
-            <label
-              htmlFor="requiredProductTriggerId"
-              className="form-label"
-            >
-              Trigger Product GID
-            </label>
+            <span className="form-label">Trigger product</span>
 
-            <input
-              type="text"
-              id="requiredProductTriggerId"
-              {...register("triggerProductId")}
-              placeholder="gid://shopify/Product/..."
+            <ProductIdSelector
+              productId={triggerProductId}
+              emptyText="Choose the product that unlocks the bundle."
+              onPick={() => setProductPickerMode("bundleTriggerProduct")}
+              onClear={() =>
+                setValue("triggerProductId", "", {
+                  shouldDirty: true,
+                  shouldValidate: false,
+                })
+              }
             />
           </div>
 
           <div className="form-group">
-            <label
-              htmlFor="requiredProductVariantIds"
-              className="form-label"
-            >
-              Required Variant GIDs one per line
-            </label>
+            <span className="form-label">Required variants</span>
 
-            <textarea
-              id="requiredProductVariantIds"
-              value={toMultilineValue(requiredVariantIds)}
-              onChange={(event) =>
-                setValue(
-                  "requiredVariantIds",
-                  fromMultilineValue(event.target.value),
-                  {
-                    shouldDirty: true,
-                    shouldValidate: false,
-                  },
-                )
+            <ProductIdListSelector
+              productIds={requiredVariantIds ?? []}
+              emptyText="Choose the variants that must be in the cart."
+              itemLabel="Variant"
+              addLabel="Add required variant"
+              onPick={() => setProductPickerMode("bundleRequiredVariant")}
+              onRemove={(variantId) =>
+                removeListValue("requiredVariantIds", variantId)
               }
-              rows={3}
-              placeholder="gid://shopify/ProductVariant/..."
             />
           </div>
 
           <div className="form-group">
-            <label
-              htmlFor="requiredProductFreeVariantIds"
-              className="form-label"
-            >
-              Free Variant GIDs one per line
-            </label>
+            <span className="form-label">Free variants</span>
 
-            <textarea
-              id="requiredProductFreeVariantIds"
-              value={toMultilineValue(freeVariantIds)}
-              onChange={(event) =>
-                setValue(
-                  "freeVariantIds",
-                  fromMultilineValue(event.target.value),
-                  {
-                    shouldDirty: true,
-                    shouldValidate: false,
-                  },
-                )
+            <ProductIdListSelector
+              productIds={freeVariantIds ?? []}
+              emptyText="Choose the variants that should become free."
+              itemLabel="Variant"
+              addLabel="Add free variant"
+              onPick={() => setProductPickerMode("bundleFreeVariant")}
+              onRemove={(variantId) =>
+                removeListValue("freeVariantIds", variantId)
               }
-              rows={3}
-              placeholder="gid://shopify/ProductVariant/..."
             />
           </div>
 
@@ -585,7 +572,7 @@ export function PromoRuleForm({
 
       {productPickerMode && (
         <ProductPicker
-          onSelect={handleCrossSellProductSelect}
+          onSelect={handlePickerSelect}
           onClose={() => setProductPickerMode(null)}
         />
       )}
@@ -642,11 +629,15 @@ function ProductIdSelector({
 function ProductIdListSelector({
   productIds,
   emptyText,
+  itemLabel = "Product",
+  addLabel = "Add target product",
   onPick,
   onRemove,
 }: {
   productIds: string[];
   emptyText: string;
+  itemLabel?: string;
+  addLabel?: string;
   onPick: () => void;
   onRemove: (productId: string) => void;
 }) {
@@ -655,7 +646,7 @@ function ProductIdListSelector({
       <button type="button" onClick={onPick} className="product-picker-trigger">
         <span className="product-picker-trigger__icon">+</span>
         <span>
-          <strong>Add target product</strong>
+          <strong>{addLabel}</strong>
           <span>{emptyText}</span>
         </span>
       </button>
@@ -665,7 +656,9 @@ function ProductIdListSelector({
           {productIds.map((productId) => (
             <div key={productId} className="product-id-chip">
               <span>
-                <strong>Product {getGidTail(productId)}</strong>
+                <strong>
+                  {itemLabel} {getGidTail(productId)}
+                </strong>
                 <span className="mono">{productId}</span>
               </span>
 

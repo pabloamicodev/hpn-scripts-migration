@@ -1,21 +1,27 @@
-import { Outlet, useRouteError } from "react-router";
+import { Outlet, useLoaderData, useRouteError } from "react-router";
 import type { LoaderFunctionArgs } from "react-router";
+import { AppProvider } from "@shopify/shopify-app-react-router/react";
 import { authenticate } from "~/shopify.server";
 import { AppNav } from "~/components/AppNav";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   await authenticate.admin(request);
-  return null;
+
+  return {
+    apiKey: process.env.SHOPIFY_API_KEY!,
+  };
 }
 
 export default function AppLayout() {
+  const { apiKey } = useLoaderData<typeof loader>();
+
   return (
-    <>
+    <AppProvider embedded apiKey={apiKey}>
       <AppNav />
       <main style={{ padding: "1.5rem 2rem", maxWidth: "1200px" }}>
         <Outlet />
       </main>
-    </>
+    </AppProvider>
   );
 }
 

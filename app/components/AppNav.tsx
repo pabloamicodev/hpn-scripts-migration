@@ -1,7 +1,7 @@
 import { useLocation } from "react-router";
 
 const links = [
-  { href: "/app", label: "Home" },
+  { href: "/app", label: "Home", rel: "home" },
   { href: "/app/promos", label: "Promos" },
   { href: "/app/discount", label: "Discount" },
   { href: "/app/graphql", label: "GraphQL" },
@@ -17,6 +17,7 @@ export function AppNav() {
         <s-link
           key={link.href}
           href={link.href}
+          rel={link.rel}
           aria-current={location.pathname === link.href ? "page" : undefined}
         >
           {link.label}

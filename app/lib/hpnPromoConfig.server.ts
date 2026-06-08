@@ -23,11 +23,9 @@ export async function loadActiveDiscount(
 ): Promise<LoadedDiscount> {
   const nodes = await searchDiscounts(graphqlProxy, DISCOUNT_TITLE);
 
-  const active = nodes.find(
-    (n: any) => n.automaticDiscount?.status === "ACTIVE"
-  ) ?? nodes[0];
+  const active = nodes.find((node) => node.status === "ACTIVE") ?? nodes[0];
 
-  if (!active?.automaticDiscount) {
+  if (!active) {
     return {
       discountId: null,
       config: defaultHpnPromoConfig,
@@ -37,12 +35,11 @@ export async function loadActiveDiscount(
     };
   }
 
-  const d = active.automaticDiscount;
   let config = defaultHpnPromoConfig;
 
-  if (d.metafield?.value) {
+  if (active.configMetafield) {
     try {
-      const parsed = hpnPromoConfigSchema.safeParse(JSON.parse(d.metafield.value));
+      const parsed = hpnPromoConfigSchema.safeParse(JSON.parse(active.configMetafield));
       if (parsed.success) config = parsed.data;
     } catch {
       // fall back to defaults
@@ -50,11 +47,16 @@ export async function loadActiveDiscount(
   }
 
   return {
-    discountId: d.discountId ?? null,
+    discountId: active.discountId ?? null,
     config,
-    status: d.status ?? null,
-    title: d.title ?? null,
-    startsAt: d.startsAt ?? null,
+    status:
+      active.status === "ACTIVE" ||
+      active.status === "EXPIRED" ||
+      active.status === "SCHEDULED"
+        ? active.status
+        : null,
+    title: active.title ?? null,
+    startsAt: active.startsAt ?? null,
   };
 }
 

@@ -8,6 +8,7 @@ export default [
     route("promos/new", "routes/app.promos.new.tsx"),
     route("promos/:id", "routes/app.promos.$id.tsx"),
     route("discount", "routes/app.discount.tsx"),
+    route("graphql/execute", "routes/app.graphql.execute.tsx"),
     route("graphql", "routes/app.graphql.tsx"),
     route("settings", "routes/app.settings.tsx"),
   ]),

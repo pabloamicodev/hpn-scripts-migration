@@ -34,18 +34,27 @@ export function GraphqlConsole() {
         return;
       }
 
-      const response = await fetch("/app/graphql", {
+      const response = await fetch("/app/graphql/execute", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ query, variables: parsedVariables }),
       });
 
-      if (!response.ok) {
-        const errData = await response.json().catch(() => null);
-        throw new Error(errData?.error || `HTTP ${response.status}`);
+      const contentType = response.headers.get("content-type") ?? "";
+      if (!contentType.includes("application/json")) {
+        throw new Error(
+          "The GraphQL proxy returned HTML instead of JSON. Refresh the app and try again.",
+        );
       }
 
       const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data?.errors?.[0]?.message || data?.error || `HTTP ${response.status}`,
+        );
+      }
+
       setResult(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : "GraphQL execution failed");

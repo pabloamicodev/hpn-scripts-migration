@@ -77,13 +77,14 @@ const DELETE_DISCOUNT_MUTATION = `
 
 const SEARCH_DISCOUNTS_QUERY = `
   query SearchDiscounts($query: String!) {
-    automaticDiscountNodes(first: 10, query: $query) {
-      nodes {
+    discountNodes(first: 10, query: $query) {
+      edges {
+        node {
         id
         metafield(namespace: "hpn_scripts", key: "function_configuration") {
           value
         }
-        automaticDiscount {
+        discount {
           __typename
 
           ... on DiscountAutomaticApp {
@@ -111,6 +112,7 @@ const SEARCH_DISCOUNTS_QUERY = `
             startsAt
           }
         }
+      }
       }
     }
   }
@@ -155,7 +157,7 @@ interface SearchDiscountNode {
   metafield?: {
     value: string;
   } | null;
-  automaticDiscount:
+  discount:
     | {
         __typename: "DiscountAutomaticApp";
         discountId: string;
@@ -295,15 +297,19 @@ export async function searchDiscounts(
   graphqlProxy: GraphQLProxy,
   query: string
 ): Promise<SearchDiscountResult[]> {
-  const result = await graphqlProxy(SEARCH_DISCOUNTS_QUERY, { query });
+  const escapedQuery = query.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+  const result = await graphqlProxy(SEARCH_DISCOUNTS_QUERY, {
+    query: `title:'${escapedQuery}'`,
+  });
 
   const nodes: SearchDiscountNode[] =
-    result.data?.automaticDiscountNodes?.nodes ?? [];
+    result.data?.discountNodes?.edges?.map((edge: { node: SearchDiscountNode }) => edge.node) ??
+    [];
 
   const discounts: SearchDiscountResult[] = [];
 
   for (const node of nodes) {
-    const discount = node.automaticDiscount;
+    const discount = node.discount;
 
     if (!discount) {
       continue;

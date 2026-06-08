@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 
 import {
@@ -13,6 +13,7 @@ import {
 type PromoRuleType = HpnPromoRule["type"];
 
 interface SelectedProductMeta {
+  id?: string;
   productId: string;
   productTitle: string;
   productHandle: string;
@@ -205,6 +206,70 @@ export function PromoRuleForm({
   const requiredVariantIds = watch("requiredVariantIds");
   const freeVariantIds = watch("freeVariantIds");
   const freeQuantityPerLine = watch("freeQuantityPerLine");
+  const selectedIds = useMemo(() => {
+    return Array.from(
+      new Set(
+        [
+          triggerProductId,
+          ...(targetProductIds ?? []),
+          ...(requiredVariantIds ?? []),
+          ...(freeVariantIds ?? []),
+        ].filter((id): id is string => Boolean(id)),
+      ),
+    );
+  }, [freeVariantIds, requiredVariantIds, targetProductIds, triggerProductId]);
+  const selectedIdsKey = selectedIds.join("|");
+
+  useEffect(() => {
+    const idsToLoad = selectedIds.filter((id) => !selectionMetaById[id]);
+
+    if (idsToLoad.length === 0) return;
+
+    const controller = new AbortController();
+
+    async function loadSelectionMeta() {
+      try {
+        const response = await fetch(
+          `/app/api/products?ids=${encodeURIComponent(idsToLoad.join(","))}`,
+          { signal: controller.signal },
+        );
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data?.error || "Product lookup failed.");
+        }
+
+        const nextMeta = (data.selections ?? []).reduce(
+          (
+            acc: Record<string, SelectedProductMeta>,
+            selection: SelectedProductMeta,
+          ) => {
+            if (selection.id) {
+              acc[selection.id] = selection;
+            }
+
+            return acc;
+          },
+          {},
+        );
+
+        if (Object.keys(nextMeta).length > 0) {
+          setSelectionMetaById((current) => ({
+            ...current,
+            ...nextMeta,
+          }));
+        }
+      } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") return;
+      }
+    }
+
+    loadSelectionMeta();
+
+    return () => {
+      controller.abort();
+    };
+  }, [selectedIdsKey, selectionMetaById, selectedIds]);
 
   function handleRuleTypeChange(nextType: PromoRuleType) {
     reset(DEFAULT_RULES[nextType]);

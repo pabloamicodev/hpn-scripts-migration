@@ -84,6 +84,7 @@ const GET_VARIANT_BY_ID_QUERY = `
         id
         title
         handle
+        vendor
         featuredImage {
           url
           altText
@@ -124,6 +125,7 @@ export interface ProductVariantWithProductNode extends ProductVariantNode {
     id: string;
     title: string;
     handle: string;
+    vendor?: string | null;
     featuredImage?: {
       url: string;
       altText?: string | null;

@@ -18,9 +18,11 @@ export default function AppLayout() {
   return (
     <AppProvider embedded apiKey={apiKey}>
       <AppNav />
-      <main style={{ padding: "1.5rem 2rem", maxWidth: "1200px" }}>
-        <Outlet />
-      </main>
+      <div className="app-shell">
+        <main className="app-main">
+          <Outlet />
+        </main>
+      </div>
     </AppProvider>
   );
 }

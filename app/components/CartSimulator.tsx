@@ -226,34 +226,26 @@ export function CartSimulator({ config, activeRuleId }: CartSimulatorProps) {
   }
 
   return (
-    <div className="cart-simulator" style={{ maxWidth: "900px" }}>
-      <h2 style={{ marginBottom: "1rem" }}>
-        {activeRuleId ? `Testing: ${activeRuleId}` : "Cart Simulator"}
-      </h2>
+    <div className="app-page app-page--wide">
+      <header className="page-header">
+        <div>
+          <h2 className="page-title">
+            {activeRuleId ? `Testing: ${activeRuleId}` : "Cart simulator"}
+          </h2>
+          <p className="page-subtitle">
+            Load fixtures or compose cart lines to test rule evaluation.
+          </p>
+        </div>
+      </header>
 
-      <section
-        style={{
-          backgroundColor: "#f9fafb",
-          padding: "1rem",
-          borderRadius: "0.5rem",
-          marginBottom: "1.5rem",
-          border: "1px solid #e5e7eb",
-        }}
-      >
-        <h4 style={{ marginBottom: "0.75rem" }}>Add Item to Cart</h4>
+      <section className="form-section">
+        <h3 className="form-section__title">Add item to cart</h3>
 
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr auto auto",
-            gap: "0.5rem",
-            alignItems: "end",
-          }}
-        >
-          <div>
+        <div className="simulator-grid">
+          <div className="form-group">
             <label
               htmlFor="cart-simulator-product-id"
-              style={{ display: "block", fontSize: "0.8rem", fontWeight: 600 }}
+              className="form-label"
             >
               Product GID
             </label>
@@ -264,19 +256,13 @@ export function CartSimulator({ config, activeRuleId }: CartSimulatorProps) {
               value={newProductId}
               onChange={(event) => setNewProductId(event.target.value)}
               placeholder="gid://shopify/Product/..."
-              style={{
-                width: "100%",
-                padding: "0.375rem",
-                border: "1px solid #d1d5db",
-                borderRadius: "0.25rem",
-              }}
             />
           </div>
 
-          <div>
+          <div className="form-group">
             <label
               htmlFor="cart-simulator-variant-id"
-              style={{ display: "block", fontSize: "0.8rem", fontWeight: 600 }}
+              className="form-label"
             >
               Variant GID
             </label>
@@ -287,19 +273,13 @@ export function CartSimulator({ config, activeRuleId }: CartSimulatorProps) {
               value={newVariantId}
               onChange={(event) => setNewVariantId(event.target.value)}
               placeholder="gid://shopify/ProductVariant/..."
-              style={{
-                width: "100%",
-                padding: "0.375rem",
-                border: "1px solid #d1d5db",
-                borderRadius: "0.25rem",
-              }}
             />
           </div>
 
-          <div>
+          <div className="form-group">
             <label
               htmlFor="cart-simulator-quantity"
-              style={{ display: "block", fontSize: "0.8rem", fontWeight: 600 }}
+              className="form-label"
             >
               Qty
             </label>
@@ -312,12 +292,6 @@ export function CartSimulator({ config, activeRuleId }: CartSimulatorProps) {
               onChange={(event) => {
                 setNewQuantity(Number.parseInt(event.target.value, 10) || 1);
               }}
-              style={{
-                width: "70px",
-                padding: "0.375rem",
-                border: "1px solid #d1d5db",
-                borderRadius: "0.25rem",
-              }}
             />
           </div>
 
@@ -325,30 +299,24 @@ export function CartSimulator({ config, activeRuleId }: CartSimulatorProps) {
             type="button"
             onClick={addCartLine}
             className="btn btn--primary"
-            style={{ padding: "0.375rem 1rem", height: "fit-content" }}
           >
             Add
           </button>
         </div>
       </section>
 
-      <section style={{ marginBottom: "1rem" }}>
+      <section className="form-section">
         <label
           htmlFor="cart-simulator-fixture"
-          style={{ fontSize: "0.8rem", fontWeight: 600, marginRight: "0.5rem" }}
+          className="form-label"
         >
-          Load Fixture:
+          Load fixture
         </label>
 
         <select
           id="cart-simulator-fixture"
           onChange={(event) => loadFixture(event.target.value)}
           defaultValue=""
-          style={{
-            padding: "0.375rem",
-            border: "1px solid #d1d5db",
-            borderRadius: "0.25rem",
-          }}
         >
           <option value="" disabled>
             Select a fixture...
@@ -371,64 +339,46 @@ export function CartSimulator({ config, activeRuleId }: CartSimulatorProps) {
         </select>
       </section>
 
-      <table
-        style={{
-          width: "100%",
-          borderCollapse: "collapse",
-          marginBottom: "1.5rem",
-        }}
-      >
+      <div className="table-wrap">
+      <table className="data-table">
         <thead>
-          <tr style={{ borderBottom: "2px solid #e5e7eb", textAlign: "left" }}>
-            <th style={{ padding: "0.5rem" }}>Line ID</th>
-            <th style={{ padding: "0.5rem" }}>Product GID</th>
-            <th style={{ padding: "0.5rem" }}>Variant GID</th>
-            <th style={{ padding: "0.5rem" }}>Quantity</th>
-            <th style={{ padding: "0.5rem" }}>Actions</th>
+          <tr>
+            <th>Line ID</th>
+            <th>Product GID</th>
+            <th>Variant GID</th>
+            <th>Quantity</th>
+            <th>Actions</th>
           </tr>
         </thead>
 
         <tbody>
           {cartLines.map((line) => (
-            <tr key={line.id} style={{ borderBottom: "1px solid #e5e7eb" }}>
-              <td style={{ padding: "0.5rem", fontSize: "0.8rem" }}>
+            <tr key={line.id}>
+              <td className="cell-muted">
                 {line.id}
               </td>
 
               <td
                 title={line.merchandise.product.id}
-                style={{
-                  padding: "0.5rem",
-                  fontSize: "0.8rem",
-                  maxWidth: "200px",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                }}
+                className="cell-muted truncate"
               >
                 {getGidTail(line.merchandise.product.id)}
               </td>
 
               <td
                 title={line.merchandise.id}
-                style={{
-                  padding: "0.5rem",
-                  fontSize: "0.8rem",
-                  maxWidth: "200px",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                }}
+                className="cell-muted truncate"
               >
                 {getGidTail(line.merchandise.id)}
               </td>
 
-              <td style={{ padding: "0.5rem" }}>{line.quantity}</td>
+              <td>{line.quantity}</td>
 
-              <td style={{ padding: "0.5rem" }}>
+              <td>
                 <button
                   type="button"
                   onClick={() => removeCartLine(line.id)}
                   className="btn btn--small btn--danger"
-                  style={{ padding: "0.25rem 0.5rem", fontSize: "0.75rem" }}
                 >
                   Remove
                 </button>
@@ -440,11 +390,8 @@ export function CartSimulator({ config, activeRuleId }: CartSimulatorProps) {
             <tr>
               <td
                 colSpan={5}
-                style={{
-                  padding: "2rem",
-                  textAlign: "center",
-                  color: "#9ca3af",
-                }}
+                className="muted"
+                style={{ padding: "32px", textAlign: "center" }}
               >
                 No items in cart. Add products or load a fixture.
               </td>
@@ -452,52 +399,37 @@ export function CartSimulator({ config, activeRuleId }: CartSimulatorProps) {
           )}
         </tbody>
       </table>
+      </div>
 
       {cartLines.length > 0 && (
         <button
           type="button"
           onClick={clearCart}
-          className="btn btn--secondary"
-          style={{ marginBottom: "1.5rem" }}
+          className="btn"
+          style={{ justifySelf: "start" }}
         >
           Clear Cart
         </button>
       )}
 
       {results.length > 0 && (
-        <section
-          style={{
-            backgroundColor: "#f0fdf4",
-            padding: "1rem",
-            borderRadius: "0.5rem",
-            border: "1px solid #22c55e",
-            marginBottom: "1.5rem",
-          }}
-        >
-          <h4 style={{ color: "#166534", marginBottom: "0.75rem" }}>
+        <section className="alert alert--success">
+          <h3 className="form-section__title" style={{ marginBottom: "10px" }}>
             Discounts Applied ({results.length})
-          </h4>
+          </h3>
 
           {results.map((action: { variantId: string; percentageOff: string | number | bigint | boolean | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | ReactPortal | Promise<string | number | bigint | boolean | ReactPortal | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | null | undefined> | null | undefined; discountedQuantity: string | number | bigint | boolean | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | ReactPortal | Promise<string | number | bigint | boolean | ReactPortal | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | null | undefined> | null | undefined; message: string | number | bigint | boolean | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | ReactPortal | Promise<string | number | bigint | boolean | ReactPortal | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | null | undefined> | null | undefined; }, index: any) => (
             <div
               key={`${action.variantId}-${index}`}
-              style={{
-                padding: "0.5rem",
-                backgroundColor: "#fff",
-                borderRadius: "0.25rem",
-                marginBottom: "0.5rem",
-                border: "1px solid #dcfce7",
-              }}
+              className="card"
+              style={{ padding: "10px", marginTop: "8px" }}
             >
               <strong>{action.percentageOff}% Off</strong> on{" "}
               {getGidTail(action.variantId)}
 
               <span
-                style={{
-                  display: "block",
-                  fontSize: "0.8rem",
-                  color: "#6b7280",
-                }}
+                className="cell-muted"
+                style={{ display: "block" }}
               >
                 Qty discounted: {action.discountedQuantity} | {action.message}
               </span>
@@ -507,20 +439,12 @@ export function CartSimulator({ config, activeRuleId }: CartSimulatorProps) {
       )}
 
       {cartLines.length > 0 && results.length === 0 && (
-        <section
-          style={{
-            backgroundColor: "#fef2f2",
-            padding: "1rem",
-            borderRadius: "0.5rem",
-            border: "1px solid #ef4444",
-            marginBottom: "1.5rem",
-          }}
-        >
-          <p style={{ color: "#991b1b", fontWeight: 600 }}>
+        <section className="alert alert--critical">
+          <p style={{ margin: 0, fontWeight: 650 }}>
             No discounts applied
           </p>
 
-          <p style={{ color: "#7f1d1d", fontSize: "0.85rem" }}>
+          <p style={{ margin: "4px 0 0" }}>
             The current cart configuration does not trigger any discounts for
             the active rules.
           </p>
@@ -528,12 +452,11 @@ export function CartSimulator({ config, activeRuleId }: CartSimulatorProps) {
       )}
 
       {cartLines.length > 0 && (
-        <div style={{ marginTop: "1rem" }}>
+        <div>
           <button
             type="button"
             onClick={copyFixtureJson}
-            className="btn btn--secondary"
-            style={{ fontSize: "0.8rem" }}
+            className="btn"
           >
             Copy Fixture JSON
           </button>

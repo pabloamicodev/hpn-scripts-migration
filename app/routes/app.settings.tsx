@@ -70,54 +70,48 @@ export default function SettingsPage() {
     fetcher.data && "ok" in fetcher.data ? fetcher.data.ok : false;
 
   return (
-    <div style={{ maxWidth: "720px" }}>
-      <h1 style={{ fontSize: "1.5rem", fontWeight: 700, marginBottom: "1.5rem" }}>
-        Settings
-      </h1>
+    <div className="app-page app-page--narrow">
+      <header className="page-header">
+        <div>
+          <h1 className="page-title">Settings</h1>
+          <p className="page-subtitle">
+            Review app environment status and discount combination behavior.
+          </p>
+        </div>
+      </header>
 
-      <section
-        style={{
-          padding: "1.25rem",
-          backgroundColor: "#f9fafb",
-          border: "1px solid #e5e7eb",
-          borderRadius: "0.5rem",
-          marginBottom: "1.5rem",
-        }}
-      >
-        <h2 style={{ fontSize: "1rem", fontWeight: 600, marginBottom: "0.75rem" }}>
+      <section className="card">
+        <div className="card__body">
+        <h2 className="card__title" style={{ marginBottom: "14px" }}>
           Environment
         </h2>
-        <dl style={{ display: "grid", gridTemplateColumns: "max-content 1fr", gap: "0.5rem 1rem", fontSize: "0.875rem" }}>
-          <dt style={{ fontWeight: 600, color: "#6b7280" }}>Function ID</dt>
-          <dd style={{ margin: 0 }}>
+        <dl className="definition-list">
+          <dt>Function ID</dt>
+          <dd>
             {functionId ? (
-              <code style={{ color: "#166534" }}>{functionId}</code>
+              <code>{functionId}</code>
             ) : (
-              <span style={{ color: "#dc2626" }}>Not set — deploy function first</span>
+              <span className="status-badge status-badge--error">
+                Not set
+              </span>
             )}
           </dd>
 
-          <dt style={{ fontWeight: 600, color: "#6b7280" }}>GraphQL Console</dt>
-          <dd style={{ margin: 0 }}>
+          <dt>GraphQL Console</dt>
+          <dd>
             <code>{graphqlConsoleEnabled ? "Enabled" : "Disabled"}</code>
           </dd>
         </dl>
+        </div>
       </section>
 
-      <section
-        style={{
-          padding: "1.25rem",
-          backgroundColor: "#f9fafb",
-          border: "1px solid #e5e7eb",
-          borderRadius: "0.5rem",
-          marginBottom: "1.5rem",
-        }}
-      >
-        <h2 style={{ fontSize: "1rem", fontWeight: 600, marginBottom: "0.75rem" }}>
-          Combines With
+      <section className="card">
+        <div className="card__body">
+        <h2 className="card__title" style={{ marginBottom: "14px" }}>
+          Combines with
         </h2>
         {!discountId ? (
-          <p style={{ color: "#6b7280", fontSize: "0.875rem" }}>
+          <p className="muted" style={{ margin: 0 }}>
             No active discount to configure.
           </p>
         ) : (
@@ -128,13 +122,7 @@ export default function SettingsPage() {
               (key) => (
                 <label
                   key={key}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "0.5rem",
-                    marginBottom: "0.5rem",
-                    fontSize: "0.875rem",
-                  }}
+                  className="checkbox-row"
                 >
                   <input
                     type="hidden"
@@ -157,12 +145,12 @@ export default function SettingsPage() {
             )}
 
             {actionError && (
-              <p style={{ color: "#dc2626", fontSize: "0.875rem", marginTop: "0.5rem" }}>
+              <p className="alert alert--critical" style={{ marginTop: "12px" }}>
                 {actionError}
               </p>
             )}
             {actionOk && (
-              <p style={{ color: "#16a34a", fontSize: "0.875rem", marginTop: "0.5rem" }}>
+              <p className="alert alert--success" style={{ marginTop: "12px" }}>
                 Saved.
               </p>
             )}
@@ -170,28 +158,17 @@ export default function SettingsPage() {
             <button
               type="submit"
               disabled={fetcher.state !== "idle"}
-              style={{
-                marginTop: "1rem",
-                padding: "0.5rem 1.25rem",
-                backgroundColor: "#0f172a",
-                color: "#fff",
-                border: "none",
-                borderRadius: "0.375rem",
-                cursor: "pointer",
-                fontWeight: 600,
-                fontSize: "0.875rem",
-              }}
+              className="btn btn--primary"
+              style={{ marginTop: "12px" }}
             >
               {fetcher.state !== "idle" ? "Saving..." : "Save"}
             </button>
           </fetcher.Form>
         )}
+        </div>
       </section>
 
       <section>
-        <h2 style={{ fontSize: "1rem", fontWeight: 600, marginBottom: "0.75rem" }}>
-          Cart Simulator
-        </h2>
         <CartSimulator config={config ?? defaultHpnPromoConfig} />
       </section>
     </div>

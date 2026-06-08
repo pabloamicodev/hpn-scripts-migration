@@ -37,21 +37,23 @@ export default function GraphQLPage() {
 
   if (!enabled) {
     return (
-      <div style={{ padding: "2rem", color: "#6b7280" }}>
+      <div className="alert alert--warning">
         GraphQL console is disabled.
       </div>
     );
   }
 
   return (
-    <div>
-      <h1 style={{ fontSize: "1.5rem", fontWeight: 700, marginBottom: "0.5rem" }}>
-        GraphQL Console
-      </h1>
-      <p style={{ color: "#6b7280", fontSize: "0.875rem", marginBottom: "1.5rem" }}>
-        Internal tool — authenticated Admin GraphQL proxy. Enable with{" "}
-        <code>ENABLE_GRAPHQL_CONSOLE=true</code>.
-      </p>
+    <div className="app-page app-page--wide">
+      <header className="page-header">
+        <div>
+          <h1 className="page-title">GraphQL console</h1>
+          <p className="page-subtitle">
+            Internal authenticated Admin GraphQL proxy. Enable with{" "}
+            <code>ENABLE_GRAPHQL_CONSOLE=true</code>.
+          </p>
+        </div>
+      </header>
       <GraphqlConsole />
     </div>
   );

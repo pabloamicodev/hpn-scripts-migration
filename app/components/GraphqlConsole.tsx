@@ -56,16 +56,15 @@ export function GraphqlConsole() {
   }
 
   return (
-    <div className="graphql-console" style={{ maxWidth: "900px" }}>
-      <div style={{
-        backgroundColor: "#fef3c7", padding: "0.75rem 1rem", borderRadius: "0.375rem",
-        marginBottom: "1rem", border: "1px solid #fde68a",
-      }}>
-        <strong style={{ color: "#92400e" }}>Internal Dev Console</strong> — All queries execute server-side via authenticated proxy.
+    <div className="app-page app-page--wide">
+      <div className="alert alert--warning">
+        <strong>Internal Dev Console</strong> — All queries execute server-side
+        via authenticated proxy.
       </div>
 
-      <div className="form-group" style={{ marginBottom: "1rem" }}>
-        <label htmlFor="gql-query" style={{ display: "block", fontWeight: 600, marginBottom: "0.25rem" }}>
+      <div className="form-section">
+      <div className="form-group">
+        <label htmlFor="gql-query" className="form-label">
           GraphQL Query
         </label>
         <textarea
@@ -74,16 +73,12 @@ export function GraphqlConsole() {
           onChange={(e) => setQuery(e.target.value)}
           rows={10}
           placeholder={`# Example:\nquery SearchProducts($query: String!) {\n  products(first: 10, query: $query) {\n    nodes {\n      id\n      title\n    }\n  }\n}`}
-          style={{
-            width: "100%", padding: "0.75rem", border: "1px solid #d1d5db",
-            borderRadius: "0.375rem", fontFamily: "monospace", fontSize: "0.85rem",
-            resize: "vertical",
-          }}
+          style={{ fontFamily: "ui-monospace, SFMono-Regular, Consolas, monospace" }}
         />
       </div>
 
-      <div className="form-group" style={{ marginBottom: "1rem" }}>
-        <label htmlFor="gql-variables" style={{ display: "block", fontWeight: 600, marginBottom: "0.25rem" }}>
+      <div className="form-group">
+        <label htmlFor="gql-variables" className="form-label">
           Variables (JSON)
         </label>
         <textarea
@@ -92,23 +87,19 @@ export function GraphqlConsole() {
           onChange={(e) => setVariables(e.target.value)}
           rows={4}
           placeholder='{"query": "PA7"}'
-          style={{
-            width: "100%", padding: "0.5rem", border: "1px solid #d1d5db",
-            borderRadius: "0.375rem", fontFamily: "monospace", fontSize: "0.85rem",
-            resize: "vertical",
-          }}
+          style={{ fontFamily: "ui-monospace, SFMono-Regular, Consolas, monospace" }}
         />
       </div>
 
       {isMutation(query) && (
-        <div style={{ marginBottom: "1rem", backgroundColor: "#fef3c7", padding: "0.75rem", borderRadius: "0.375rem" }}>
-          <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer" }}>
+        <div className="alert alert--warning">
+          <label className="checkbox-row">
             <input
               type="checkbox"
               checked={confirmMutation}
               onChange={(e) => setConfirmMutation(e.target.checked)}
             />
-            <span style={{ color: "#92400e", fontWeight: 600 }}>
+            <span>
               I confirm this is a mutation (write operation) and I want to execute it.
             </span>
           </label>
@@ -118,43 +109,28 @@ export function GraphqlConsole() {
       <button
         onClick={executeQuery}
         disabled={loading || !query.trim()}
-        style={{
-          padding: "0.625rem 1.5rem",
-          backgroundColor: loading ? "#9ca3af" : "#0f172a",
-          color: "#fff",
-          border: "none",
-          borderRadius: "0.375rem",
-          cursor: loading ? "not-allowed" : "pointer",
-          fontWeight: 600,
-          marginBottom: "1.5rem",
-        }}
+        className="btn btn--primary"
+        style={{ justifySelf: "start" }}
       >
         {loading ? "Executing..." : "Execute Query"}
       </button>
+      </div>
 
       {error && (
-        <div style={{
-          backgroundColor: "#fef2f2", padding: "1rem", borderRadius: "0.375rem",
-          border: "1px solid #fecaca", marginBottom: "1rem",
-        }}>
-          <strong style={{ color: "#991b1b" }}>Error:</strong>
-          <pre style={{ color: "#7f1d1d", whiteSpace: "pre-wrap", fontSize: "0.85rem", marginTop: "0.5rem" }}>{error}</pre>
+        <div className="alert alert--critical">
+          <strong>Error:</strong>
+          <pre style={{ whiteSpace: "pre-wrap", margin: "8px 0 0" }}>{error}</pre>
         </div>
       )}
 
     {result !== null && (
-        <div style={{
-          backgroundColor: "#f0fdf4", padding: "1rem", borderRadius: "0.375rem",
-          border: "1px solid #bbf7d0",
-        }}>
-          <strong style={{ color: "#166534" }}>Result:</strong>
-          <pre style={{
-            color: "#14532d", whiteSpace: "pre-wrap",
-            fontSize: "0.8rem", marginTop: "0.5rem",
-            maxHeight: "400px", overflow: "auto",
-          }}>
+        <div className="card">
+          <div className="card__body">
+          <strong>Result</strong>
+          <pre className="code-block">
             {JSON.stringify(result, null, 2)}
           </pre>
+          </div>
         </div>
       )}
     </div>

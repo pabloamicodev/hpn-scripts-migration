@@ -30,13 +30,7 @@ export function PromoRulesTable({
 
   if (rules.length === 0) {
     return (
-      <section
-        className="empty-state"
-        style={{
-          textAlign: "center",
-          padding: "3rem 1rem",
-        }}
-      >
+      <section className="card empty-state">
         <h2>No promo rules found</h2>
 
         <p>Create your first promo rule to start migrating legacy discounts.</p>
@@ -45,7 +39,6 @@ export function PromoRulesTable({
           type="button"
           onClick={() => navigate("/app/promos/new")}
           className="btn btn--primary"
-          style={{ marginTop: "1rem" }}
         >
           Create Rule
         </button>
@@ -54,34 +47,18 @@ export function PromoRulesTable({
   }
 
   return (
-    <div
-      className="promo-table-container"
-      style={{
-        overflowX: "auto",
-      }}
-    >
-      <table
-        className="promo-table"
-        style={{
-          width: "100%",
-          borderCollapse: "collapse",
-        }}
-      >
+    <div className="table-wrap">
+      <table className="data-table">
         <thead>
-          <tr
-            style={{
-              borderBottom: "2px solid #e5e7eb",
-              textAlign: "left",
-            }}
-          >
-            <th style={{ padding: "0.75rem" }}>Name</th>
-            <th style={{ padding: "0.75rem" }}>Type</th>
-            <th style={{ padding: "0.75rem" }}>Status</th>
-            <th style={{ padding: "0.75rem" }}>Trigger</th>
-            <th style={{ padding: "0.75rem" }}>Targets</th>
-            <th style={{ padding: "0.75rem" }}>Discount</th>
-            <th style={{ padding: "0.75rem" }}>Message</th>
-            <th style={{ padding: "0.75rem" }}>Actions</th>
+          <tr>
+            <th>Name</th>
+            <th>Type</th>
+            <th>Status</th>
+            <th>Trigger</th>
+            <th>Targets</th>
+            <th>Discount</th>
+            <th>Message</th>
+            <th>Actions</th>
           </tr>
         </thead>
 
@@ -94,88 +71,49 @@ export function PromoRulesTable({
               <tr
                 key={rule.id}
                 style={{
-                  borderBottom: "1px solid #e5e7eb",
                   opacity: rule.enabled ? 1 : 0.55,
                 }}
               >
-                <td
-                  style={{
-                    padding: "0.75rem",
-                    fontWeight: 600,
-                    whiteSpace: "nowrap",
-                  }}
-                >
+                <td className="cell-strong" style={{ whiteSpace: "nowrap" }}>
                   {displayName}
                 </td>
 
-                <td style={{ padding: "0.75rem" }}>
+                <td>
                   {typeLabels[rule.type] ?? "Unknown"}
                 </td>
 
-                <td style={{ padding: "0.75rem" }}>
+                <td>
                   <StatusBadge status={rule.enabled ? "active" : "paused"} />
                 </td>
 
                 <td
                   title={triggerSummary}
-                  style={{
-                    padding: "0.75rem",
-                    fontSize: "0.8rem",
-                    maxWidth: "220px",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                  }}
+                  className="cell-muted truncate"
                 >
                   {triggerSummary}
                 </td>
 
-                <td
-                  style={{
-                    padding: "0.75rem",
-                    fontSize: "0.8rem",
-                    whiteSpace: "nowrap",
-                  }}
-                >
+                <td className="cell-muted" style={{ whiteSpace: "nowrap" }}>
                   {getTargetsCount(rule)} items
                 </td>
 
-                <td
-                  style={{
-                    padding: "0.75rem",
-                    fontWeight: 600,
-                    whiteSpace: "nowrap",
-                  }}
-                >
+                <td className="cell-strong" style={{ whiteSpace: "nowrap" }}>
                   {getDiscountSummary(rule)}
                 </td>
 
                 <td
                   title={rule.message}
-                  style={{
-                    padding: "0.75rem",
-                    fontSize: "0.8rem",
-                    maxWidth: "240px",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                  }}
+                  className="cell-muted truncate"
                 >
                   {rule.message}
                 </td>
 
-                <td
-                  style={{
-                    padding: "0.75rem",
-                    whiteSpace: "nowrap",
-                  }}
-                >
+                <td style={{ whiteSpace: "nowrap" }}>
                   <button
                     type="button"
                     onClick={() => navigate(`/app/promos/${rule.id}`)}
                     className="btn btn--small"
                     aria-label={`Edit ${displayName}`}
-                    style={{ marginRight: "0.25rem" }}
                   >
                     Edit
                   </button>
@@ -186,7 +124,7 @@ export function PromoRulesTable({
                       onClick={() => onPause(rule.id)}
                       className="btn btn--small btn--warning"
                       aria-label={`Pause ${displayName}`}
-                      style={{ marginRight: "0.25rem" }}
+                      style={{ marginLeft: "4px" }}
                     >
                       Pause
                     </button>
@@ -196,7 +134,7 @@ export function PromoRulesTable({
                       onClick={() => onResume(rule.id)}
                       className="btn btn--small btn--success"
                       aria-label={`Resume ${displayName}`}
-                      style={{ marginRight: "0.25rem" }}
+                      style={{ marginLeft: "4px" }}
                     >
                       Resume
                     </button>
@@ -207,7 +145,7 @@ export function PromoRulesTable({
                     onClick={() => navigate(`/app/promos/${rule.id}/test`)}
                     className="btn btn--small"
                     aria-label={`Test ${displayName}`}
-                    style={{ marginRight: "0.25rem" }}
+                    style={{ marginLeft: "4px" }}
                   >
                     Test
                   </button>
@@ -217,6 +155,7 @@ export function PromoRulesTable({
                     onClick={() => onDelete(rule.id)}
                     className="btn btn--small btn--danger"
                     aria-label={`Delete ${displayName}`}
+                    style={{ marginLeft: "4px" }}
                   >
                     Delete
                   </button>

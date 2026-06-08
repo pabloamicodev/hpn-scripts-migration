@@ -205,46 +205,36 @@ export function PromoRuleForm({
     <form
       onSubmit={handleSubmit(handleValidSubmit)}
       className="promo-rule-form"
-      style={{ maxWidth: "800px" }}
     >
-      <h2 style={{ marginBottom: "1.5rem" }}>
-        {defaultValues ? "Edit Promo Rule" : "Create Promo Rule"}
-      </h2>
+      <header className="page-header">
+        <div>
+          <h1 className="page-title">
+            {defaultValues ? "Edit promo rule" : "Create promo rule"}
+          </h1>
+          <p className="page-subtitle">
+            Define trigger products, eligible variants, and customer-facing
+            discount messaging.
+          </p>
+        </div>
+      </header>
 
       {schemaError && (
-        <section
-          style={{
-            backgroundColor: "#fef2f2",
-            border: "1px solid #fecaca",
-            borderRadius: "0.375rem",
-            color: "#991b1b",
-            marginBottom: "1rem",
-            padding: "0.75rem",
-          }}
-        >
+        <section className="alert alert--critical">
           <strong>Validation error</strong>
 
-          <pre
-            style={{
-              whiteSpace: "pre-wrap",
-              marginTop: "0.5rem",
-              fontSize: "0.8rem",
-            }}
-          >
+          <pre style={{ whiteSpace: "pre-wrap", margin: "8px 0 0" }}>
             {schemaError}
           </pre>
         </section>
       )}
 
-      <div className="form-group" style={{ marginBottom: "1rem" }}>
+      <section className="form-section">
+      <h2 className="form-section__title">Rule details</h2>
+
+      <div className="form-group">
         <label
           htmlFor="type"
           className="form-label"
-          style={{
-            display: "block",
-            fontWeight: 600,
-            marginBottom: "0.25rem",
-          }}
         >
           Rule Type
         </label>
@@ -256,12 +246,6 @@ export function PromoRuleForm({
           onChange={(event) =>
             handleRuleTypeChange(event.target.value as PromoRuleType)
           }
-          style={{
-            width: "100%",
-            padding: "0.5rem",
-            border: "1px solid #d1d5db",
-            borderRadius: "0.375rem",
-          }}
         >
           <option value="pa7_cross_sell">
             PA7 Cross-Sell - 10% off target products
@@ -277,28 +261,17 @@ export function PromoRuleForm({
         </select>
       </div>
 
-      <div className="form-group" style={{ marginBottom: "1rem" }}>
-        <label
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "0.5rem",
-          }}
-        >
+      <div className="form-group">
+        <label className="checkbox-row">
           <input type="checkbox" {...register("enabled")} />
-          <span style={{ fontWeight: 600 }}>Enabled</span>
+          <span>Enabled</span>
         </label>
       </div>
 
-      <div className="form-group" style={{ marginBottom: "1rem" }}>
+      <div className="form-group">
         <label
           htmlFor="message"
           className="form-label"
-          style={{
-            display: "block",
-            fontWeight: 600,
-            marginBottom: "0.25rem",
-          }}
         >
           Discount Message
         </label>
@@ -308,26 +281,17 @@ export function PromoRuleForm({
           id="message"
           {...register("message")}
           placeholder="e.g. Congratulations! 10% Off"
-          style={{
-            width: "100%",
-            padding: "0.5rem",
-            border: "1px solid #d1d5db",
-            borderRadius: "0.375rem",
-          }}
         />
       </div>
+      </section>
 
       {ruleType === "pa7_cross_sell" && (
-        <>
-          <div className="form-group" style={{ marginBottom: "1rem" }}>
+        <section className="form-section">
+          <h2 className="form-section__title">Cross-sell configuration</h2>
+          <div className="form-group">
             <label
               htmlFor="triggerProductId"
               className="form-label"
-              style={{
-                display: "block",
-                fontWeight: 600,
-                marginBottom: "0.25rem",
-              }}
             >
               Trigger Product GID
             </label>
@@ -337,24 +301,13 @@ export function PromoRuleForm({
               id="triggerProductId"
               {...register("triggerProductId")}
               placeholder="gid://shopify/Product/..."
-              style={{
-                width: "100%",
-                padding: "0.5rem",
-                border: "1px solid #d1d5db",
-                borderRadius: "0.375rem",
-              }}
             />
           </div>
 
-          <div className="form-group" style={{ marginBottom: "1rem" }}>
+          <div className="form-group">
             <label
               htmlFor="targetProductIds"
               className="form-label"
-              style={{
-                display: "block",
-                fontWeight: 600,
-                marginBottom: "0.25rem",
-              }}
             >
               Target Product GIDs one per line
             </label>
@@ -374,24 +327,13 @@ export function PromoRuleForm({
               }
               rows={3}
               placeholder="gid://shopify/Product/..."
-              style={{
-                width: "100%",
-                padding: "0.5rem",
-                border: "1px solid #d1d5db",
-                borderRadius: "0.375rem",
-              }}
             />
           </div>
 
-          <div className="form-group" style={{ marginBottom: "1rem" }}>
+          <div className="form-group">
             <label
               htmlFor="targetLineQuantityEquals"
               className="form-label"
-              style={{
-                display: "block",
-                fontWeight: 600,
-                marginBottom: "0.25rem",
-              }}
             >
               Target Line Quantity Must Equal
             </label>
@@ -403,24 +345,14 @@ export function PromoRuleForm({
               {...register("targetLineQuantityEquals", {
                 valueAsNumber: true,
               })}
-              style={{
-                width: "100px",
-                padding: "0.5rem",
-                border: "1px solid #d1d5db",
-                borderRadius: "0.375rem",
-              }}
+              className="number-field"
             />
           </div>
 
-          <div className="form-group" style={{ marginBottom: "1rem" }}>
+          <div className="form-group">
             <label
               htmlFor="discountPercentage"
               className="form-label"
-              style={{
-                display: "block",
-                fontWeight: 600,
-                marginBottom: "0.25rem",
-              }}
             >
               Discount Percentage
             </label>
@@ -433,28 +365,19 @@ export function PromoRuleForm({
               {...register("discountPercentage", {
                 valueAsNumber: true,
               })}
-              style={{
-                width: "100px",
-                padding: "0.5rem",
-                border: "1px solid #d1d5db",
-                borderRadius: "0.375rem",
-              }}
+              className="number-field"
             />
           </div>
-        </>
+        </section>
       )}
 
       {ruleType === "required_variants_free_variants" && (
-        <>
-          <div className="form-group" style={{ marginBottom: "1rem" }}>
+        <section className="form-section">
+          <h2 className="form-section__title">Variant bundle configuration</h2>
+          <div className="form-group">
             <label
               htmlFor="requiredVariantIds"
               className="form-label"
-              style={{
-                display: "block",
-                fontWeight: 600,
-                marginBottom: "0.25rem",
-              }}
             >
               Required Variant GIDs one per line
             </label>
@@ -474,24 +397,13 @@ export function PromoRuleForm({
               }
               rows={3}
               placeholder="gid://shopify/ProductVariant/..."
-              style={{
-                width: "100%",
-                padding: "0.5rem",
-                border: "1px solid #d1d5db",
-                borderRadius: "0.375rem",
-              }}
             />
           </div>
 
-          <div className="form-group" style={{ marginBottom: "1rem" }}>
+          <div className="form-group">
             <label
               htmlFor="freeVariantIds"
               className="form-label"
-              style={{
-                display: "block",
-                fontWeight: 600,
-                marginBottom: "0.25rem",
-              }}
             >
               Free Variant GIDs one per line
             </label>
@@ -511,24 +423,13 @@ export function PromoRuleForm({
               }
               rows={3}
               placeholder="gid://shopify/ProductVariant/..."
-              style={{
-                width: "100%",
-                padding: "0.5rem",
-                border: "1px solid #d1d5db",
-                borderRadius: "0.375rem",
-              }}
             />
           </div>
 
-          <div className="form-group" style={{ marginBottom: "1rem" }}>
+          <div className="form-group">
             <label
               htmlFor="freeQuantityPerLine"
               className="form-label"
-              style={{
-                display: "block",
-                fontWeight: 600,
-                marginBottom: "0.25rem",
-              }}
             >
               Free Quantity Per Line leave empty for all
             </label>
@@ -551,28 +452,19 @@ export function PromoRuleForm({
                 );
               }}
               placeholder="All"
-              style={{
-                width: "100px",
-                padding: "0.5rem",
-                border: "1px solid #d1d5db",
-                borderRadius: "0.375rem",
-              }}
+              className="number-field"
             />
           </div>
-        </>
+        </section>
       )}
 
       {ruleType === "required_product_with_free_variants" && (
-        <>
-          <div className="form-group" style={{ marginBottom: "1rem" }}>
+        <section className="form-section">
+          <h2 className="form-section__title">Product bundle configuration</h2>
+          <div className="form-group">
             <label
               htmlFor="requiredProductTriggerId"
               className="form-label"
-              style={{
-                display: "block",
-                fontWeight: 600,
-                marginBottom: "0.25rem",
-              }}
             >
               Trigger Product GID
             </label>
@@ -582,24 +474,13 @@ export function PromoRuleForm({
               id="requiredProductTriggerId"
               {...register("triggerProductId")}
               placeholder="gid://shopify/Product/..."
-              style={{
-                width: "100%",
-                padding: "0.5rem",
-                border: "1px solid #d1d5db",
-                borderRadius: "0.375rem",
-              }}
             />
           </div>
 
-          <div className="form-group" style={{ marginBottom: "1rem" }}>
+          <div className="form-group">
             <label
               htmlFor="requiredProductVariantIds"
               className="form-label"
-              style={{
-                display: "block",
-                fontWeight: 600,
-                marginBottom: "0.25rem",
-              }}
             >
               Required Variant GIDs one per line
             </label>
@@ -619,24 +500,13 @@ export function PromoRuleForm({
               }
               rows={3}
               placeholder="gid://shopify/ProductVariant/..."
-              style={{
-                width: "100%",
-                padding: "0.5rem",
-                border: "1px solid #d1d5db",
-                borderRadius: "0.375rem",
-              }}
             />
           </div>
 
-          <div className="form-group" style={{ marginBottom: "1rem" }}>
+          <div className="form-group">
             <label
               htmlFor="requiredProductFreeVariantIds"
               className="form-label"
-              style={{
-                display: "block",
-                fontWeight: 600,
-                marginBottom: "0.25rem",
-              }}
             >
               Free Variant GIDs one per line
             </label>
@@ -656,43 +526,20 @@ export function PromoRuleForm({
               }
               rows={3}
               placeholder="gid://shopify/ProductVariant/..."
-              style={{
-                width: "100%",
-                padding: "0.5rem",
-                border: "1px solid #d1d5db",
-                borderRadius: "0.375rem",
-              }}
             />
           </div>
 
-          <div
-            style={{
-              backgroundColor: "#f9fafb",
-              border: "1px solid #e5e7eb",
-              borderRadius: "0.375rem",
-              padding: "0.75rem",
-              marginBottom: "1rem",
-            }}
-          >
+          <div className="alert alert--info">
             <strong>Free quantity per line:</strong> 1
           </div>
-        </>
+        </section>
       )}
 
-      <div style={{ marginTop: "2rem", display: "flex", gap: "0.75rem" }}>
+      <div className="btn-row">
         <button
           type="submit"
           disabled={isSubmitting}
           className="btn btn--primary"
-          style={{
-            padding: "0.625rem 1.5rem",
-            backgroundColor: "#0f172a",
-            color: "#fff",
-            border: "none",
-            borderRadius: "0.375rem",
-            cursor: isSubmitting ? "not-allowed" : "pointer",
-            fontWeight: 600,
-          }}
         >
           {isSubmitting ? "Saving..." : "Save Rule"}
         </button>
@@ -700,16 +547,7 @@ export function PromoRuleForm({
         <button
           type="button"
           onClick={onCancel}
-          className="btn btn--secondary"
-          style={{
-            padding: "0.625rem 1.5rem",
-            backgroundColor: "#f3f4f6",
-            color: "#374151",
-            border: "1px solid #d1d5db",
-            borderRadius: "0.375rem",
-            cursor: "pointer",
-            fontWeight: 600,
-          }}
+          className="btn"
         >
           Cancel
         </button>

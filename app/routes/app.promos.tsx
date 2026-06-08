@@ -78,28 +78,18 @@ export default function PromosPage() {
     fetcher.data && "error" in fetcher.data ? fetcher.data.error : null;
 
   return (
-    <div>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: "1.5rem",
-        }}
-      >
-        <h1 style={{ fontSize: "1.5rem", fontWeight: 700 }}>Promo Rules</h1>
-        <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+    <div className="app-page app-page--wide">
+      <header className="page-header">
+        <div>
+          <h1 className="page-title">Promo rules</h1>
+          <p className="page-subtitle">
+            Configure which cart combinations trigger migrated HPN discounts.
+          </p>
+        </div>
+
+        <div className="toolbar">
           {status && (
-            <span
-              style={{
-                fontSize: "0.75rem",
-                fontWeight: 600,
-                padding: "0.25rem 0.75rem",
-                borderRadius: "9999px",
-                backgroundColor: status === "ACTIVE" ? "#dcfce7" : "#fef3c7",
-                color: status === "ACTIVE" ? "#166534" : "#92400e",
-              }}
-            >
+            <span className={`status-badge status-badge--${status === "ACTIVE" ? "active" : "paused"}`}>
               Discount {status}
             </span>
           )}
@@ -107,46 +97,20 @@ export default function PromosPage() {
             type="button"
             onClick={() => navigate("/app/promos/new")}
             disabled={!discountId}
-            style={{
-              padding: "0.5rem 1rem",
-              backgroundColor: discountId ? "#0f172a" : "#9ca3af",
-              color: "#fff",
-              border: "none",
-              borderRadius: "0.375rem",
-              cursor: discountId ? "pointer" : "not-allowed",
-              fontWeight: 600,
-              fontSize: "0.875rem",
-            }}
+            className="btn btn--primary"
           >
             Add Rule
           </button>
         </div>
-      </div>
+      </header>
 
       {!discountId && (
-        <div
-          style={{
-            padding: "1rem",
-            backgroundColor: "#fef3c7",
-            border: "1px solid #fde68a",
-            borderRadius: "0.375rem",
-            marginBottom: "1rem",
-            color: "#92400e",
-          }}
-        >
+        <div className="alert alert--warning">
           No active discount found.{" "}
           <button
             type="button"
             onClick={() => navigate("/app/discount")}
-            style={{
-              color: "#92400e",
-              fontWeight: 600,
-              textDecoration: "underline",
-              background: "none",
-              border: "none",
-              cursor: "pointer",
-              padding: 0,
-            }}
+            className="btn btn--plain"
           >
             Create one first.
           </button>
@@ -154,16 +118,7 @@ export default function PromosPage() {
       )}
 
       {actionError && (
-        <div
-          style={{
-            padding: "0.75rem",
-            backgroundColor: "#fef2f2",
-            border: "1px solid #fecaca",
-            borderRadius: "0.375rem",
-            marginBottom: "1rem",
-            color: "#991b1b",
-          }}
-        >
+        <div className="alert alert--critical">
           {actionError}
         </div>
       )}
@@ -182,7 +137,7 @@ export default function PromosPage() {
       )}
 
       {isPending && (
-        <p style={{ marginTop: "1rem", color: "#6b7280", fontSize: "0.875rem" }}>
+        <p className="muted" style={{ margin: 0 }}>
           Saving changes...
         </p>
       )}

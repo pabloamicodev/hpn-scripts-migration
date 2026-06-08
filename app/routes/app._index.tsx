@@ -61,170 +61,53 @@ export default function AppIndex() {
   const navigate = useNavigate();
 
   return (
-    <div>
-      <h1
-        style={{
-          fontSize: "1.5rem",
-          fontWeight: 700,
-          marginBottom: "1.5rem",
-        }}
-      >
-        HPN Scripts Migration — Dashboard
-      </h1>
+    <div className="app-page app-page--wide">
+      <header className="page-header">
+        <div>
+          <h1 className="page-title">Dashboard</h1>
+          <p className="page-subtitle">
+            Manage migrated HPN promotion rules and the automatic discount.
+          </p>
+        </div>
+      </header>
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-          gap: "1rem",
-          marginBottom: "2rem",
-        }}
-      >
-        <div
-          style={{
-            padding: "1.25rem",
-            backgroundColor: "#f0fdf4",
-            border: "1px solid #bbf7d0",
-            borderRadius: "0.5rem",
-          }}
-        >
-          <h3
-            style={{
-              fontSize: "0.8rem",
-              color: "#166534",
-              fontWeight: 600,
-              marginBottom: "0.5rem",
-            }}
-          >
-            Discount Status
-          </h3>
+      <div className="metric-grid">
+        <section className="card metric-card metric-card--success">
+          <p className="metric-label">Discount status</p>
 
           <StatusBadge status={discount ? "active" : "inactive"} />
-        </div>
+        </section>
 
-        <div
-          style={{
-            padding: "1.25rem",
-            backgroundColor: "#eff6ff",
-            border: "1px solid #bfdbfe",
-            borderRadius: "0.5rem",
-          }}
-        >
-          <h3
-            style={{
-              fontSize: "0.8rem",
-              color: "#1e40af",
-              fontWeight: 600,
-              marginBottom: "0.5rem",
-            }}
-          >
-            Active Rules
-          </h3>
+        <section className="card metric-card metric-card--info">
+          <p className="metric-label">Active rules</p>
+          <p className="metric-value">{activeRulesCount}</p>
+        </section>
 
-          <p
-            style={{
-              fontSize: "2rem",
-              fontWeight: 700,
-              color: "#1e3a5f",
-            }}
-          >
-            {activeRulesCount}
-          </p>
-        </div>
+        <section className="card metric-card metric-card--warning">
+          <p className="metric-label">Paused rules</p>
+          <p className="metric-value">{pausedRulesCount}</p>
+        </section>
 
-        <div
-          style={{
-            padding: "1.25rem",
-            backgroundColor: "#fef3c7",
-            border: "1px solid #fde68a",
-            borderRadius: "0.5rem",
-          }}
-        >
-          <h3
-            style={{
-              fontSize: "0.8rem",
-              color: "#92400e",
-              fontWeight: 600,
-              marginBottom: "0.5rem",
-            }}
-          >
-            Paused Rules
-          </h3>
-
-          <p
-            style={{
-              fontSize: "2rem",
-              fontWeight: 700,
-              color: "#78350f",
-            }}
-          >
-            {pausedRulesCount}
-          </p>
-        </div>
-
-        <div
-          style={{
-            padding: "1.25rem",
-            backgroundColor: "#f9fafb",
-            border: "1px solid #e5e7eb",
-            borderRadius: "0.5rem",
-          }}
-        >
-          <h3
-            style={{
-              fontSize: "0.8rem",
-              color: "#374151",
-              fontWeight: 600,
-              marginBottom: "0.5rem",
-            }}
-          >
-            Last Config Update
-          </h3>
-
-          <p
-            style={{
-              fontSize: "1rem",
-              fontWeight: 600,
-              color: "#111827",
-            }}
-          >
+        <section className="card metric-card">
+          <p className="metric-label">Last config update</p>
+          <p className="metric-value" style={{ fontSize: "16px" }}>
             {lastUpdate ? new Date(lastUpdate).toLocaleDateString() : "N/A"}
           </p>
-        </div>
+        </section>
       </div>
 
-      <div
-        style={{
-          padding: "1.5rem",
-          backgroundColor: "#f9fafb",
-          border: "1px solid #e5e7eb",
-          borderRadius: "0.5rem",
-        }}
-      >
-        <h2
-          style={{
-            fontSize: "1.1rem",
-            fontWeight: 600,
-            marginBottom: "1rem",
-          }}
-        >
-          Quick Actions
-        </h2>
+      <section className="card">
+        <div className="card__body">
+          <h2 className="card__title" style={{ marginBottom: "12px" }}>
+            Quick actions
+          </h2>
 
-        <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
+          <div className="btn-row">
           {!discount ? (
             <button
               type="button"
               onClick={() => navigate("/app/discount")}
-              style={{
-                padding: "0.625rem 1.25rem",
-                backgroundColor: "#0f172a",
-                color: "#fff",
-                border: "none",
-                borderRadius: "0.375rem",
-                cursor: "pointer",
-                fontWeight: 600,
-              }}
+              className="btn btn--primary"
             >
               Create Discount
             </button>
@@ -233,15 +116,7 @@ export default function AppIndex() {
               <button
                 type="button"
                 onClick={() => navigate("/app/promos")}
-                style={{
-                  padding: "0.625rem 1.25rem",
-                  backgroundColor: "#0f172a",
-                  color: "#fff",
-                  border: "none",
-                  borderRadius: "0.375rem",
-                  cursor: "pointer",
-                  fontWeight: 600,
-                }}
+                className="btn btn--primary"
               >
                 Manage Promos
               </button>
@@ -249,15 +124,7 @@ export default function AppIndex() {
               <button
                 type="button"
                 onClick={() => navigate("/app/discount")}
-                style={{
-                  padding: "0.625rem 1.25rem",
-                  backgroundColor: "#f3f4f6",
-                  color: "#374151",
-                  border: "1px solid #d1d5db",
-                  borderRadius: "0.375rem",
-                  cursor: "pointer",
-                  fontWeight: 600,
-                }}
+                className="btn"
               >
                 Discount Settings
               </button>
@@ -267,20 +134,13 @@ export default function AppIndex() {
           <button
             type="button"
             onClick={() => navigate("/app/settings")}
-            style={{
-              padding: "0.625rem 1.25rem",
-              backgroundColor: "#f3f4f6",
-              color: "#374151",
-              border: "1px solid #d1d5db",
-              borderRadius: "0.375rem",
-              cursor: "pointer",
-              fontWeight: 600,
-            }}
+            className="btn"
           >
             Settings
           </button>
+          </div>
         </div>
-      </div>
+      </section>
     </div>
   );
 }

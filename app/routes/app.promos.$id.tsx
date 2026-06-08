@@ -88,21 +88,14 @@ export default function EditPromoPage() {
   }
 
   return (
-    <div>
+    <div className="app-page">
       <button
         type="button"
         onClick={() => navigate("/app/promos")}
-        style={{
-          background: "none",
-          border: "none",
-          color: "#4b5563",
-          cursor: "pointer",
-          fontSize: "0.875rem",
-          marginBottom: "1rem",
-          padding: 0,
-        }}
+        className="btn btn--plain"
+        style={{ justifySelf: "start" }}
       >
-        ← Back to Promos
+        Back to Promos
       </button>
 
       <PromoRuleForm

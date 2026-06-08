@@ -111,115 +111,76 @@ export default function DiscountPage() {
   const isActive = status === "ACTIVE";
 
   return (
-    <div style={{ maxWidth: "640px" }}>
-      <h1 style={{ fontSize: "1.5rem", fontWeight: 700, marginBottom: "1.5rem" }}>
-        Discount Management
-      </h1>
+    <div className="app-page app-page--narrow">
+      <header className="page-header">
+        <div>
+          <h1 className="page-title">Discount management</h1>
+          <p className="page-subtitle">
+            Create, activate, pause, or remove the Shopify automatic app discount.
+          </p>
+        </div>
+      </header>
 
       {!functionId && (
-        <div
-          style={{
-            padding: "1rem",
-            backgroundColor: "#fef3c7",
-            border: "1px solid #fde68a",
-            borderRadius: "0.375rem",
-            marginBottom: "1.5rem",
-            color: "#92400e",
-            fontSize: "0.875rem",
-          }}
-        >
+        <div className="alert alert--warning">
           <strong>Function no encontrada.</strong> Instalá la app en esta store.
           La función se detecta automáticamente una vez instalada.
         </div>
       )}
 
-      <div
-        style={{
-          padding: "1.25rem",
-          backgroundColor: "#f9fafb",
-          border: "1px solid #e5e7eb",
-          borderRadius: "0.5rem",
-          marginBottom: "1.5rem",
-        }}
-      >
-        <h2 style={{ fontSize: "1rem", fontWeight: 600, marginBottom: "1rem" }}>
-          Current Discount
-        </h2>
+      <section className="card">
+        <div className="card__body">
+          <h2 className="card__title" style={{ marginBottom: "14px" }}>
+            Current discount
+          </h2>
 
         {discountId ? (
-          <dl style={{ display: "grid", gridTemplateColumns: "max-content 1fr", gap: "0.5rem 1rem" }}>
-            <dt style={{ fontWeight: 600, color: "#6b7280", fontSize: "0.875rem" }}>Title</dt>
-            <dd style={{ margin: 0 }}>{title}</dd>
+          <dl className="definition-list">
+            <dt>Title</dt>
+            <dd>{title}</dd>
 
-            <dt style={{ fontWeight: 600, color: "#6b7280", fontSize: "0.875rem" }}>Status</dt>
-            <dd style={{ margin: 0 }}>
+            <dt>Status</dt>
+            <dd>
               <StatusBadge status={isActive ? "active" : "inactive"} />
             </dd>
 
-            <dt style={{ fontWeight: 600, color: "#6b7280", fontSize: "0.875rem" }}>Started</dt>
-            <dd style={{ margin: 0 }}>
+            <dt>Started</dt>
+            <dd>
               {startsAt ? new Date(startsAt).toLocaleString() : "—"}
             </dd>
 
-            <dt style={{ fontWeight: 600, color: "#6b7280", fontSize: "0.875rem" }}>ID</dt>
-            <dd style={{ margin: 0, fontSize: "0.8rem", color: "#6b7280" }}>
+            <dt>ID</dt>
+            <dd className="mono">
               {discountId}
             </dd>
           </dl>
         ) : (
-          <p style={{ color: "#6b7280" }}>No discount exists yet.</p>
+          <p className="muted" style={{ margin: 0 }}>No discount exists yet.</p>
         )}
-      </div>
+        </div>
+      </section>
 
       {actionError && (
-        <div
-          style={{
-            padding: "0.75rem",
-            backgroundColor: "#fef2f2",
-            border: "1px solid #fecaca",
-            borderRadius: "0.375rem",
-            marginBottom: "1rem",
-            color: "#991b1b",
-            fontSize: "0.875rem",
-          }}
-        >
+        <div className="alert alert--critical">
           {actionError}
         </div>
       )}
 
       {actionMessage && (
-        <div
-          style={{
-            padding: "0.75rem",
-            backgroundColor: "#f0fdf4",
-            border: "1px solid #bbf7d0",
-            borderRadius: "0.375rem",
-            marginBottom: "1rem",
-            color: "#166534",
-            fontSize: "0.875rem",
-          }}
-        >
+        <div className="alert alert--success">
           {actionMessage}
         </div>
       )}
 
-      <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+      <div className="btn-stack">
         {!discountId && (
           <fetcher.Form method="post">
             <input type="hidden" name="intent" value="create" />
             <button
               type="submit"
               disabled={isPending || !functionId}
-              style={{
-                width: "100%",
-                padding: "0.75rem",
-                backgroundColor: functionId ? "#0f172a" : "#9ca3af",
-                color: "#fff",
-                border: "none",
-                borderRadius: "0.375rem",
-                cursor: functionId && !isPending ? "pointer" : "not-allowed",
-                fontWeight: 600,
-              }}
+              className="btn btn--primary"
+              style={{ width: "100%" }}
             >
               {isPending ? "Creating..." : "Create Discount with Default Config"}
             </button>
@@ -232,16 +193,8 @@ export default function DiscountPage() {
             <button
               type="submit"
               disabled={isPending}
-              style={{
-                width: "100%",
-                padding: "0.75rem",
-                backgroundColor: "#16a34a",
-                color: "#fff",
-                border: "none",
-                borderRadius: "0.375rem",
-                cursor: isPending ? "not-allowed" : "pointer",
-                fontWeight: 600,
-              }}
+              className="btn btn--primary"
+              style={{ width: "100%" }}
             >
               {isPending ? "Activating..." : "Activate Discount"}
             </button>
@@ -254,16 +207,8 @@ export default function DiscountPage() {
             <button
               type="submit"
               disabled={isPending}
-              style={{
-                width: "100%",
-                padding: "0.75rem",
-                backgroundColor: "#d97706",
-                color: "#fff",
-                border: "none",
-                borderRadius: "0.375rem",
-                cursor: isPending ? "not-allowed" : "pointer",
-                fontWeight: 600,
-              }}
+              className="btn btn--warning"
+              style={{ width: "100%" }}
             >
               {isPending ? "Deactivating..." : "Deactivate Discount"}
             </button>
@@ -283,16 +228,8 @@ export default function DiscountPage() {
             <button
               type="submit"
               disabled={isPending}
-              style={{
-                width: "100%",
-                padding: "0.75rem",
-                backgroundColor: "#fff",
-                color: "#dc2626",
-                border: "1px solid #fecaca",
-                borderRadius: "0.375rem",
-                cursor: isPending ? "not-allowed" : "pointer",
-                fontWeight: 600,
-              }}
+              className="btn btn--danger"
+              style={{ width: "100%" }}
             >
               {isPending ? "Deleting..." : "Delete Discount"}
             </button>

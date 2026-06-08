@@ -106,13 +106,14 @@ export default function PromosPage() {
 
       {!discountId && (
         <div className="alert alert--warning">
-          No active discount found.{" "}
+          These rules are the default template, but they are not active in
+          Shopify yet.{" "}
           <button
             type="button"
             onClick={() => navigate("/app/discount")}
             className="btn btn--plain"
           >
-            Create one first.
+            Create the discount first.
           </button>
         </div>
       )}
@@ -123,7 +124,24 @@ export default function PromosPage() {
         </div>
       )}
 
-      {config && (
+      {!discountId && (
+        <section className="card empty-state">
+          <h2>Discount not created yet</h2>
+          <p>
+            Create the automatic app discount to publish the default HPN promo
+            rules to Shopify.
+          </p>
+          <button
+            type="button"
+            onClick={() => navigate("/app/discount")}
+            className="btn btn--primary"
+          >
+            Go to Discount
+          </button>
+        </section>
+      )}
+
+      {discountId && config && (
         <PromoRulesTable
           rules={config.rules}
           onPause={(ruleId) => submitIntent("pause", ruleId)}

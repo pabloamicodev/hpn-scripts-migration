@@ -5,6 +5,10 @@ import {
   hpnPromoRuleSchema,
   type HpnPromoRule,
 } from "../lib/validations";
+import {
+  ProductPicker,
+  type ProductPickerSelection,
+} from "./ProductPicker";
 
 type PromoRuleType = HpnPromoRule["type"];
 
@@ -99,6 +103,10 @@ function fromMultilineValue(value: string) {
     .filter(Boolean);
 }
 
+function getGidTail(gid: string) {
+  return gid.split("/").pop() ?? gid;
+}
+
 function buildRulePayload(values: PromoRuleFormValues): unknown {
   if (values.type === "pa7_cross_sell") {
     return {
@@ -164,6 +172,9 @@ export function PromoRuleForm({
   onCancel,
 }: PromoRuleFormProps) {
   const [schemaError, setSchemaError] = useState<string | null>(null);
+  const [productPickerMode, setProductPickerMode] = useState<
+    "trigger" | "target" | null
+  >(null);
 
   const {
     register,
@@ -177,6 +188,7 @@ export function PromoRuleForm({
   });
 
   const ruleType = watch("type");
+  const triggerProductId = watch("triggerProductId");
   const targetProductIds = watch("targetProductIds");
   const requiredVariantIds = watch("requiredVariantIds");
   const freeVariantIds = watch("freeVariantIds");
@@ -199,6 +211,39 @@ export function PromoRuleForm({
     }
 
     onSubmit(parsedRule.data);
+  }
+
+  function handleCrossSellProductSelect(selection: ProductPickerSelection) {
+    if (productPickerMode === "trigger") {
+      setValue("triggerProductId", selection.productId, {
+        shouldDirty: true,
+        shouldValidate: false,
+      });
+    }
+
+    if (productPickerMode === "target") {
+      const currentIds = targetProductIds ?? [];
+
+      if (!currentIds.includes(selection.productId)) {
+        setValue("targetProductIds", [...currentIds, selection.productId], {
+          shouldDirty: true,
+          shouldValidate: false,
+        });
+      }
+    }
+
+    setProductPickerMode(null);
+  }
+
+  function removeTargetProductId(productId: string) {
+    setValue(
+      "targetProductIds",
+      (targetProductIds ?? []).filter((id) => id !== productId),
+      {
+        shouldDirty: true,
+        shouldValidate: false,
+      },
+    );
   }
 
   return (
@@ -289,44 +334,29 @@ export function PromoRuleForm({
         <section className="form-section">
           <h2 className="form-section__title">Cross-sell configuration</h2>
           <div className="form-group">
-            <label
-              htmlFor="triggerProductId"
-              className="form-label"
-            >
-              Trigger Product GID
-            </label>
+            <span className="form-label">Trigger product</span>
 
-            <input
-              type="text"
-              id="triggerProductId"
-              {...register("triggerProductId")}
-              placeholder="gid://shopify/Product/..."
+            <ProductIdSelector
+              productId={triggerProductId}
+              emptyText="Choose the product that unlocks the cross-sell."
+              onPick={() => setProductPickerMode("trigger")}
+              onClear={() =>
+                setValue("triggerProductId", "", {
+                  shouldDirty: true,
+                  shouldValidate: false,
+                })
+              }
             />
           </div>
 
           <div className="form-group">
-            <label
-              htmlFor="targetProductIds"
-              className="form-label"
-            >
-              Target Product GIDs one per line
-            </label>
+            <span className="form-label">Target products</span>
 
-            <textarea
-              id="targetProductIds"
-              value={toMultilineValue(targetProductIds)}
-              onChange={(event) =>
-                setValue(
-                  "targetProductIds",
-                  fromMultilineValue(event.target.value),
-                  {
-                    shouldDirty: true,
-                    shouldValidate: false,
-                  },
-                )
-              }
-              rows={3}
-              placeholder="gid://shopify/Product/..."
+            <ProductIdListSelector
+              productIds={targetProductIds ?? []}
+              emptyText="Choose one or more products that receive the discount."
+              onPick={() => setProductPickerMode("target")}
+              onRemove={removeTargetProductId}
             />
           </div>
 
@@ -552,6 +582,104 @@ export function PromoRuleForm({
           Cancel
         </button>
       </div>
+
+      {productPickerMode && (
+        <ProductPicker
+          onSelect={handleCrossSellProductSelect}
+          onClose={() => setProductPickerMode(null)}
+        />
+      )}
     </form>
+  );
+}
+
+function ProductIdSelector({
+  productId,
+  emptyText,
+  onPick,
+  onClear,
+}: {
+  productId?: string;
+  emptyText: string;
+  onPick: () => void;
+  onClear: () => void;
+}) {
+  return (
+    <div className="product-id-selector">
+      {productId ? (
+        <div className="product-id-card">
+          <div>
+            <strong>Product {getGidTail(productId)}</strong>
+            <span className="mono">{productId}</span>
+          </div>
+
+          <div className="btn-row btn-row--end">
+            <button type="button" onClick={onPick} className="btn btn--small">
+              Change
+            </button>
+            <button
+              type="button"
+              onClick={onClear}
+              className="btn btn--small btn--danger"
+            >
+              Clear
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button type="button" onClick={onPick} className="product-picker-trigger">
+          <span className="product-picker-trigger__icon">+</span>
+          <span>
+            <strong>Select product</strong>
+            <span>{emptyText}</span>
+          </span>
+        </button>
+      )}
+    </div>
+  );
+}
+
+function ProductIdListSelector({
+  productIds,
+  emptyText,
+  onPick,
+  onRemove,
+}: {
+  productIds: string[];
+  emptyText: string;
+  onPick: () => void;
+  onRemove: (productId: string) => void;
+}) {
+  return (
+    <div className="product-id-selector">
+      <button type="button" onClick={onPick} className="product-picker-trigger">
+        <span className="product-picker-trigger__icon">+</span>
+        <span>
+          <strong>Add target product</strong>
+          <span>{emptyText}</span>
+        </span>
+      </button>
+
+      {productIds.length > 0 && (
+        <div className="product-id-list">
+          {productIds.map((productId) => (
+            <div key={productId} className="product-id-chip">
+              <span>
+                <strong>Product {getGidTail(productId)}</strong>
+                <span className="mono">{productId}</span>
+              </span>
+
+              <button
+                type="button"
+                onClick={() => onRemove(productId)}
+                className="btn btn--small btn--danger"
+              >
+                Remove
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }

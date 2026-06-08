@@ -250,19 +250,19 @@ export function ProductPicker({ onSelect, onClose }: ProductPickerProps) {
 
                   return (
                     <article key={product.id} className="product-picker-card">
-                      <div className="product-picker-card__media">
-                        {image?.url ? (
-                          <img
-                            src={image.url}
-                            alt={image.altText || product.title}
-                            loading="lazy"
-                          />
-                        ) : (
-                          <span>{product.title.slice(0, 2).toUpperCase()}</span>
-                        )}
-                      </div>
+                      <div className="product-picker-card__top">
+                        <div className="product-picker-card__media">
+                          {image?.url ? (
+                            <img
+                              src={image.url}
+                              alt={image.altText || product.title}
+                              loading="lazy"
+                            />
+                          ) : (
+                            <span>{product.title.slice(0, 2).toUpperCase()}</span>
+                          )}
+                        </div>
 
-                      <div className="product-picker-card__content">
                         <div className="product-picker-card__summary">
                           <h3>{product.title}</h3>
                           <div className="product-picker-meta">
@@ -271,35 +271,35 @@ export function ProductPicker({ onSelect, onClose }: ProductPickerProps) {
                             <span>ID {getGidTail(product.id)}</span>
                           </div>
                         </div>
+                      </div>
 
-                        <div className="variant-choice-list">
-                          {variants.map((variant) => (
-                            <button
-                              key={variant.id}
-                              type="button"
-                              onClick={() => selectVariant(product, variant)}
-                              className="variant-choice"
-                              aria-label={`Select ${product.title}, ${variant.title}`}
-                            >
-                              <span className="variant-choice__copy">
-                                <strong>{variant.title}</strong>
-                                <span>
-                                  {variant.sku ? `SKU ${variant.sku}` : "No SKU"}
-                                  {" · "}
-                                  {formatInventory(variant.inventoryQuantity)}
-                                </span>
+                      <div className="variant-choice-list">
+                        {variants.map((variant) => (
+                          <button
+                            key={variant.id}
+                            type="button"
+                            onClick={() => selectVariant(product, variant)}
+                            className="variant-choice"
+                            aria-label={`Select ${product.title}, ${variant.title}`}
+                          >
+                            <span className="variant-choice__copy">
+                              <strong>{variant.title}</strong>
+                              <span>
+                                {variant.sku ? `SKU ${variant.sku}` : "No SKU"}
+                                {" · "}
+                                {formatInventory(variant.inventoryQuantity)}
                               </span>
-                              <span className="variant-choice__side">
-                                <span className="variant-choice__price">
-                                  ${variant.price}
-                                </span>
-                                <span className="variant-choice__action">
-                                  Select
-                                </span>
+                            </span>
+                            <span className="variant-choice__side">
+                              <span className="variant-choice__price">
+                                ${variant.price}
                               </span>
-                            </button>
-                          ))}
-                        </div>
+                              <span className="variant-choice__action">
+                                Select
+                              </span>
+                            </span>
+                          </button>
+                        ))}
                       </div>
                     </article>
                   );

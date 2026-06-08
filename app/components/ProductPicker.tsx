@@ -51,6 +51,18 @@ function getProductImage(product: ProductNode, variant?: ProductVariantNode) {
   return variant?.image ?? product.featuredImage ?? null;
 }
 
+function formatInventory(quantity?: number | null) {
+  if (typeof quantity !== "number") {
+    return "Inventory not tracked";
+  }
+
+  if (quantity <= 0) {
+    return "Out of stock";
+  }
+
+  return `${quantity} in stock`;
+}
+
 export function ProductPicker({ onSelect, onClose }: ProductPickerProps) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<ProductNode[]>([]);
@@ -148,7 +160,8 @@ export function ProductPicker({ onSelect, onClose }: ProductPickerProps) {
         onMouseDown={(event) => event.stopPropagation()}
       >
         <header className="picker-header">
-          <div>
+          <div className="picker-heading">
+            <span className="picker-kicker">Shopify catalog</span>
             <h2 id="product-picker-title" className="picker-title">
               Select product
             </h2>
@@ -168,9 +181,12 @@ export function ProductPicker({ onSelect, onClose }: ProductPickerProps) {
         </header>
 
         <div className="picker-search">
-          <label htmlFor="product-picker-search" className="form-label">
-            Search products
-          </label>
+          <div className="picker-search__label-row">
+            <label htmlFor="product-picker-search" className="form-label">
+              Search products
+            </label>
+            <span>Title, handle, SKU, or keyword</span>
+          </div>
           <div className="search-field">
             <input
               id="product-picker-search"
@@ -219,8 +235,12 @@ export function ProductPicker({ onSelect, onClose }: ProductPickerProps) {
 
           {!loading && results.length > 0 && (
             <div className="picker-results">
-              <div className="picker-results__meta">
-                {results.length} products · {resultCount} variants
+              <div className="picker-results__bar">
+                <div>
+                  <strong>{results.length} products</strong>
+                  <span>{resultCount} variants available</span>
+                </div>
+                <span className="picker-results__query">"{normalizedQuery}"</span>
               </div>
 
               <div className="product-picker-grid">
@@ -243,13 +263,13 @@ export function ProductPicker({ onSelect, onClose }: ProductPickerProps) {
                       </div>
 
                       <div className="product-picker-card__content">
-                        <div>
+                        <div className="product-picker-card__summary">
                           <h3>{product.title}</h3>
-                          <p>
-                            {product.vendor ? `${product.vendor} · ` : ""}
-                            /{product.handle}
-                          </p>
-                          <p className="mono">{getGidTail(product.id)}</p>
+                          <div className="product-picker-meta">
+                            {product.vendor && <span>{product.vendor}</span>}
+                            <span>/{product.handle}</span>
+                            <span>ID {getGidTail(product.id)}</span>
+                          </div>
                         </div>
 
                         <div className="variant-choice-list">
@@ -259,15 +279,23 @@ export function ProductPicker({ onSelect, onClose }: ProductPickerProps) {
                               type="button"
                               onClick={() => selectVariant(product, variant)}
                               className="variant-choice"
+                              aria-label={`Select ${product.title}, ${variant.title}`}
                             >
-                              <span>
+                              <span className="variant-choice__copy">
                                 <strong>{variant.title}</strong>
                                 <span>
                                   {variant.sku ? `SKU ${variant.sku}` : "No SKU"}
+                                  {" · "}
+                                  {formatInventory(variant.inventoryQuantity)}
                                 </span>
                               </span>
-                              <span className="variant-choice__price">
-                                ${variant.price}
+                              <span className="variant-choice__side">
+                                <span className="variant-choice__price">
+                                  ${variant.price}
+                                </span>
+                                <span className="variant-choice__action">
+                                  Select
+                                </span>
                               </span>
                             </button>
                           ))}

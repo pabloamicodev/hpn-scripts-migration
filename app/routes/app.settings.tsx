@@ -1,8 +1,8 @@
 import { useLoaderData, useFetcher } from "react-router";
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "react-router";
 import { authenticate } from "~/shopify.server";
-import { loadActiveDiscount, DISCOUNT_TITLE, FUNCTION_ID_ENV, type GraphQLProxy } from "~/lib/hpnPromoConfig.server";
-import { updateAutomaticDiscount } from "~/lib/shopifyDiscounts.server";
+import { loadActiveDiscount, type GraphQLProxy } from "~/lib/hpnPromoConfig.server";
+import { findHpnFunctionId, updateAutomaticDiscount } from "~/lib/shopifyDiscounts.server";
 import { CartSimulator } from "~/components/CartSimulator";
 import { defaultHpnPromoConfig } from "~/lib/hpnPromoDefaults";
 
@@ -16,10 +16,13 @@ function makeProxy(admin: any): GraphQLProxy {
 export async function loader({ request }: LoaderFunctionArgs) {
   const { admin } = await authenticate.admin(request);
   const proxy = makeProxy(admin);
-  const loaded = await loadActiveDiscount(proxy);
+  const [loaded, functionId] = await Promise.all([
+    loadActiveDiscount(proxy),
+    findHpnFunctionId(proxy),
+  ]);
   return {
     ...loaded,
-    functionId: process.env[FUNCTION_ID_ENV] ?? null,
+    functionId,
     graphqlConsoleEnabled: process.env.ENABLE_GRAPHQL_CONSOLE === "true",
   };
 }

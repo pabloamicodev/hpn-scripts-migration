@@ -80,39 +80,39 @@ const SEARCH_DISCOUNTS_QUERY = `
     discountNodes(first: 10, query: $query) {
       edges {
         node {
-        id
-        metafield(namespace: "hpn_scripts", key: "function_configuration") {
-          value
+          id
+          metafield(namespace: "hpn_scripts", key: "function_configuration") {
+            value
+          }
+          discount {
+            __typename
+
+            ... on DiscountAutomaticApp {
+              discountId
+              title
+              status
+              startsAt
+            }
+
+            ... on DiscountAutomaticBasic {
+              title
+              status
+              startsAt
+            }
+
+            ... on DiscountAutomaticBxgy {
+              title
+              status
+              startsAt
+            }
+
+            ... on DiscountAutomaticFreeShipping {
+              title
+              status
+              startsAt
+            }
+          }
         }
-        discount {
-          __typename
-
-          ... on DiscountAutomaticApp {
-            discountId
-            title
-            status
-            startsAt
-          }
-
-          ... on DiscountAutomaticBasic {
-            title
-            status
-            startsAt
-          }
-
-          ... on DiscountAutomaticBxgy {
-            title
-            status
-            startsAt
-          }
-
-          ... on DiscountAutomaticFreeShipping {
-            title
-            status
-            startsAt
-          }
-        }
-      }
       }
     }
   }

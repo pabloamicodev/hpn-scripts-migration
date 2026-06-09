@@ -69,6 +69,9 @@ export function ProductPicker({ onSelect, onClose }: ProductPickerProps) {
   const [results, setResults] = useState<ProductNode[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedVariantByProductId, setSelectedVariantByProductId] = useState<
+    Record<string, string>
+  >({});
   const searchInputRef = useRef<HTMLInputElement>(null);
   const previouslyFocusedElement = useRef<Element | null>(null);
 
@@ -86,21 +89,19 @@ export function ProductPicker({ onSelect, onClose }: ProductPickerProps) {
   }, []);
 
   useEffect(() => {
-    if (normalizedQuery.length < 2) {
-      setResults([]);
-      setError(null);
-      setLoading(false);
-      return;
-    }
-
     const controller = new AbortController();
     const timeout = window.setTimeout(async () => {
       setLoading(true);
       setError(null);
 
       try {
+        const params = new URLSearchParams({ first: "24" });
+        if (normalizedQuery) {
+          params.set("query", normalizedQuery);
+        }
+
         const response = await fetch(
-          `/app/api/products?query=${encodeURIComponent(normalizedQuery)}&first=12`,
+          `/app/api/products?${params.toString()}`,
           { signal: controller.signal },
         );
 
@@ -151,9 +152,7 @@ export function ProductPicker({ onSelect, onClose }: ProductPickerProps) {
     ? "Searching products."
     : error
       ? "Product search failed."
-      : normalizedQuery.length >= 2
-        ? `${results.length} products and ${resultCount} variants found.`
-        : "Enter at least 2 characters to search products.";
+      : `${results.length} products and ${resultCount} variants found.`;
 
   function selectVariant(product: ProductNode, variant: ProductVariantNode) {
     const image = getProductImage(product, variant);
@@ -170,6 +169,17 @@ export function ProductPicker({ onSelect, onClose }: ProductPickerProps) {
       imageUrl: image?.url,
       imageAlt: image?.altText,
     });
+  }
+
+  function getSelectedVariant(product: ProductNode) {
+    const variants = product.variants?.nodes ?? [];
+    const selectedVariantId = selectedVariantByProductId[product.id];
+
+    return (
+      variants.find((variant) => variant.id === selectedVariantId) ??
+      variants[0] ??
+      null
+    );
   }
 
   function handleDialogKeyDown(event: ReactKeyboardEvent<HTMLElement>) {
@@ -251,10 +261,10 @@ export function ProductPicker({ onSelect, onClose }: ProductPickerProps) {
         </p>
 
         <div className="picker-body">
-          {normalizedQuery.length < 2 && (
-            <div className="picker-empty">
-              <strong>Start with at least 2 characters.</strong>
-              <span>Try PA7, NAD3, C2, T5, pouch, or a product handle.</span>
+          {!loading && normalizedQuery.length === 0 && (
+            <div className="picker-empty picker-empty--inline">
+              <strong>Showing recent products.</strong>
+              <span>Search by title, handle, SKU, or keyword to narrow the list.</span>
             </div>
           )}
 
@@ -276,7 +286,7 @@ export function ProductPicker({ onSelect, onClose }: ProductPickerProps) {
 
           {!loading &&
             !error &&
-            normalizedQuery.length >= 2 &&
+            normalizedQuery.length > 0 &&
             results.length === 0 && (
               <div className="picker-empty">
                 <strong>No products found.</strong>
@@ -297,7 +307,12 @@ export function ProductPicker({ onSelect, onClose }: ProductPickerProps) {
               <div className="product-picker-grid">
                 {results.map((product) => {
                   const variants = product.variants?.nodes ?? [];
-                  const image = getProductImage(product, variants[0]);
+                  const selectedVariant = getSelectedVariant(product);
+                  const image = getProductImage(
+                    product,
+                    selectedVariant ?? variants[0],
+                  );
+                  const variantSelectId = `product-variant-${getGidTail(product.id)}`;
 
                   return (
                     <article key={product.id} className="product-picker-card">
@@ -327,33 +342,53 @@ export function ProductPicker({ onSelect, onClose }: ProductPickerProps) {
                         </div>
                       </div>
 
-                      <div className="variant-choice-list">
-                        {variants.map((variant) => (
-                          <button
-                            key={variant.id}
-                            type="button"
-                            onClick={() => selectVariant(product, variant)}
-                            className="variant-choice"
-                            aria-label={`Select ${product.title}, ${variant.title}`}
+                      <div className="variant-choice-panel">
+                        <div className="variant-select-field">
+                          <label htmlFor={variantSelectId}>Variant</label>
+                          <select
+                            id={variantSelectId}
+                            value={selectedVariant?.id ?? ""}
+                            disabled={variants.length === 0}
+                            onChange={(event) =>
+                              setSelectedVariantByProductId((current) => ({
+                                ...current,
+                                [product.id]: event.target.value,
+                              }))
+                            }
                           >
-                            <span className="variant-choice__copy">
-                              <strong>{variant.title}</strong>
-                              <span>
-                                {variant.sku ? `SKU ${variant.sku}` : "No SKU"}
-                                {" · "}
-                                {formatInventory(variant.inventoryQuantity)}
-                              </span>
+                            {variants.map((variant) => (
+                              <option key={variant.id} value={variant.id}>
+                                {variant.title}
+                                {variant.sku ? ` - SKU ${variant.sku}` : ""}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div className="variant-choice-summary">
+                          <div>
+                            <strong>
+                              {selectedVariant ? `$${selectedVariant.price}` : "No variant"}
+                            </strong>
+                            <span>
+                              {selectedVariant
+                                ? formatInventory(selectedVariant.inventoryQuantity)
+                                : "This product has no variants available"}
                             </span>
-                            <span className="variant-choice__side">
-                              <span className="variant-choice__price">
-                                ${variant.price}
-                              </span>
-                              <span className="variant-choice__action">
-                                Select
-                              </span>
-                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            className="btn btn--primary"
+                            disabled={!selectedVariant}
+                            onClick={() => {
+                              if (selectedVariant) {
+                                selectVariant(product, selectedVariant);
+                              }
+                            }}
+                          >
+                            Select
                           </button>
-                        ))}
+                        </div>
                       </div>
                     </article>
                   );

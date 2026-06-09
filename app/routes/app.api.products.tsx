@@ -3,6 +3,7 @@ import type { LoaderFunctionArgs } from "react-router";
 import {
   getProductById,
   getVariantById,
+  listProducts,
   searchProducts,
   type GraphQLProxyFn,
 } from "~/lib/shopifyProducts.server";
@@ -104,12 +105,12 @@ export async function loader({ request }: LoaderFunctionArgs) {
     }
   }
 
-  if (query.length < 2) {
-    return json({ products: [] });
-  }
-
   try {
-    const products = await searchProducts(makeProxy(admin), query, first);
+    const products =
+      query.length > 0
+        ? await searchProducts(makeProxy(admin), query, first)
+        : await listProducts(makeProxy(admin), first);
+
     return json({ products });
   } catch (error) {
     return json(

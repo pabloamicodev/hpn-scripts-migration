@@ -44,6 +44,36 @@ const SEARCH_PRODUCTS_QUERY = `
   }
 `;
 
+const LIST_PRODUCTS_QUERY = `
+  query ListProducts($first: Int!) {
+    products(first: $first) {
+      nodes {
+        id
+        title
+        handle
+        vendor
+        featuredImage {
+          url
+          altText
+        }
+        variants(first: 50) {
+          nodes {
+            id
+            title
+            sku
+            price
+            inventoryQuantity
+            image {
+              url
+              altText
+            }
+          }
+        }
+      }
+    }
+  }
+`;
+
 const GET_PRODUCT_BY_ID_QUERY = `
   query GetProduct($id: ID!) {
     product(id: $id) {
@@ -182,6 +212,19 @@ export async function searchProducts(
   });
 
   assertNoGraphqlErrors(result, "SearchProducts");
+
+  return result.data?.products?.nodes ?? [];
+}
+
+export async function listProducts(
+  graphqlProxy: GraphQLProxyFn,
+  first = 20,
+): Promise<ProductNode[]> {
+  const result = await graphqlProxy<SearchProductsData>(LIST_PRODUCTS_QUERY, {
+    first: clampProductSearchLimit(first),
+  });
+
+  assertNoGraphqlErrors(result, "ListProducts");
 
   return result.data?.products?.nodes ?? [];
 }

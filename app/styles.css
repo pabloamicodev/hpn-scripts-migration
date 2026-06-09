@@ -1465,6 +1465,16 @@ input[type="radio"] {
   text-align: center;
 }
 
+.picker-empty--inline {
+  min-block-size: auto;
+  justify-items: start;
+  place-items: initial;
+  padding: 12px 14px;
+  border-style: solid;
+  background: #ffffff;
+  text-align: start;
+}
+
 .picker-empty strong {
   color: var(--text);
   font-size: 15px;
@@ -1522,15 +1532,17 @@ input[type="radio"] {
 
 .product-picker-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 500px), 1fr));
-  gap: 18px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
   align-items: start;
 }
 
 .product-picker-card {
   container-type: inline-size;
   display: grid;
-  gap: 16px;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 38%);
+  gap: 18px;
+  align-items: center;
   min-block-size: 0;
   min-inline-size: 0;
   padding: 16px;
@@ -1550,23 +1562,23 @@ input[type="radio"] {
   border-color: #bfc3bf;
   box-shadow:
     0 1px 0 rgba(0, 0, 0, 0.04),
-    0 22px 52px rgba(24, 24, 27, 0.1);
-  transform: translateY(-1px);
+    0 18px 42px rgba(24, 24, 27, 0.08);
+  transform: none;
 }
 
 .product-picker-card__top {
   display: grid;
-  grid-template-columns: 92px minmax(0, 1fr);
+  grid-template-columns: 88px minmax(0, 1fr);
   gap: 16px;
   min-inline-size: 0;
-  align-items: start;
+  align-items: center;
 }
 
 .product-picker-card__media {
   display: grid;
   place-items: center;
-  inline-size: 92px;
-  block-size: 92px;
+  inline-size: 88px;
+  block-size: 88px;
   aspect-ratio: 1;
   overflow: hidden;
   border: 1px solid #dfe2df;
@@ -1631,6 +1643,63 @@ input[type="radio"] {
   color: #52525b;
   font-size: 12px;
   font-weight: 700;
+}
+
+.variant-choice-panel {
+  display: grid;
+  gap: 12px;
+  min-inline-size: 0;
+  padding: 14px;
+  border: 1px solid #e1e3e0;
+  border-radius: var(--radius);
+  background: #fafafa;
+}
+
+.variant-select-field {
+  display: grid;
+  gap: 6px;
+  min-inline-size: 0;
+}
+
+.variant-select-field label {
+  color: #52525b;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.variant-select-field select {
+  min-block-size: 40px;
+  border-color: #c9cccf;
+  background: #ffffff;
+  font-weight: 650;
+}
+
+.variant-choice-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-inline-size: 0;
+}
+
+.variant-choice-summary > div {
+  display: grid;
+  gap: 2px;
+  min-inline-size: 0;
+}
+
+.variant-choice-summary strong {
+  color: var(--text);
+  font-size: 16px;
+  font-weight: 760;
+}
+
+.variant-choice-summary span {
+  overflow: hidden;
+  color: var(--text-subdued);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .variant-choice-list {

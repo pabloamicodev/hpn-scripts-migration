@@ -33,6 +33,10 @@ const SEARCH_PRODUCTS_QUERY = `
             sku
             price
             inventoryQuantity
+            selectedOptions {
+              name
+              value
+            }
             image {
               url
               altText
@@ -63,6 +67,10 @@ const LIST_PRODUCTS_QUERY = `
             sku
             price
             inventoryQuantity
+            selectedOptions {
+              name
+              value
+            }
             image {
               url
               altText
@@ -92,6 +100,10 @@ const GET_PRODUCT_BY_ID_QUERY = `
           sku
           price
           inventoryQuantity
+          selectedOptions {
+            name
+            value
+          }
         }
       }
     }
@@ -106,6 +118,10 @@ const GET_VARIANT_BY_ID_QUERY = `
       sku
       price
       inventoryQuantity
+      selectedOptions {
+        name
+        value
+      }
       image {
         url
         altText
@@ -130,6 +146,10 @@ export interface ProductVariantNode {
   sku?: string | null;
   price: string;
   inventoryQuantity?: number | null;
+  selectedOptions?: Array<{
+    name: string;
+    value: string;
+  }>;
   image?: {
     url: string;
     altText?: string | null;

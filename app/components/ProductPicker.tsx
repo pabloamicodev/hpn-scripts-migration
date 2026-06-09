@@ -12,6 +12,10 @@ interface ProductVariantNode {
   sku?: string | null;
   price: string;
   inventoryQuantity?: number | null;
+  selectedOptions?: Array<{
+    name: string;
+    value: string;
+  }>;
   image?: ProductImage | null;
 }
 
@@ -62,6 +66,43 @@ function formatInventory(quantity?: number | null) {
   }
 
   return `${quantity} in stock`;
+}
+
+function isDefaultVariantTitle(title: string) {
+  return title.trim().toLowerCase() === "default title";
+}
+
+function formatVariantName(variant: ProductVariantNode, index = 0) {
+  const optionValues =
+    variant.selectedOptions
+      ?.map((option) => option.value.trim())
+      .filter((value) => value && value.toLowerCase() !== "default title") ??
+    [];
+
+  if (optionValues.length > 0) {
+    return optionValues.join(" / ");
+  }
+
+  if (!isDefaultVariantTitle(variant.title)) {
+    return variant.title;
+  }
+
+  if (variant.sku) {
+    return `SKU ${variant.sku}`;
+  }
+
+  return `Variant ${index + 1}`;
+}
+
+function formatVariantOptionLabel(variant: ProductVariantNode, index: number) {
+  return [
+    formatVariantName(variant, index),
+    variant.sku ? `SKU ${variant.sku}` : null,
+    `$${variant.price}`,
+    formatInventory(variant.inventoryQuantity),
+  ]
+    .filter(Boolean)
+    .join(" - ");
 }
 
 export function ProductPicker({ onSelect, onClose }: ProductPickerProps) {
@@ -156,6 +197,8 @@ export function ProductPicker({ onSelect, onClose }: ProductPickerProps) {
 
   function selectVariant(product: ProductNode, variant: ProductVariantNode) {
     const image = getProductImage(product, variant);
+    const variantIndex =
+      product.variants?.nodes?.findIndex((node) => node.id === variant.id) ?? 0;
 
     onSelect({
       productId: product.id,
@@ -163,7 +206,7 @@ export function ProductPicker({ onSelect, onClose }: ProductPickerProps) {
       productHandle: product.handle,
       vendor: product.vendor,
       variantId: variant.id,
-      variantTitle: variant.title,
+      variantTitle: formatVariantName(variant, Math.max(variantIndex, 0)),
       sku: variant.sku,
       price: variant.price,
       imageUrl: image?.url,
@@ -356,10 +399,9 @@ export function ProductPicker({ onSelect, onClose }: ProductPickerProps) {
                               }))
                             }
                           >
-                            {variants.map((variant) => (
+                            {variants.map((variant, index) => (
                               <option key={variant.id} value={variant.id}>
-                                {variant.title}
-                                {variant.sku ? ` - SKU ${variant.sku}` : ""}
+                                {formatVariantOptionLabel(variant, index)}
                               </option>
                             ))}
                           </select>

@@ -344,7 +344,11 @@ export function ProductPicker({ onSelect, onClose }: ProductPickerProps) {
                     <strong>{results.length} products</strong>
                     <span>{resultCount} variants available</span>
                   </div>
-                  <span className="picker-results__query">"{normalizedQuery}"</span>
+                  {normalizedQuery && (
+                    <span className="picker-results__query">
+                      "{normalizedQuery}"
+                    </span>
+                  )}
                 </div>
 
               <div className="product-picker-grid">

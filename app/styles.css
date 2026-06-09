@@ -1473,6 +1473,7 @@ input[type="radio"] {
   border-style: solid;
   background: #ffffff;
   text-align: start;
+  margin-bottom: 30px
 }
 
 .picker-empty strong {

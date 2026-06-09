@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { KeyboardEvent as ReactKeyboardEvent } from "react";
 
 interface ProductImage {
   url: string;
@@ -68,8 +69,21 @@ export function ProductPicker({ onSelect, onClose }: ProductPickerProps) {
   const [results, setResults] = useState<ProductNode[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const previouslyFocusedElement = useRef<Element | null>(null);
 
   const normalizedQuery = query.trim();
+
+  useEffect(() => {
+    previouslyFocusedElement.current = document.activeElement;
+    searchInputRef.current?.focus();
+
+    return () => {
+      if (previouslyFocusedElement.current instanceof HTMLElement) {
+        previouslyFocusedElement.current.focus();
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (normalizedQuery.length < 2) {
@@ -113,7 +127,7 @@ export function ProductPicker({ onSelect, onClose }: ProductPickerProps) {
   }, [normalizedQuery]);
 
   useEffect(() => {
-    function handleKeyDown(event: KeyboardEvent) {
+    function handleKeyDown(event: globalThis.KeyboardEvent) {
       if (event.key === "Escape") {
         onClose();
       }
@@ -133,6 +147,14 @@ export function ProductPicker({ onSelect, onClose }: ProductPickerProps) {
     );
   }, [results]);
 
+  const liveStatus = loading
+    ? "Searching products."
+    : error
+      ? "Product search failed."
+      : normalizedQuery.length >= 2
+        ? `${results.length} products and ${resultCount} variants found.`
+        : "Enter at least 2 characters to search products.";
+
   function selectVariant(product: ProductNode, variant: ProductVariantNode) {
     const image = getProductImage(product, variant);
 
@@ -150,14 +172,39 @@ export function ProductPicker({ onSelect, onClose }: ProductPickerProps) {
     });
   }
 
+  function handleDialogKeyDown(event: ReactKeyboardEvent<HTMLElement>) {
+    if (event.key !== "Tab") return;
+
+    const focusable = Array.from(
+      event.currentTarget.querySelectorAll<HTMLElement>(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+      ),
+    ).filter((element) => !element.hasAttribute("disabled"));
+
+    if (focusable.length === 0) return;
+
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  }
+
   return (
-    <div className="picker-backdrop" role="presentation" onMouseDown={onClose}>
+    <div className="picker-backdrop" onMouseDown={onClose}>
       <section
         className="picker-modal"
         role="dialog"
         aria-modal="true"
         aria-labelledby="product-picker-title"
+        aria-describedby="product-picker-subtitle"
         onMouseDown={(event) => event.stopPropagation()}
+        onKeyDown={handleDialogKeyDown}
       >
         <header className="picker-header">
           <div className="picker-heading">
@@ -165,7 +212,7 @@ export function ProductPicker({ onSelect, onClose }: ProductPickerProps) {
             <h2 id="product-picker-title" className="picker-title">
               Select product
             </h2>
-            <p className="picker-subtitle">
+            <p id="product-picker-subtitle" className="picker-subtitle">
               Search Shopify products and choose the exact variant to add.
             </p>
           </div>
@@ -190,14 +237,18 @@ export function ProductPicker({ onSelect, onClose }: ProductPickerProps) {
           <div className="search-field">
             <input
               id="product-picker-search"
+              ref={searchInputRef}
               type="search"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search by product name, handle, or SKU"
-              autoFocus
+              placeholder="Search by product name, handle, or SKU…"
             />
           </div>
         </div>
+
+        <p className="visually-hidden" aria-live="polite">
+          {liveStatus}
+        </p>
 
         <div className="picker-body">
           {normalizedQuery.length < 2 && (
@@ -209,7 +260,7 @@ export function ProductPicker({ onSelect, onClose }: ProductPickerProps) {
 
           {loading && (
             <div className="picker-empty">
-              <strong>Searching products...</strong>
+              <strong>Searching products…</strong>
               <span>Looking through Shopify Admin products.</span>
             </div>
           )}
@@ -217,7 +268,7 @@ export function ProductPicker({ onSelect, onClose }: ProductPickerProps) {
           {error && (
             <div className="alert alert--critical">
               <strong>Search failed</strong>
-              <pre style={{ margin: "8px 0 0", whiteSpace: "pre-wrap" }}>
+              <pre className="alert__pre">
                 {error}
               </pre>
             </div>

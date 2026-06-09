@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useLoaderData, useFetcher, useNavigate } from "react-router";
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "react-router";
 import { authenticate } from "~/shopify.server";
@@ -14,6 +15,7 @@ import {
   findHpnFunctionId,
 } from "~/lib/shopifyDiscounts.server";
 import { StatusBadge } from "~/components/StatusBadge";
+import { ConfirmDialog } from "~/components/ConfirmDialog";
 
 function makeProxy(admin: any) {
   return async (q: string, v?: Record<string, unknown>) => {
@@ -43,7 +45,7 @@ export async function action({ request }: ActionFunctionArgs) {
     const functionId = await findHpnFunctionId(proxy);
     if (!functionId) {
       return {
-        error: `No se encontró la Shopify Function. Asegurate de que la app esté instalada en esta store y que la función esté deployada.`,
+        error: "The Shopify Function could not be found. Make sure the app is installed on this store and the function has been deployed.",
       };
     }
 
@@ -101,6 +103,7 @@ export default function DiscountPage() {
     useLoaderData<typeof loader>();
   const fetcher = useFetcher();
   const navigate = useNavigate();
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   const isPending = fetcher.state !== "idle";
   const actionError =
@@ -147,8 +150,8 @@ export default function DiscountPage() {
 
       {!functionId && (
         <div className="alert alert--warning">
-          <strong>Function no encontrada.</strong> Instalá la app en esta store.
-          La función se detecta automáticamente una vez instalada.
+          <strong>Function Missing.</strong> Install the app on this store.
+          The function is detected automatically after installation.
         </div>
       )}
 
@@ -193,7 +196,7 @@ export default function DiscountPage() {
 
         <section className="summary-tile">
           <p className="summary-tile__label">Started</p>
-          <p className="summary-tile__value" style={{ fontSize: "14px" }}>
+          <p className="summary-tile__value summary-tile__value--compact">
             {startedLabel}
           </p>
           <p className="summary-tile__note">Admin API source of truth</p>
@@ -229,7 +232,7 @@ export default function DiscountPage() {
                   <dd className="mono">{discountId}</dd>
                 </dl>
               ) : (
-                <div className="empty-state" style={{ minHeight: "180px" }}>
+                <div className="empty-state empty-state--compact">
                   <h2>No discount exists yet</h2>
                   <p>
                     Create the automatic app discount to publish the HPN rules to
@@ -309,7 +312,7 @@ export default function DiscountPage() {
                       disabled={isPending || !functionId}
                       className="btn btn--primary btn--full"
                     >
-                      {isPending ? "Creating..." : "Create discount"}
+                      {isPending ? "Creating…" : "Create discount"}
                     </button>
                   </fetcher.Form>
                 )}
@@ -322,7 +325,7 @@ export default function DiscountPage() {
                       disabled={isPending}
                       className="btn btn--primary btn--full"
                     >
-                      {isPending ? "Activating..." : "Activate discount"}
+                      {isPending ? "Activating…" : "Activate discount"}
                     </button>
                   </fetcher.Form>
                 )}
@@ -335,7 +338,7 @@ export default function DiscountPage() {
                       disabled={isPending}
                       className="btn btn--warning btn--full"
                     >
-                      {isPending ? "Deactivating..." : "Deactivate discount"}
+                      {isPending ? "Deactivating…" : "Deactivate discount"}
                     </button>
                   </fetcher.Form>
                 )}
@@ -399,25 +402,15 @@ export default function DiscountPage() {
               </div>
 
               <div className="card__body">
-                <fetcher.Form
-                  method="post"
-                  onSubmit={(e) => {
-                    if (
-                      !window.confirm(
-                        "Delete this discount permanently? All rules will be lost.",
-                      )
-                    ) {
-                      e.preventDefault();
-                    }
-                  }}
-                >
+                <fetcher.Form method="post">
                   <input type="hidden" name="intent" value="delete" />
                   <button
-                    type="submit"
+                    type="button"
                     disabled={isPending}
                     className="btn btn--danger btn--full"
+                    onClick={() => setDeleteDialogOpen(true)}
                   >
-                    {isPending ? "Deleting..." : "Delete discount"}
+                    {isPending ? "Deleting…" : "Delete discount"}
                   </button>
                 </fetcher.Form>
               </div>
@@ -425,6 +418,19 @@ export default function DiscountPage() {
           )}
         </aside>
       </div>
+
+      <ConfirmDialog
+        open={deleteDialogOpen}
+        title="Delete Discount"
+        description="This permanently removes the Shopify discount and its metafield configuration. All published promo rules will be lost."
+        confirmLabel="Delete Discount"
+        pending={isPending}
+        onClose={() => setDeleteDialogOpen(false)}
+        onConfirm={() => {
+          fetcher.submit({ intent: "delete" }, { method: "post" });
+          setDeleteDialogOpen(false);
+        }}
+      />
     </div>
   );
 }

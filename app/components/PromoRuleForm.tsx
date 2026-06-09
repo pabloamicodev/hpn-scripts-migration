@@ -28,6 +28,7 @@ interface SelectedProductMeta {
 
 interface PromoRuleFormProps {
   defaultValues?: HpnPromoRule;
+  submissionError?: string | null;
   onSubmit: (data: HpnPromoRule) => void;
   onCancel: () => void;
 }
@@ -171,6 +172,7 @@ function formatZodError(error: unknown) {
 
 export function PromoRuleForm({
   defaultValues,
+  submissionError,
   onSubmit,
   onCancel,
 }: PromoRuleFormProps) {
@@ -402,12 +404,12 @@ export function PromoRuleForm({
         </div>
       </header>
 
-      {schemaError && (
-        <section className="alert alert--critical">
-          <strong>Validation error</strong>
+      {(schemaError || submissionError) && (
+        <section className="alert alert--critical" role="alert">
+          <strong>{schemaError ? "Validation Error" : "Save Failed"}</strong>
 
-          <pre style={{ whiteSpace: "pre-wrap", margin: "8px 0 0" }}>
-            {schemaError}
+          <pre className="alert__pre">
+            {schemaError ?? submissionError}
           </pre>
         </section>
       )}
@@ -589,8 +591,9 @@ export function PromoRuleForm({
               htmlFor="freeQuantityPerLine"
               className="form-label"
             >
-              Free Quantity Per Line leave empty for all
+              Free Quantity Per Line
             </label>
+            <p className="field-hint">Leave empty to discount all eligible units.</p>
 
             <input
               type="number"
@@ -609,7 +612,7 @@ export function PromoRuleForm({
                   },
                 );
               }}
-              placeholder="All"
+              placeholder="All…"
               className="number-field"
             />
           </div>
@@ -684,7 +687,7 @@ export function PromoRuleForm({
           disabled={isSubmitting}
           className="btn btn--primary"
         >
-          {isSubmitting ? "Saving..." : "Save Rule"}
+          {isSubmitting ? "Saving…" : "Save Rule"}
         </button>
 
         <button

@@ -121,7 +121,7 @@ export function PromoRulesTable({
             type="search"
             value={query}
             onChange={(event) => updateQuery(event.target.value)}
-            placeholder="Search by name, product ID, type, or message"
+            placeholder="Search by name, product ID, type, or message…"
           />
         </div>
 
@@ -146,7 +146,7 @@ export function PromoRulesTable({
               setPageSize(Number(event.target.value));
               setPage(1);
             }}
-            style={{ marginInlineStart: "6px", width: "80px" }}
+            className="pagination__select"
           >
             {pageSizeOptions.map((option) => (
               <option key={option} value={option}>
@@ -159,16 +159,19 @@ export function PromoRulesTable({
 
       <div className="table-wrap">
         <table className="data-table">
+          <caption className="visually-hidden">
+            Promotion rules with status, trigger, target, discount, message, and actions.
+          </caption>
           <thead>
             <tr>
-              <th>Name</th>
-              <th>Type</th>
-              <th>Status</th>
-              <th>Trigger</th>
-              <th>Targets</th>
-              <th>Discount</th>
-              <th>Message</th>
-              <th>Actions</th>
+              <th scope="col">Name</th>
+              <th scope="col">Type</th>
+              <th scope="col">Status</th>
+              <th scope="col">Trigger</th>
+              <th scope="col">Targets</th>
+              <th scope="col">Discount</th>
+              <th scope="col">Message</th>
+              <th scope="col">Actions</th>
             </tr>
           </thead>
 
@@ -180,30 +183,28 @@ export function PromoRulesTable({
               return (
                 <tr
                   key={rule.id}
-                  style={{
-                    opacity: rule.enabled ? 1 : 0.55,
-                  }}
+                  className={rule.enabled ? undefined : "data-table__row--muted"}
                 >
-                  <td className="cell-strong" style={{ whiteSpace: "nowrap" }}>
+                  <td className="cell-strong cell-nowrap" data-label="Name">
                     {displayName}
                   </td>
-                  <td>{typeLabels[rule.type] ?? "Unknown"}</td>
-                  <td>
+                  <td data-label="Type">{typeLabels[rule.type] ?? "Unknown"}</td>
+                  <td data-label="Status">
                     <StatusBadge status={rule.enabled ? "active" : "paused"} />
                   </td>
-                  <td title={triggerSummary} className="cell-muted truncate">
+                  <td title={triggerSummary} className="cell-muted truncate" data-label="Trigger">
                     {triggerSummary}
                   </td>
-                  <td className="cell-muted" style={{ whiteSpace: "nowrap" }}>
+                  <td className="cell-muted cell-nowrap" data-label="Targets">
                     {getTargetsCount(rule)} items
                   </td>
-                  <td className="cell-strong" style={{ whiteSpace: "nowrap" }}>
+                  <td className="cell-strong cell-nowrap" data-label="Discount">
                     {getDiscountSummary(rule)}
                   </td>
-                  <td title={rule.message} className="cell-muted truncate">
+                  <td title={rule.message} className="cell-muted truncate" data-label="Message">
                     {rule.message}
                   </td>
-                  <td>
+                  <td data-label="Actions">
                     <div className="row-actions">
                       <button
                         type="button"
@@ -261,8 +262,7 @@ export function PromoRulesTable({
               <tr>
                 <td
                   colSpan={8}
-                  className="muted"
-                  style={{ padding: "32px", textAlign: "center" }}
+                  className="muted table-empty"
                 >
                   No rules match the current filters.
                 </td>

@@ -270,7 +270,7 @@ export function GraphqlConsole() {
                   disabled={loading || !query.trim()}
                   className="btn btn--primary"
                 >
-                  {loading ? "Executing..." : "Execute query"}
+                  {loading ? "Executing…" : "Execute query"}
                 </button>
                 <button
                   type="button"
@@ -310,7 +310,7 @@ export function GraphqlConsole() {
                   >
                     <span>
                       <strong>{preset.name}</strong>
-                      <span className="cell-muted" style={{ display: "block" }}>
+                      <span className="cell-muted cell-block">
                         {preset.description}
                       </span>
                     </span>

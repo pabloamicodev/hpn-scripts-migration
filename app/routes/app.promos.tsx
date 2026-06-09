@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useLoaderData, useNavigate, useFetcher, useRevalidator } from "react-router";
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "react-router";
 import { authenticate } from "~/shopify.server";
@@ -10,6 +11,7 @@ import {
   type GraphQLProxy,
 } from "~/lib/hpnPromoConfig.server";
 import { PromoRulesTable } from "~/components/PromoRulesTable";
+import { ConfirmDialog } from "~/components/ConfirmDialog";
 
 function makeProxy(admin: any): GraphQLProxy {
   return async (q: string, v?: Record<string, unknown>) => {
@@ -63,11 +65,15 @@ export default function PromosPage() {
   const navigate = useNavigate();
   const fetcher = useFetcher();
   const { revalidate } = useRevalidator();
+  const [rulePendingDelete, setRulePendingDelete] = useState<string | null>(null);
 
   const isPending = fetcher.state !== "idle";
 
   function submitIntent(intent: string, ruleId: string) {
     if (!discountId) return;
+    if (intent === "delete") {
+      setRulePendingDelete(null);
+    }
     fetcher.submit(
       { intent, ruleId, discountId },
       { method: "post" }
@@ -146,19 +152,29 @@ export default function PromosPage() {
           rules={config.rules}
           onPause={(ruleId) => submitIntent("pause", ruleId)}
           onResume={(ruleId) => submitIntent("resume", ruleId)}
-          onDelete={(ruleId) => {
-            if (window.confirm("Delete this promo rule? This cannot be undone.")) {
-              submitIntent("delete", ruleId);
-            }
-          }}
+          onDelete={(ruleId) => setRulePendingDelete(ruleId)}
         />
       )}
 
       {isPending && (
-        <p className="muted" style={{ margin: 0 }}>
-          Saving changes...
+        <p className="muted inline-status" aria-live="polite">
+          Saving changes…
         </p>
       )}
+
+      <ConfirmDialog
+        open={Boolean(rulePendingDelete)}
+        title="Delete Promo Rule"
+        description="This removes the rule from the published discount configuration. The action cannot be undone."
+        confirmLabel="Delete Rule"
+        pending={isPending}
+        onClose={() => setRulePendingDelete(null)}
+        onConfirm={() => {
+          if (rulePendingDelete) {
+            submitIntent("delete", rulePendingDelete);
+          }
+        }}
+      />
     </div>
   );
 }

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useNavigate } from "react-router";
 import type { ActionFunctionArgs } from "react-router";
 import { redirect } from "react-router";
@@ -57,19 +58,34 @@ export async function action({ request }: ActionFunctionArgs) {
 
 export default function NewPromoPage() {
   const navigate = useNavigate();
+  const [submissionError, setSubmissionError] = useState<string | null>(null);
 
   function handleSubmit(rule: HpnPromoRule) {
+    setSubmissionError(null);
     fetch("/app/promos/new", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(rule),
     }).then(async (res) => {
-      const data = await res.json();
-      if (data?.error) {
-        alert(data.error);
-      } else {
+      if (res.redirected) {
         navigate("/app/promos");
+        return;
       }
+
+      const contentType = res.headers.get("content-type") ?? "";
+      const data = contentType.includes("application/json")
+        ? await res.json()
+        : null;
+
+      if (data?.error) {
+        setSubmissionError(data.error);
+      } else if (res.ok) {
+        navigate("/app/promos");
+      } else {
+        setSubmissionError("The promo rule could not be saved. Review the form and try again.");
+      }
+    }).catch(() => {
+      setSubmissionError("The promo rule could not be saved. Check your connection and try again.");
     });
   }
 
@@ -79,12 +95,12 @@ export default function NewPromoPage() {
         type="button"
         onClick={() => navigate("/app/promos")}
         className="btn btn--plain"
-        style={{ justifySelf: "start" }}
       >
         Back to Promos
       </button>
 
       <PromoRuleForm
+        submissionError={submissionError}
         onSubmit={handleSubmit}
         onCancel={() => navigate("/app/promos")}
       />

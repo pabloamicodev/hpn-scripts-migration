@@ -22,9 +22,12 @@ export default function AppLayout() {
 
   return (
     <AppProvider embedded apiKey={apiKey}>
+      <a href="#main-content" className="skip-link visually-hidden">
+        Skip to main content
+      </a>
       <AppNav />
       <div className="app-shell">
-        <main className="app-main">
+        <main id="main-content" className="app-main" tabIndex={-1}>
           <Outlet />
         </main>
       </div>
@@ -46,10 +49,10 @@ export function ErrorBoundary() {
     <div className="app-shell">
       <main className="app-main">
     <div className="alert alert--critical">
-      <h2 className="card__title" style={{ marginBottom: "8px" }}>
+      <h2 className="card__title card__title--spaced">
         Something went wrong
       </h2>
-      <pre style={{ whiteSpace: "pre-wrap", margin: 0 }}>
+      <pre className="alert__pre alert__pre--flush">
         {message}
       </pre>
     </div>

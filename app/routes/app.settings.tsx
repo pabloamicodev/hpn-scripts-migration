@@ -213,21 +213,23 @@ export default function SettingsPage() {
                 </div>
 
                 {actionError && (
-                  <div className="alert alert--critical">
+                  <div className="alert alert--critical" role="alert">
                     {actionError}
                   </div>
                 )}
                 {actionOk && (
-                  <div className="alert alert--success">Saved.</div>
+                  <div className="alert alert--success" aria-live="polite">
+                    Settings saved.
+                  </div>
                 )}
 
-                <div className="btn-row" style={{ marginTop: "14px" }}>
+                <div className="btn-row btn-row--spaced">
                   <button
                     type="submit"
                     disabled={fetcher.state !== "idle"}
                     className="btn btn--primary"
                   >
-                    {fetcher.state !== "idle" ? "Saving..." : "Save settings"}
+                    {fetcher.state !== "idle" ? "Saving…" : "Save settings"}
                   </button>
                   <button
                     type="button"

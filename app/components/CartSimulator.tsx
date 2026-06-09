@@ -378,7 +378,7 @@ export function CartSimulator({ config, activeRuleId }: CartSimulatorProps) {
       </section>
 
       <section className="form-section form-section--subdued settings-card">
-        <div className="card__header" style={{ padding: 0, border: 0 }}>
+        <div className="card__header card__header--flush">
           <div>
             <h3 className="form-section__title">Add item to cart</h3>
             <p className="card__subtitle">
@@ -479,7 +479,7 @@ export function CartSimulator({ config, activeRuleId }: CartSimulatorProps) {
               >
                 <span>
                   <strong>{fixture.name}</strong>
-                  <span className="cell-muted" style={{ display: "block" }}>
+                  <span className="cell-muted cell-block">
                     {fixture.description}
                   </span>
                 </span>
@@ -613,8 +613,7 @@ export function CartSimulator({ config, activeRuleId }: CartSimulatorProps) {
       {cartLines.length > 0 && results.length > 0 && (
         <section className="alert alert--success settings-card settings-card--full">
           <h3
-            className="form-section__title"
-            style={{ marginBottom: "10px" }}
+            className="form-section__title form-section__title--spaced"
           >
             Discounts applied ({results.length})
           </h3>
@@ -648,10 +647,10 @@ export function CartSimulator({ config, activeRuleId }: CartSimulatorProps) {
 
       {cartLines.length > 0 && results.length === 0 && (
         <section className="alert alert--critical settings-card settings-card--full">
-          <p style={{ margin: 0, fontWeight: 650 }}>
+          <p className="alert__title">
             No discounts applied
           </p>
-          <p style={{ margin: "4px 0 0" }}>
+          <p className="alert__body">
             The current cart configuration does not trigger the evaluated
             rules.
           </p>

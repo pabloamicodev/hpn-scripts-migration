@@ -114,7 +114,7 @@ export default function AppIndex() {
 
         <section className="card metric-card">
           <p className="metric-label">Last config update</p>
-          <p className="metric-value" style={{ fontSize: "16px" }}>
+          <p className="metric-value metric-value--compact">
             {lastUpdate ? new Date(lastUpdate).toLocaleDateString() : "N/A"}
           </p>
         </section>

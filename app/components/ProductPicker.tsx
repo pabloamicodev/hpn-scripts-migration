@@ -285,14 +285,14 @@ export function ProductPicker({ onSelect, onClose }: ProductPickerProps) {
             )}
 
           {!loading && results.length > 0 && (
-            <div className="picker-results">
-              <div className="picker-results__bar">
-                <div>
-                  <strong>{results.length} products</strong>
-                  <span>{resultCount} variants available</span>
+              <div className="picker-results">
+                <div className="picker-results__bar">
+                  <div>
+                    <strong>{results.length} products</strong>
+                    <span>{resultCount} variants available</span>
+                  </div>
+                  <span className="picker-results__query">"{normalizedQuery}"</span>
                 </div>
-                <span className="picker-results__query">"{normalizedQuery}"</span>
-              </div>
 
               <div className="product-picker-grid">
                 {results.map((product) => {
@@ -321,6 +321,9 @@ export function ProductPicker({ onSelect, onClose }: ProductPickerProps) {
                             <span>/{product.handle}</span>
                             <span>ID {getGidTail(product.id)}</span>
                           </div>
+                          <p className="product-picker-card__variant-count">
+                            {variants.length} variant{variants.length === 1 ? "" : "s"}
+                          </p>
                         </div>
                       </div>
 

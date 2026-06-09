@@ -23,6 +23,68 @@ function getGidTail(gid: string) {
   return gid.split("/").pop() ?? gid;
 }
 
+type RuleActionIcon = "edit" | "pause" | "resume" | "test" | "delete";
+
+function ActionIcon({ icon }: { icon: RuleActionIcon }) {
+  const commonProps = {
+    width: 16,
+    height: 16,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 2,
+    strokeLinecap: "round" as const,
+    strokeLinejoin: "round" as const,
+    "aria-hidden": true,
+  };
+
+  if (icon === "edit") {
+    return (
+      <svg {...commonProps}>
+        <path d="M12 20h9" />
+        <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
+      </svg>
+    );
+  }
+
+  if (icon === "pause") {
+    return (
+      <svg {...commonProps}>
+        <path d="M8 5v14" />
+        <path d="M16 5v14" />
+      </svg>
+    );
+  }
+
+  if (icon === "resume") {
+    return (
+      <svg {...commonProps}>
+        <path d="M8 5v14l11-7Z" />
+      </svg>
+    );
+  }
+
+  if (icon === "test") {
+    return (
+      <svg {...commonProps}>
+        <path d="M10 2v6.5L5 18a3 3 0 0 0 2.6 4h8.8A3 3 0 0 0 19 18l-5-9.5V2" />
+        <path d="M8 2h8" />
+        <path d="M7 15h10" />
+      </svg>
+    );
+  }
+
+  return (
+    <svg {...commonProps}>
+      <path d="M3 6h18" />
+      <path d="M8 6V4h8v2" />
+      <path d="M19 6l-1 14H6L5 6" />
+      <path d="M10 11v5" />
+      <path d="M14 11v5" />
+    </svg>
+  );
+}
+
 export function PromoRulesTable({
   rules,
   onPause,
@@ -209,48 +271,53 @@ export function PromoRulesTable({
                       <button
                         type="button"
                         onClick={() => navigate(`/app/promos/${rule.id}`)}
-                        className="btn btn--small"
+                        className="btn btn--icon"
                         aria-label={`Edit ${displayName}`}
+                        data-tooltip="Edit"
                       >
-                        Edit
+                        <ActionIcon icon="edit" />
                       </button>
 
                       {rule.enabled ? (
                         <button
                           type="button"
                           onClick={() => onPause(rule.id)}
-                          className="btn btn--small btn--warning"
+                          className="btn btn--icon btn--warning"
                           aria-label={`Pause ${displayName}`}
+                          data-tooltip="Pause"
                         >
-                          Pause
+                          <ActionIcon icon="pause" />
                         </button>
                       ) : (
                         <button
                           type="button"
                           onClick={() => onResume(rule.id)}
-                          className="btn btn--small btn--success"
+                          className="btn btn--icon btn--success"
                           aria-label={`Resume ${displayName}`}
+                          data-tooltip="Resume"
                         >
-                          Resume
+                          <ActionIcon icon="resume" />
                         </button>
                       )}
 
                       <button
                         type="button"
                         onClick={() => navigate(`/app/settings?rule=${rule.id}`)}
-                        className="btn btn--small"
+                        className="btn btn--icon"
                         aria-label={`Test ${displayName}`}
+                        data-tooltip="Test"
                       >
-                        Test
+                        <ActionIcon icon="test" />
                       </button>
 
                       <button
                         type="button"
                         onClick={() => onDelete(rule.id)}
-                        className="btn btn--small btn--danger"
+                        className="btn btn--icon btn--danger"
                         aria-label={`Delete ${displayName}`}
+                        data-tooltip="Delete"
                       >
-                        Delete
+                        <ActionIcon icon="delete" />
                       </button>
                     </div>
                   </td>

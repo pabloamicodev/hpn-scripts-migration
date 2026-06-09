@@ -13,6 +13,11 @@ import {
 import { PromoRulesTable } from "~/components/PromoRulesTable";
 import { ConfirmDialog } from "~/components/ConfirmDialog";
 
+type PendingRuleAction = {
+  intent: "pause" | "delete";
+  ruleId: string;
+} | null;
+
 function makeProxy(admin: any): GraphQLProxy {
   return async (q: string, v?: Record<string, unknown>) => {
     const res = await admin.graphql(q, { variables: v });
@@ -65,14 +70,15 @@ export default function PromosPage() {
   const navigate = useNavigate();
   const fetcher = useFetcher();
   const { revalidate } = useRevalidator();
-  const [rulePendingDelete, setRulePendingDelete] = useState<string | null>(null);
+  const [pendingRuleAction, setPendingRuleAction] =
+    useState<PendingRuleAction>(null);
 
   const isPending = fetcher.state !== "idle";
 
   function submitIntent(intent: string, ruleId: string) {
     if (!discountId) return;
-    if (intent === "delete") {
-      setRulePendingDelete(null);
+    if (intent === "pause" || intent === "delete") {
+      setPendingRuleAction(null);
     }
     fetcher.submit(
       { intent, ruleId, discountId },
@@ -150,9 +156,9 @@ export default function PromosPage() {
       {discountId && config && (
         <PromoRulesTable
           rules={config.rules}
-          onPause={(ruleId) => submitIntent("pause", ruleId)}
+          onPause={(ruleId) => setPendingRuleAction({ intent: "pause", ruleId })}
           onResume={(ruleId) => submitIntent("resume", ruleId)}
-          onDelete={(ruleId) => setRulePendingDelete(ruleId)}
+          onDelete={(ruleId) => setPendingRuleAction({ intent: "delete", ruleId })}
         />
       )}
 
@@ -163,15 +169,24 @@ export default function PromosPage() {
       )}
 
       <ConfirmDialog
-        open={Boolean(rulePendingDelete)}
-        title="Delete Promo Rule"
-        description="This removes the rule from the published discount configuration. The action cannot be undone."
-        confirmLabel="Delete Rule"
+        open={Boolean(pendingRuleAction)}
+        tone={pendingRuleAction?.intent === "pause" ? "warning" : "danger"}
+        title={
+          pendingRuleAction?.intent === "pause"
+            ? "Pause Promo Rule"
+            : "Delete Promo Rule"
+        }
+        description={
+          pendingRuleAction?.intent === "pause"
+            ? "This rule will stop applying to matching carts as soon as the discount configuration is saved."
+            : "This removes the rule from the published discount configuration. The action cannot be undone."
+        }
+        confirmLabel="Continue"
         pending={isPending}
-        onClose={() => setRulePendingDelete(null)}
+        onClose={() => setPendingRuleAction(null)}
         onConfirm={() => {
-          if (rulePendingDelete) {
-            submitIntent("delete", rulePendingDelete);
+          if (pendingRuleAction) {
+            submitIntent(pendingRuleAction.intent, pendingRuleAction.ruleId);
           }
         }}
       />

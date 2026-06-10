@@ -114,7 +114,7 @@ export default function SettingsPage() {
       </header>
 
       <main className="settings-layout">
-        <section className="card card--raised settings-card">
+        <section className="card card--raised settings-card settings-card--environment">
           <div className="card__header">
             <div>
               <h2 className="card__title">Environment</h2>
@@ -154,7 +154,7 @@ export default function SettingsPage() {
           </div>
         </section>
 
-        <section className="card settings-card">
+        <section className="card settings-card settings-card--combinations">
           <div className="card__header">
             <div>
               <h2 className="card__title">Discount combinations</h2>
@@ -244,7 +244,7 @@ export default function SettingsPage() {
           </div>
         </section>
 
-        <section className="card settings-card">
+        <section className="card settings-card settings-card--health">
           <div className="card__header">
             <div>
               <h2 className="card__title">Rule health</h2>

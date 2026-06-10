@@ -334,287 +334,289 @@ export function CartSimulator({ config, activeRuleId }: CartSimulatorProps) {
   }
 
   return (
-    <>
-      <section className="card card--raised settings-card">
-        <div className="card__header">
-          <div>
-            <h2 className="card__title">Cart simulator</h2>
-            <p className="card__subtitle">
-              {activeRule
-                ? `Testing only ${getRuleName(activeRule)}`
-                : "Evaluating all active promo rules"}
-            </p>
-          </div>
-          {activeRuleId && !activeRule && (
-            <span className="status-badge status-badge--error">
-              Rule not found
-            </span>
-          )}
+    <section className="simulator-workspace settings-card settings-card--full">
+      <div className="simulator-workspace__header">
+        <div>
+          <p className="page-kicker">Testing workspace</p>
+          <h2 className="page-title">Cart simulator</h2>
+          <p className="page-subtitle">
+            {activeRule
+              ? `Testing only ${getRuleName(activeRule)}`
+              : "Evaluate active promo rules against cart scenarios."}
+          </p>
         </div>
 
-        <div className="card__body">
-          <div className="summary-grid">
-            <div className="summary-tile">
-              <p className="summary-tile__label">Cart lines</p>
-              <p className="summary-tile__value">{cartLines.length}</p>
-              <p className="summary-tile__note">{totalQuantity} total units</p>
-            </div>
-            <div className="summary-tile">
-              <p className="summary-tile__label">Discount actions</p>
-              <p className="summary-tile__value">{results.length}</p>
-              <p className="summary-tile__note">
-                {discountedQuantity} units discounted
-              </p>
-            </div>
-            <div className="summary-tile">
-              <p className="summary-tile__label">Rules evaluated</p>
-              <p className="summary-tile__value">{testConfig.rules.length}</p>
-              <p className="summary-tile__note">
-                {activeRule ? "Single-rule test" : "Full configuration"}
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="form-section form-section--subdued settings-card">
-        <div className="card__header card__header--flush">
-          <div>
-            <h3 className="form-section__title">Add item to cart</h3>
-            <p className="card__subtitle">
-              Pick a Shopify product and variant instead of typing IDs.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => setPickerOpen(true)}
-            className="btn btn--primary"
-          >
-            Pick product
-          </button>
-        </div>
-
-        {selectedItem ? (
-          <div className="selected-product-card">
-            <ProductThumb
-              imageUrl={selectedItem.imageUrl}
-              title={selectedItem.productTitle}
-            />
-
-            <div className="selected-product-card__body">
-              <div>
-                <h4>{selectedItem.productTitle}</h4>
-                <p>
-                  {selectedItem.variantTitle}
-                  {selectedItem.sku ? ` · SKU ${selectedItem.sku}` : ""}
-                </p>
-                <p className="mono">
-                  Product {getGidTail(selectedItem.productId)} · Variant{" "}
-                  {getGidTail(selectedItem.variantId)}
-                </p>
-              </div>
-
-              <div className="selected-product-card__controls">
-                <label className="form-label" htmlFor="cart-line-quantity">
-                  Qty
-                </label>
-                <input
-                  id="cart-line-quantity"
-                  type="number"
-                  min={1}
-                  value={newQuantity}
-                  onChange={(event) => {
-                    setNewQuantity(
-                      Number.parseInt(event.target.value, 10) || 1,
-                    );
-                  }}
-                  className="number-field"
-                />
-                <button
-                  type="button"
-                  onClick={addSelectedLine}
-                  className="btn btn--primary"
-                >
-                  Add to cart
-                </button>
-              </div>
-            </div>
-          </div>
-        ) : (
-          <button
-            type="button"
-            onClick={() => setPickerOpen(true)}
-            className="product-picker-trigger"
-          >
-            <span className="product-picker-trigger__icon">+</span>
-            <span>
-              <strong>Select a Shopify product</strong>
-              <span>
-                Search by product name, handle, or SKU and choose a variant.
-              </span>
-            </span>
-          </button>
+        {activeRuleId && !activeRule && (
+          <span className="status-badge status-badge--error">
+            Rule not found
+          </span>
         )}
-      </section>
+      </div>
 
-      <section className="card settings-card">
-        <div className="card__header">
-          <div>
-            <h3 className="card__title">Fixtures</h3>
-            <p className="card__subtitle">
-              Load known HPN cart scenarios.
-            </p>
-          </div>
+      <div className="simulator-metrics">
+        <div className="summary-tile">
+          <p className="summary-tile__label">Cart lines</p>
+          <p className="summary-tile__value">{cartLines.length}</p>
+          <p className="summary-tile__note">{totalQuantity} total units</p>
         </div>
+        <div className="summary-tile">
+          <p className="summary-tile__label">Discount actions</p>
+          <p className="summary-tile__value">{results.length}</p>
+          <p className="summary-tile__note">
+            {discountedQuantity} units discounted
+          </p>
+        </div>
+        <div className="summary-tile">
+          <p className="summary-tile__label">Rules evaluated</p>
+          <p className="summary-tile__value">{testConfig.rules.length}</p>
+          <p className="summary-tile__note">
+            {activeRule ? "Single-rule test" : "Full configuration"}
+          </p>
+        </div>
+      </div>
 
-        <div className="card__body">
-          <div className="fixture-grid">
-            {fixtures.map((fixture) => (
+      <div className="simulator-workspace__grid">
+        <div className="simulator-workspace__main">
+          <section className="form-section form-section--subdued settings-card simulator-panel">
+            <div className="card__header card__header--flush">
+              <div>
+                <h3 className="form-section__title">Add item to cart</h3>
+                <p className="card__subtitle">
+                  Pick a Shopify product and variant instead of typing IDs.
+                </p>
+              </div>
               <button
-                key={fixture.id}
                 type="button"
-                onClick={() => loadFixture(fixture)}
-                className="btn fixture-button"
-                aria-pressed={lastFixtureId === fixture.id}
+                onClick={() => setPickerOpen(true)}
+                className="btn btn--primary"
               >
+                Pick product
+              </button>
+            </div>
+
+            {selectedItem ? (
+              <div className="selected-product-card">
+                <ProductThumb
+                  imageUrl={selectedItem.imageUrl}
+                  title={selectedItem.productTitle}
+                />
+
+                <div className="selected-product-card__body">
+                  <div>
+                    <h4>{selectedItem.productTitle}</h4>
+                    <p>
+                      {selectedItem.variantTitle}
+                      {selectedItem.sku ? ` · SKU ${selectedItem.sku}` : ""}
+                    </p>
+                    <p className="mono">
+                      Product {getGidTail(selectedItem.productId)} · Variant{" "}
+                      {getGidTail(selectedItem.variantId)}
+                    </p>
+                  </div>
+
+                  <div className="selected-product-card__controls">
+                    <label className="form-label" htmlFor="cart-line-quantity">
+                      Qty
+                    </label>
+                    <input
+                      id="cart-line-quantity"
+                      type="number"
+                      min={1}
+                      value={newQuantity}
+                      onChange={(event) => {
+                        setNewQuantity(
+                          Number.parseInt(event.target.value, 10) || 1,
+                        );
+                      }}
+                      className="number-field"
+                    />
+                    <button
+                      type="button"
+                      onClick={addSelectedLine}
+                      className="btn btn--primary"
+                    >
+                      Add to cart
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setPickerOpen(true)}
+                className="product-picker-trigger"
+              >
+                <span className="product-picker-trigger__icon">+</span>
                 <span>
-                  <strong>{fixture.name}</strong>
-                  <span className="cell-muted cell-block">
-                    {fixture.description}
+                  <strong>Select a Shopify product</strong>
+                  <span>
+                    Search by product name, handle, or SKU and choose a variant.
                   </span>
                 </span>
               </button>
-            ))}
-          </div>
-        </div>
-      </section>
+            )}
+          </section>
 
-      <section className="resource-card settings-card">
-        <div className="resource-header">
-          <div>
-            <h3 className="resource-title">Cart lines</h3>
-            <p className="resource-meta">
-              {cartLines.length} lines · {totalQuantity} units
-            </p>
-          </div>
-
-          <div className="btn-row btn-row--end">
-            <button
-              type="button"
-              onClick={copyFixtureJson}
-              className="btn btn--small"
-              disabled={cartLines.length === 0}
-            >
-              Copy JSON
-            </button>
-            <button
-              type="button"
-              onClick={clearCart}
-              className="btn btn--small"
-              disabled={cartLines.length === 0}
-            >
-              Clear
-            </button>
-          </div>
-        </div>
-
-        <div className="cart-line-grid">
-          {cartLines.map((line) => (
-            <article key={line.id} className="cart-line-card">
-              <ProductThumb
-                imageUrl={line.imageUrl}
-                title={getLineProductTitle(line)}
-              />
-
-              <div className="cart-line-card__body">
-                <div className="cart-line-card__title-row">
-                  <div>
-                    <h4>{getLineProductTitle(line)}</h4>
-                    <p>
-                      {line.variantTitle ?? "Variant"} · Qty {line.quantity}
-                    </p>
-                  </div>
-                  {line.price && (
-                    <span className="status-badge status-badge--inactive">
-                      ${line.price}
-                    </span>
-                  )}
-                </div>
-
-                <div className="cart-line-meta">
-                  {line.sku && <span>SKU {line.sku}</span>}
-                  <span>Product {getGidTail(line.merchandise.product.id)}</span>
-                  <span>Variant {getGidTail(line.merchandise.id)}</span>
-                </div>
+          <section className="resource-card settings-card simulator-panel simulator-panel--grow">
+            <div className="resource-header">
+              <div>
+                <h3 className="resource-title">Cart lines</h3>
+                <p className="resource-meta">
+                  {cartLines.length} lines · {totalQuantity} units
+                </p>
               </div>
 
-              <button
-                type="button"
-                onClick={() => removeCartLine(line.id)}
-                className="btn btn--small btn--danger"
-              >
-                Remove
-              </button>
-            </article>
-          ))}
-
-          {cartLines.length === 0 && (
-            <div className="cart-line-empty">
-              <strong>No cart lines yet.</strong>
-              <span>Pick a product or load a fixture to start testing.</span>
+              <div className="btn-row btn-row--end">
+                <button
+                  type="button"
+                  onClick={copyFixtureJson}
+                  className="btn btn--small"
+                  disabled={cartLines.length === 0}
+                >
+                  Copy JSON
+                </button>
+                <button
+                  type="button"
+                  onClick={clearCart}
+                  className="btn btn--small"
+                  disabled={cartLines.length === 0}
+                >
+                  Clear
+                </button>
+              </div>
             </div>
-          )}
-        </div>
-      </section>
 
-      <section className="card settings-card">
-        <div className="card__header">
-          <div>
-            <h3 className="card__title">Evaluation</h3>
-            <p className="card__subtitle">
-              Current simulator scope and output.
-            </p>
-          </div>
+            <div className="cart-line-grid">
+              {cartLines.map((line) => (
+                <article key={line.id} className="cart-line-card">
+                  <ProductThumb
+                    imageUrl={line.imageUrl}
+                    title={getLineProductTitle(line)}
+                  />
+
+                  <div className="cart-line-card__body">
+                    <div className="cart-line-card__title-row">
+                      <div>
+                        <h4>{getLineProductTitle(line)}</h4>
+                        <p>
+                          {line.variantTitle ?? "Variant"} · Qty {line.quantity}
+                        </p>
+                      </div>
+                      {line.price && (
+                        <span className="status-badge status-badge--inactive">
+                          ${line.price}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="cart-line-meta">
+                      {line.sku && <span>SKU {line.sku}</span>}
+                      <span>Product {getGidTail(line.merchandise.product.id)}</span>
+                      <span>Variant {getGidTail(line.merchandise.id)}</span>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => removeCartLine(line.id)}
+                    className="btn btn--small btn--danger"
+                  >
+                    Remove
+                  </button>
+                </article>
+              ))}
+
+              {cartLines.length === 0 && (
+                <div className="cart-line-empty">
+                  <strong>No cart lines yet.</strong>
+                  <span>Pick a product or load a fixture to start testing.</span>
+                </div>
+              )}
+            </div>
+          </section>
         </div>
 
-        <div className="card__body">
-          <ul className="detail-list">
-            <li>
-              <span className="detail-list__label">Scope</span>
-              <span className="detail-list__value">
-                {activeRule ? getRuleName(activeRule) : "All rules"}
-              </span>
-            </li>
-            <li>
-              <span className="detail-list__label">Fixture</span>
-              <span className="detail-list__value">
-                {lastFixtureId
-                  ? fixtures.find((fixture) => fixture.id === lastFixtureId)
-                      ?.name
-                  : "Custom cart"}
-              </span>
-            </li>
-            <li>
-              <span className="detail-list__label">Outcome</span>
-              <span className="detail-list__value">
-                {cartLines.length === 0
-                  ? "Waiting for cart lines"
-                  : results.length > 0
-                    ? `${results.length} discount action${
-                        results.length === 1 ? "" : "s"
-                      }`
-                    : "No discount"}
-              </span>
-            </li>
-          </ul>
-        </div>
-      </section>
+        <aside className="simulator-workspace__side">
+          <section className="card settings-card simulator-panel">
+            <div className="card__header">
+              <div>
+                <h3 className="card__title">Fixtures</h3>
+                <p className="card__subtitle">
+                  Load known HPN cart scenarios.
+                </p>
+              </div>
+            </div>
+
+            <div className="card__body">
+              <div className="fixture-grid">
+                {fixtures.map((fixture) => (
+                  <button
+                    key={fixture.id}
+                    type="button"
+                    onClick={() => loadFixture(fixture)}
+                    className="btn fixture-button"
+                    aria-pressed={lastFixtureId === fixture.id}
+                  >
+                    <span>
+                      <strong>{fixture.name}</strong>
+                      <span className="cell-muted cell-block">
+                        {fixture.description}
+                      </span>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </section>
+
+          <section className="card settings-card simulator-panel">
+            <div className="card__header">
+              <div>
+                <h3 className="card__title">Evaluation</h3>
+                <p className="card__subtitle">
+                  Current simulator scope and output.
+                </p>
+              </div>
+            </div>
+
+            <div className="card__body">
+              <ul className="detail-list">
+                <li>
+                  <span className="detail-list__label">Scope</span>
+                  <span className="detail-list__value">
+                    {activeRule ? getRuleName(activeRule) : "All rules"}
+                  </span>
+                </li>
+                <li>
+                  <span className="detail-list__label">Fixture</span>
+                  <span className="detail-list__value">
+                    {lastFixtureId
+                      ? fixtures.find((fixture) => fixture.id === lastFixtureId)
+                          ?.name
+                      : "Custom cart"}
+                  </span>
+                </li>
+                <li>
+                  <span className="detail-list__label">Outcome</span>
+                  <span className="detail-list__value">
+                    {cartLines.length === 0
+                      ? "Waiting for cart lines"
+                      : results.length > 0
+                        ? `${results.length} discount action${
+                            results.length === 1 ? "" : "s"
+                          }`
+                        : "No discount"}
+                  </span>
+                </li>
+              </ul>
+            </div>
+          </section>
+        </aside>
+      </div>
 
       {cartLines.length > 0 && results.length > 0 && (
-        <section className="alert alert--success settings-card settings-card--full">
-          <h3
-            className="form-section__title form-section__title--spaced"
-          >
+        <section className="alert alert--success settings-card settings-card--full simulator-results">
+          <h3 className="form-section__title form-section__title--spaced">
             Discounts applied ({results.length})
           </h3>
 
@@ -646,13 +648,10 @@ export function CartSimulator({ config, activeRuleId }: CartSimulatorProps) {
       )}
 
       {cartLines.length > 0 && results.length === 0 && (
-        <section className="alert alert--critical settings-card settings-card--full">
-          <p className="alert__title">
-            No discounts applied
-          </p>
+        <section className="alert alert--critical settings-card settings-card--full simulator-results">
+          <p className="alert__title">No discounts applied</p>
           <p className="alert__body">
-            The current cart configuration does not trigger the evaluated
-            rules.
+            The current cart configuration does not trigger the evaluated rules.
           </p>
         </section>
       )}
@@ -666,7 +665,7 @@ export function CartSimulator({ config, activeRuleId }: CartSimulatorProps) {
           onClose={() => setPickerOpen(false)}
         />
       )}
-    </>
+    </section>
   );
 }
 

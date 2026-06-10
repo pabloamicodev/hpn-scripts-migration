@@ -14,7 +14,8 @@ query RunInput {
       }
     }
   }
-  discountNode {
+  discount {
+    discountClasses
     metafield(namespace: "hpn_scripts", key: "function_configuration") {
       value
     }

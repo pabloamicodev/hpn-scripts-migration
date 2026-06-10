@@ -10,8 +10,14 @@ const variantGidSchema = z
   .trim()
   .startsWith("gid://shopify/ProductVariant/");
 
+const ruleIdSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .regex(/^[a-z0-9][a-z0-9-]*$/, "Use lowercase letters, numbers, and hyphens.");
+
 export const pa7CrossSellRuleSchema = z.object({
-  id: z.literal("pa7-cross-sell"),
+  id: ruleIdSchema,
   type: z.literal("pa7_cross_sell"),
   enabled: z.boolean(),
   triggerProductId: productGidSchema,
@@ -22,7 +28,7 @@ export const pa7CrossSellRuleSchema = z.object({
 });
 
 export const requiredVariantsFreeVariantsRuleSchema = z.object({
-  id: z.literal("nad3-single-planta-samples"),
+  id: ruleIdSchema,
   type: z.literal("required_variants_free_variants"),
   enabled: z.boolean(),
   requiredVariantIds: z.array(variantGidSchema).min(1),
@@ -32,13 +38,13 @@ export const requiredVariantsFreeVariantsRuleSchema = z.object({
 });
 
 export const requiredProductWithFreeVariantsRuleSchema = z.object({
-  id: z.literal("nad3-240-pouches"),
+  id: ruleIdSchema,
   type: z.literal("required_product_with_free_variants"),
   enabled: z.boolean(),
   triggerProductId: productGidSchema,
   requiredVariantIds: z.array(variantGidSchema).min(1),
   freeVariantIds: z.array(variantGidSchema).min(1),
-  freeQuantityPerLine: z.literal(1),
+  freeQuantityPerLine: z.number().int().positive(),
   message: z.string().trim().min(1),
 });
 

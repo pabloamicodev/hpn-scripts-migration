@@ -1,20 +1,24 @@
 // @ts-check
 
 const EMPTY_RESULT = {
-  discounts: [],
-  discountApplicationStrategy: "ALL",
+  operations: [],
 };
+
+const PRODUCT_DISCOUNT_SELECTION_STRATEGY = "ALL";
 
 /**
  * Entry point called by Shopify at checkout with the cart and metafield config.
  * @param {object} input
- * @returns {{ discounts: object[], discountApplicationStrategy: string }}
+ * @returns {{ operations: object[] }}
  */
-export function run(input) {
+export function cartLinesDiscountsGenerateRun(input) {
+  const discountClasses = input?.discount?.discountClasses ?? [];
+  if (!discountClasses.includes("PRODUCT")) return EMPTY_RESULT;
+
   // --- Parse config from metafield ---
   let config;
   try {
-    const value = input?.discountNode?.metafield?.value;
+    const value = input?.discount?.metafield?.value;
     if (!value) return EMPTY_RESULT;
     config = JSON.parse(value);
   } catch {
@@ -48,32 +52,40 @@ export function run(input) {
 
   // --- Evaluate each enabled rule ---
   /** @type {object[]} */
-  const discounts = [];
+  const candidates = [];
 
   for (const rule of config.rules) {
     if (!rule.enabled) continue;
 
     if (rule.type === "pa7_cross_sell") {
-      applyPa7Rule(rule, byProduct, discounts);
+      applyPa7Rule(rule, byProduct, candidates);
     } else if (rule.type === "required_variants_free_variants") {
-      applyPlantaRule(rule, byVariant, discounts);
+      applyPlantaRule(rule, byVariant, candidates);
     } else if (rule.type === "required_product_with_free_variants") {
-      applyPouchesRule(rule, byProduct, byVariant, discounts);
+      applyPouchesRule(rule, byProduct, byVariant, candidates);
     }
   }
 
-  if (discounts.length === 0) return EMPTY_RESULT;
+  if (candidates.length === 0) return EMPTY_RESULT;
 
   return {
-    discounts,
-    discountApplicationStrategy: "ALL",
+    operations: [
+      {
+        productDiscountsAdd: {
+          candidates,
+          selectionStrategy: PRODUCT_DISCOUNT_SELECTION_STRATEGY,
+        },
+      },
+    ],
   };
 }
+
+export const run = cartLinesDiscountsGenerateRun;
 
 /**
  * PA7 Cross-Sell: when PA7 is in cart, apply X% off to C2/T5 lines with qty === 1.
  */
-function applyPa7Rule(rule, byProduct, discounts) {
+function applyPa7Rule(rule, byProduct, candidates) {
   const triggerLines = byProduct.get(rule.triggerProductId);
   if (!triggerLines?.length) return;
 
@@ -83,7 +95,7 @@ function applyPa7Rule(rule, byProduct, discounts) {
     for (const line of targetLines) {
       if (line.quantity !== rule.targetLineQuantityEquals) continue;
 
-      discounts.push({
+      candidates.push({
         targets: [{ cartLine: { id: line.id } }],
         value: { percentage: { value: String(rule.discountPercentage) } },
         message: rule.message,
@@ -96,7 +108,7 @@ function applyPa7Rule(rule, byProduct, discounts) {
  * NAD3 Single + Planta Samples: all required variants must be present,
  * then free variants get 100% off (optionally capped to freeQuantityPerLine).
  */
-function applyPlantaRule(rule, byVariant, discounts) {
+function applyPlantaRule(rule, byVariant, candidates) {
   // All required variants must be in cart
   for (const requiredId of rule.requiredVariantIds) {
     if (!byVariant.get(requiredId)?.length) return;
@@ -112,7 +124,7 @@ function applyPlantaRule(rule, byVariant, discounts) {
           ? { cartLine: { id: line.id, quantity: cap } }
           : { cartLine: { id: line.id } };
 
-      discounts.push({
+      candidates.push({
         targets: [target],
         value: { percentage: { value: "100.0" } },
         message: rule.message,
@@ -125,7 +137,7 @@ function applyPlantaRule(rule, byVariant, discounts) {
  * NAD3 240 + Pouches: trigger product AND both pouch variants must be present.
  * Only 1 unit per pouch line is free (freeQuantityPerLine = 1).
  */
-function applyPouchesRule(rule, byProduct, byVariant, discounts) {
+function applyPouchesRule(rule, byProduct, byVariant, candidates) {
   const triggerLines = byProduct.get(rule.triggerProductId);
   if (!triggerLines?.length) return;
 
@@ -138,7 +150,7 @@ function applyPouchesRule(rule, byProduct, byVariant, discounts) {
     const freeLines = byVariant.get(freeId) ?? [];
 
     for (const line of freeLines) {
-      discounts.push({
+      candidates.push({
         targets: [{ cartLine: { id: line.id, quantity: rule.freeQuantityPerLine } }],
         value: { percentage: { value: "100.0" } },
         message: rule.message,

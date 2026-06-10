@@ -27,74 +27,35 @@ export type CartLine = {
   quantity: Scalars['Int']['output'];
 };
 
-export type CartLineTarget = {
-  __typename?: 'CartLineTarget';
-  id: Scalars['ID']['output'];
-  quantity?: Maybe<Scalars['Int']['output']>;
+export type CartLinesDiscountsGenerateRunResult = {
+  __typename?: 'CartLinesDiscountsGenerateRunResult';
+  operations: Array<CartOperation>;
 };
 
-export type Condition = {
-  __typename?: 'Condition';
-  field: ConditionField;
-  operator: ConditionOperator;
-  value: Scalars['String']['output'];
-};
-
-export enum ConditionField {
-  CartLineQuantity = 'CART_LINE_QUANTITY',
-  CartSubtotalAmount = 'CART_SUBTOTAL_AMOUNT',
-  CartTotalQuantity = 'CART_TOTAL_QUANTITY'
-}
-
-export enum ConditionOperator {
-  EqualTo = 'EQUAL_TO',
-  GreaterThan = 'GREATER_THAN',
-  GreaterThanOrEqualTo = 'GREATER_THAN_OR_EQUAL_TO',
-  LessThan = 'LESS_THAN',
-  LessThanOrEqualTo = 'LESS_THAN_OR_EQUAL_TO'
-}
+export type CartOperation = ProductDiscountsAddOperation;
 
 export type Discount = {
   __typename?: 'Discount';
-  conditions?: Maybe<Array<Condition>>;
-  message?: Maybe<Scalars['String']['output']>;
-  targets: Array<Target>;
-  value: Value;
-};
-
-export enum DiscountApplicationStrategy {
-  All = 'ALL',
-  First = 'FIRST',
-  Maximum = 'MAXIMUM'
-}
-
-export type DiscountNode = {
-  __typename?: 'DiscountNode';
+  discountClasses: Array<DiscountClass>;
   metafield?: Maybe<Metafield>;
 };
 
 
-export type DiscountNodeMetafieldArgs = {
+export type DiscountMetafieldArgs = {
   key: Scalars['String']['input'];
   namespace: Scalars['String']['input'];
 };
 
-export type FixedAmount = {
-  __typename?: 'FixedAmount';
-  amount: Scalars['Decimal']['output'];
-  appliesToEachItem?: Maybe<Scalars['Boolean']['output']>;
-};
-
-export type FunctionRunResult = {
-  __typename?: 'FunctionRunResult';
-  discountApplicationStrategy: DiscountApplicationStrategy;
-  discounts: Array<Discount>;
-};
+export enum DiscountClass {
+  Order = 'ORDER',
+  Product = 'PRODUCT',
+  Shipping = 'SHIPPING'
+}
 
 export type Input = {
   __typename?: 'Input';
   cart: Cart;
-  discountNode: DiscountNode;
+  discount: Discount;
 };
 
 export type Merchandise = ProductVariant;
@@ -104,14 +65,58 @@ export type Metafield = {
   value: Scalars['String']['output'];
 };
 
-export type Percentage = {
-  __typename?: 'Percentage';
-  value: Scalars['Decimal']['output'];
-};
-
 export type Product = {
   __typename?: 'Product';
   id: Scalars['ID']['output'];
+};
+
+export type ProductDiscountCandidate = {
+  __typename?: 'ProductDiscountCandidate';
+  message?: Maybe<Scalars['String']['output']>;
+  targets: Array<ProductDiscountCandidateTarget>;
+  value: ProductDiscountCandidateValue;
+};
+
+export type ProductDiscountCandidateCartLine = {
+  __typename?: 'ProductDiscountCandidateCartLine';
+  id: Scalars['ID']['output'];
+  quantity?: Maybe<Scalars['Int']['output']>;
+};
+
+export type ProductDiscountCandidateCartLineTarget = {
+  __typename?: 'ProductDiscountCandidateCartLineTarget';
+  cartLine: ProductDiscountCandidateCartLine;
+};
+
+export type ProductDiscountCandidatePercentage = {
+  __typename?: 'ProductDiscountCandidatePercentage';
+  percentage: ProductDiscountCandidatePercentageValue;
+};
+
+export type ProductDiscountCandidatePercentageValue = {
+  __typename?: 'ProductDiscountCandidatePercentageValue';
+  value: Scalars['Decimal']['output'];
+};
+
+export type ProductDiscountCandidateTarget = ProductDiscountCandidateCartLineTarget;
+
+export type ProductDiscountCandidateValue = ProductDiscountCandidatePercentage;
+
+export enum ProductDiscountSelectionStrategy {
+  All = 'ALL',
+  First = 'FIRST',
+  Maximum = 'MAXIMUM'
+}
+
+export type ProductDiscountsAdd = {
+  __typename?: 'ProductDiscountsAdd';
+  candidates: Array<ProductDiscountCandidate>;
+  selectionStrategy: ProductDiscountSelectionStrategy;
+};
+
+export type ProductDiscountsAddOperation = {
+  __typename?: 'ProductDiscountsAddOperation';
+  productDiscountsAdd: ProductDiscountsAdd;
 };
 
 export type ProductVariant = {
@@ -120,17 +125,7 @@ export type ProductVariant = {
   product: Product;
 };
 
-export type ProductVariantTarget = {
-  __typename?: 'ProductVariantTarget';
-  id: Scalars['ID']['output'];
-  quantity?: Maybe<Scalars['Int']['output']>;
-};
-
-export type Target = CartLineTarget | ProductVariantTarget;
-
-export type Value = FixedAmount | Percentage;
-
 export type RunInputQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type RunInputQuery = { __typename?: 'Input', cart: { __typename?: 'Cart', lines: Array<{ __typename?: 'CartLine', id: string, quantity: number, merchandise: { __typename: 'ProductVariant', id: string, product: { __typename?: 'Product', id: string } } }> }, discountNode: { __typename?: 'DiscountNode', metafield?: { __typename?: 'Metafield', value: string } | null } };
+export type RunInputQuery = { __typename?: 'Input', cart: { __typename?: 'Cart', lines: Array<{ __typename?: 'CartLine', id: string, quantity: number, merchandise: { __typename: 'ProductVariant', id: string, product: { __typename?: 'Product', id: string } } }> }, discount: { __typename?: 'Discount', discountClasses: Array<DiscountClass>, metafield?: { __typename?: 'Metafield', value: string } | null } };

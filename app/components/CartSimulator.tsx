@@ -700,7 +700,7 @@ function getRuleName(rule: HpnPromoRule) {
     case "nad3-240-pouches":
       return "NAD3 240 + Pouches";
     default:
-      return "Custom rule";
+      return rule.id;
   }
 }
 

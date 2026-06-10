@@ -92,6 +92,9 @@ const SEARCH_DISCOUNTS_QUERY = `
               title
               status
               startsAt
+              appDiscountType {
+                functionId
+              }
             }
 
             ... on DiscountAutomaticBasic {
@@ -164,6 +167,9 @@ interface SearchDiscountNode {
         title: string;
         status: string;
         startsAt: string | null;
+        appDiscountType?: {
+          functionId: string | null;
+        } | null;
       }
     | {
         __typename:
@@ -185,6 +191,7 @@ export interface SearchDiscountResult {
   status: string;
   startsAt: string | null;
   configMetafield: string | null;
+  functionId: string | null;
 }
 
 export async function createAutomaticDiscount(
@@ -329,6 +336,10 @@ export async function searchDiscounts(
         discount.__typename === "DiscountAutomaticApp"
           ? node.metafield?.value ?? null
           : null,
+      functionId:
+        discount.__typename === "DiscountAutomaticApp"
+          ? discount.appDiscountType?.functionId ?? null
+          : null,
     });
   }
 
@@ -342,13 +353,17 @@ export async function findHpnFunctionId(
     const result = await graphqlProxy(GET_SHOPIFY_FUNCTIONS_QUERY);
     const nodes: any[] = result.data?.shopifyFunctions?.nodes ?? [];
 
+    const discountFunctions = nodes.filter((node) =>
+      String(node.apiType ?? "").toLowerCase().includes("discount")
+    );
+
     const fn =
-      nodes.find(
-        (node) =>
-          node.apiType === "product_discounts" &&
-          (node.app?.title?.toLowerCase().includes("hpn") ||
-            node.title?.toLowerCase().includes("hpn"))
-      ) ?? nodes.find((node) => node.apiType === "product_discounts");
+      discountFunctions.find((node) => {
+        const appTitle = String(node.app?.title ?? "").toLowerCase();
+        const title = String(node.title ?? "").toLowerCase();
+
+        return appTitle.includes("hpn") || title.includes("hpn");
+      }) ?? discountFunctions[0];
 
     return fn?.id ?? null;
   } catch {

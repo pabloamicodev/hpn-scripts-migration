@@ -21,7 +21,7 @@ const shopify = shopifyApp({
   apiSecretKey: process.env.SHOPIFY_API_SECRET!,
   appUrl: process.env.SHOPIFY_APP_URL || "https://localhost:8081",
   scopes: ["write_discounts", "read_products"],
-  apiVersion: ApiVersion.October24,
+  apiVersion: ApiVersion.April26,
   distribution: AppDistribution.AppStore,
   ...(pgSessionStorage ? { sessionStorage: pgSessionStorage } : {}),
 });

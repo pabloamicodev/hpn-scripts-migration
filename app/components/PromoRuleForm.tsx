@@ -99,11 +99,28 @@ const DEFAULT_RULES: Record<PromoRuleType, PromoRuleFormValues> = {
 
 function normalizeDefaultValues(defaultValues?: HpnPromoRule): PromoRuleFormValues {
   if (!defaultValues) {
-    return DEFAULT_RULES.pa7_cross_sell;
+    return makeDefaultRule("pa7_cross_sell");
   }
 
   return {
     ...defaultValues,
+  };
+}
+
+function makeRuleId(type: PromoRuleType) {
+  const suffix = Date.now().toString(36);
+
+  if (type === "pa7_cross_sell") return `pa7-cross-sell-${suffix}`;
+  if (type === "required_variants_free_variants") {
+    return `required-variants-free-variants-${suffix}`;
+  }
+  return `required-product-free-variants-${suffix}`;
+}
+
+function makeDefaultRule(type: PromoRuleType): PromoRuleFormValues {
+  return {
+    ...DEFAULT_RULES[type],
+    id: makeRuleId(type),
   };
 }
 
@@ -114,7 +131,7 @@ function getGidTail(gid: string) {
 function buildRulePayload(values: PromoRuleFormValues): unknown {
   if (values.type === "pa7_cross_sell") {
     return {
-      id: "pa7-cross-sell",
+      id: values.id,
       type: "pa7_cross_sell",
       enabled: values.enabled,
       triggerProductId: values.triggerProductId,
@@ -127,7 +144,7 @@ function buildRulePayload(values: PromoRuleFormValues): unknown {
 
   if (values.type === "required_variants_free_variants") {
     return {
-      id: "nad3-single-planta-samples",
+      id: values.id,
       type: "required_variants_free_variants",
       enabled: values.enabled,
       requiredVariantIds: values.requiredVariantIds ?? [],
@@ -138,13 +155,13 @@ function buildRulePayload(values: PromoRuleFormValues): unknown {
   }
 
   return {
-    id: "nad3-240-pouches",
+    id: values.id,
     type: "required_product_with_free_variants",
     enabled: values.enabled,
     triggerProductId: values.triggerProductId,
     requiredVariantIds: values.requiredVariantIds ?? [],
     freeVariantIds: values.freeVariantIds ?? [],
-    freeQuantityPerLine: 1,
+    freeQuantityPerLine: values.freeQuantityPerLine ?? 1,
     message: values.message,
   };
 }
@@ -274,7 +291,7 @@ export function PromoRuleForm({
   }, [selectedIdsKey, selectionMetaById, selectedIds]);
 
   function handleRuleTypeChange(nextType: PromoRuleType) {
-    reset(DEFAULT_RULES[nextType]);
+    reset(defaultValues ? DEFAULT_RULES[nextType] : makeDefaultRule(nextType));
     setSelectionMetaById({});
     setSchemaError(null);
   }
@@ -416,6 +433,23 @@ export function PromoRuleForm({
 
       <section className="form-section">
       <h2 className="form-section__title">Rule details</h2>
+
+      <div className="form-group">
+        <label
+          htmlFor="id"
+          className="form-label"
+        >
+          Rule ID
+        </label>
+
+        <input
+          type="text"
+          id="id"
+          disabled={Boolean(defaultValues)}
+          {...register("id")}
+          placeholder="pa7-cross-sell"
+        />
+      </div>
 
       <div className="form-group">
         <label
@@ -675,8 +709,23 @@ export function PromoRuleForm({
             />
           </div>
 
-          <div className="alert alert--info">
-            <strong>Free quantity per line:</strong> 1
+          <div className="form-group">
+            <label
+              htmlFor="bundleFreeQuantityPerLine"
+              className="form-label"
+            >
+              Free Quantity Per Line
+            </label>
+
+            <input
+              type="number"
+              id="bundleFreeQuantityPerLine"
+              min={1}
+              {...register("freeQuantityPerLine", {
+                valueAsNumber: true,
+              })}
+              className="number-field"
+            />
           </div>
         </section>
       )}

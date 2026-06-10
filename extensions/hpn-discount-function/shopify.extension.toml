@@ -1,4 +1,4 @@
-api_version = "2025-07"
+api_version = "2026-04"
 
 [[extensions]]
 type = "function"
@@ -8,6 +8,6 @@ uid = "de6cdaf3-253c-88a0-f7b3-33911939c29ca783c038"
 
 [[extensions.targeting]]
 module = "./src/index.js"
-target = "purchase.product-discount.run"
+target = "cart.lines.discounts.generate.run"
 input_query = "./src/run.graphql"
-export = "run"
+export = "cart-lines-discounts-generate-run"

@@ -6,6 +6,7 @@
     "jsx": "react-jsx",
     "module": "ESNext",
     "moduleResolution": "Bundler",
+    "rootDirs": [".", "./.react-router/types"],
     "strict": true,
     "skipLibCheck": true,
     "allowSyntheticDefaultImports": true,

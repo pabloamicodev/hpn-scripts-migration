@@ -419,7 +419,11 @@ function getRuleDisplayName(rule: HpnPromoRule): string {
     case "nad3-240-pouches":
       return "NAD3 240 + Pouches";
     default:
-      return "Unknown rule";
+      return rule.id
+        .split("-")
+        .filter(Boolean)
+        .map((part) => part[0]?.toUpperCase() + part.slice(1))
+        .join(" ");
   }
 }
 

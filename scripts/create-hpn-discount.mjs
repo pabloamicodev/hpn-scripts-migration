@@ -20,8 +20,9 @@ const config = {
   combinesWith: {
     orderDiscounts: true,
     productDiscounts: true,
-    shippingDiscounts: false,
+    shippingDiscounts: true,
   },
+  version: 1,
   rules: [
     {
       id: "pa7-cross-sell",
@@ -153,7 +154,7 @@ const GET_SHOPIFY_FUNCTIONS_QUERY = `
 `;
 
 async function shopifyGraphql(shop, accessToken, query, variables) {
-  const response = await fetch(`https://${shop}/admin/api/2025-07/graphql.json`, {
+  const response = await fetch(`https://${shop}/admin/api/2026-04/graphql.json`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -214,7 +215,7 @@ try {
     console.log(
       JSON.stringify(
         functions
-          .filter((node) => node.apiType === "product_discounts")
+          .filter((node) => String(node.apiType ?? "").toLowerCase().includes("discount"))
           .map((node) => ({
             id: node.id,
             title: node.title,
@@ -228,10 +229,13 @@ try {
     const fn =
       functions.find(
         (node) =>
-          node.apiType === "product_discounts" &&
+          String(node.apiType ?? "").toLowerCase().includes("discount") &&
           (node.title?.toLowerCase().includes("hpn") ||
             node.app?.title?.toLowerCase().includes("hpn")),
-      ) ?? functions.find((node) => node.apiType === "product_discounts");
+      ) ??
+      functions.find((node) =>
+        String(node.apiType ?? "").toLowerCase().includes("discount")
+      );
 
     functionId = fn?.id;
   }

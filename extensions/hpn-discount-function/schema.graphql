@@ -7,7 +7,7 @@ schema {
 
 type Input {
   cart: Cart!
-  discountNode: DiscountNode!
+  discount: Discount!
 }
 
 type Cart {
@@ -31,71 +31,65 @@ type Product {
   id: ID!
 }
 
-type DiscountNode {
+type Discount {
+  discountClasses: [DiscountClass!]!
   metafield(namespace: String!, key: String!): Metafield
+}
+
+enum DiscountClass {
+  PRODUCT
+  ORDER
+  SHIPPING
 }
 
 type Metafield {
   value: String!
 }
 
-type FunctionRunResult {
-  discountApplicationStrategy: DiscountApplicationStrategy!
-  discounts: [Discount!]!
+type CartLinesDiscountsGenerateRunResult {
+  operations: [CartOperation!]!
 }
 
-enum DiscountApplicationStrategy {
+union CartOperation = ProductDiscountsAddOperation
+
+type ProductDiscountsAddOperation {
+  productDiscountsAdd: ProductDiscountsAdd!
+}
+
+type ProductDiscountsAdd {
+  candidates: [ProductDiscountCandidate!]!
+  selectionStrategy: ProductDiscountSelectionStrategy!
+}
+
+enum ProductDiscountSelectionStrategy {
   ALL
   FIRST
   MAXIMUM
 }
 
-type Discount {
-  targets: [Target!]!
-  value: Value!
+type ProductDiscountCandidate {
+  targets: [ProductDiscountCandidateTarget!]!
+  value: ProductDiscountCandidateValue!
   message: String
-  conditions: [Condition!]
 }
 
-union Target = CartLineTarget | ProductVariantTarget
+union ProductDiscountCandidateTarget = ProductDiscountCandidateCartLineTarget
 
-type CartLineTarget {
+type ProductDiscountCandidateCartLineTarget {
+  cartLine: ProductDiscountCandidateCartLine!
+}
+
+type ProductDiscountCandidateCartLine {
   id: ID!
   quantity: Int
 }
 
-type ProductVariantTarget {
-  id: ID!
-  quantity: Int
+union ProductDiscountCandidateValue = ProductDiscountCandidatePercentage
+
+type ProductDiscountCandidatePercentage {
+  percentage: ProductDiscountCandidatePercentageValue!
 }
 
-union Value = Percentage | FixedAmount
-
-type Percentage {
+type ProductDiscountCandidatePercentageValue {
   value: Decimal!
-}
-
-type FixedAmount {
-  amount: Decimal!
-  appliesToEachItem: Boolean
-}
-
-type Condition {
-  field: ConditionField!
-  operator: ConditionOperator!
-  value: String!
-}
-
-enum ConditionField {
-  CART_LINE_QUANTITY
-  CART_SUBTOTAL_AMOUNT
-  CART_TOTAL_QUANTITY
-}
-
-enum ConditionOperator {
-  EQUAL_TO
-  GREATER_THAN
-  LESS_THAN
-  GREATER_THAN_OR_EQUAL_TO
-  LESS_THAN_OR_EQUAL_TO
 }

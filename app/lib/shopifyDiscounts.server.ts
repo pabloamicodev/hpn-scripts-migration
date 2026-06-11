@@ -143,6 +143,19 @@ interface GraphQLProxy {
   ): Promise<{ data?: any; errors?: any[] }>;
 }
 
+function getGraphqlErrorMessage(errors?: any[]) {
+  return errors?.map((error) => error.message ?? String(error)).join(", ");
+}
+
+function assertNoGraphqlErrors(
+  result: { errors?: any[] },
+  operationName: string,
+) {
+  if (result.errors?.length) {
+    throw new Error(`${operationName} failed: ${getGraphqlErrorMessage(result.errors)}`);
+  }
+}
+
 interface CombinesWithInput {
   orderDiscounts: boolean;
   productDiscounts: boolean;
@@ -221,6 +234,8 @@ export async function createAutomaticDiscount(
     },
   });
 
+  assertNoGraphqlErrors(result, "CreateHpnDiscount");
+
   return result.data?.discountAutomaticAppCreate;
 }
 
@@ -264,6 +279,8 @@ export async function updateAutomaticDiscount(
     automaticAppDiscount: input,
   });
 
+  assertNoGraphqlErrors(result, "UpdateHpnDiscount");
+
   return result.data?.discountAutomaticAppUpdate;
 }
 
@@ -274,6 +291,8 @@ export async function activateDiscount(
   const result = await graphqlProxy(ACTIVATE_DISCOUNT_MUTATION, {
     id: discountId,
   });
+
+  assertNoGraphqlErrors(result, "ActivateDiscount");
 
   return result.data?.discountAutomaticActivate;
 }
@@ -286,6 +305,8 @@ export async function deactivateDiscount(
     id: discountId,
   });
 
+  assertNoGraphqlErrors(result, "DeactivateDiscount");
+
   return result.data?.discountAutomaticDeactivate;
 }
 
@@ -296,6 +317,8 @@ export async function deleteDiscount(
   const result = await graphqlProxy(DELETE_DISCOUNT_MUTATION, {
     id: discountId,
   });
+
+  assertNoGraphqlErrors(result, "DeleteDiscount");
 
   return result.data?.discountAutomaticDelete;
 }
@@ -308,6 +331,8 @@ export async function searchDiscounts(
   const result = await graphqlProxy(SEARCH_DISCOUNTS_QUERY, {
     query: `title:'${escapedQuery}'`,
   });
+
+  assertNoGraphqlErrors(result, "SearchDiscounts");
 
   const nodes: SearchDiscountNode[] =
     result.data?.discountNodes?.edges?.map((edge: { node: SearchDiscountNode }) => edge.node) ??
@@ -351,6 +376,7 @@ export async function findHpnFunctionId(
 ): Promise<string | null> {
   try {
     const result = await graphqlProxy(GET_SHOPIFY_FUNCTIONS_QUERY);
+    assertNoGraphqlErrors(result, "GetShopifyFunctions");
     const nodes: any[] = result.data?.shopifyFunctions?.nodes ?? [];
 
     const discountFunctions = nodes.filter((node) =>

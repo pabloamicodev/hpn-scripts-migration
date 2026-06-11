@@ -45,6 +45,10 @@ export async function action({ request }: ActionFunctionArgs) {
     return { error: "No active discount found. Create one first from the Discount page." };
   }
 
+  if (!loaded.config.rules.some((rule) => rule.id === ruleId)) {
+    return { error: `Rule "${ruleId}" was not found.` };
+  }
+
   if (intent === "pause") {
     const result = await saveConfig(proxy, loaded.discountId, (c) => pauseRule(c, ruleId));
     if (result.userErrors.length) {
@@ -60,6 +64,8 @@ export async function action({ request }: ActionFunctionArgs) {
     if (result.userErrors.length) {
       return { error: result.userErrors.map((e) => e.message).join(", ") };
     }
+  } else {
+    return { error: "Unknown action." };
   }
 
   return { ok: true };

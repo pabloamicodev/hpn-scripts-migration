@@ -10,6 +10,7 @@ import {
   ProductPicker,
   type ProductPickerSelection,
 } from "./ProductPicker";
+import { HPN_PRODUCTS, HPN_VARIANTS } from "../lib/hpnPromoConstants";
 
 interface CartSimulatorProps {
   config: HpnPromoConfig;
@@ -33,20 +34,17 @@ interface Fixture {
   lines: SimulatorCartLine[];
 }
 
-const PA7_PRODUCT_ID = "gid://shopify/Product/1313973239892";
-const C2_PRODUCT_ID = "gid://shopify/Product/1319321763924";
+const PA7_PRODUCT_ID = HPN_PRODUCTS.PA7_PRODUCT_ID;
+const C2_PRODUCT_ID = HPN_PRODUCTS.C2_PRODUCT_ID;
+const T5_PRODUCT_ID = HPN_PRODUCTS.T5_PRODUCT_ID;
 
-const NAD3_SINGLE_VARIANT_ID = "gid://shopify/ProductVariant/21174522675284";
-const PLANTA_PB_SAMPLE_VARIANT_ID =
-  "gid://shopify/ProductVariant/40608348438665";
-const PLANTA_CACAO_SAMPLE_VARIANT_ID =
-  "gid://shopify/ProductVariant/40608348373129";
+const NAD3_SINGLE_VARIANT_ID = HPN_VARIANTS.NAD3_SINGLE_VARIANT_ID;
+const PLANTA_PB_SAMPLE_VARIANT_ID = HPN_VARIANTS.PLANTA_SAMPLE_VARIANT_ID_1;
+const PLANTA_CACAO_SAMPLE_VARIANT_ID = HPN_VARIANTS.PLANTA_SAMPLE_VARIANT_ID_2;
 
-const NAD3_240_PRODUCT_ID = "gid://shopify/Product/6784435060873";
-const S9_1WK_POUCH_VARIANT_ID =
-  "gid://shopify/ProductVariant/44633124995209";
-const N4_1WK_POUCH_VARIANT_ID =
-  "gid://shopify/ProductVariant/44633124864137";
+const NAD3_240_PRODUCT_ID = HPN_PRODUCTS.NAD3_240_PRODUCT_ID;
+const S9_1WK_POUCH_VARIANT_ID = HPN_VARIANTS.S9_1WK_POUCH_VARIANT_ID;
+const N4_1WK_POUCH_VARIANT_ID = HPN_VARIANTS.N4_1WK_POUCH_VARIANT_ID;
 
 // Placeholder variant used only for simulator trigger lines when the real variant
 // ID is not important for local rule evaluation.
@@ -107,6 +105,33 @@ const fixtures: Fixture[] = [
     ],
   },
   {
+    id: "pa7-t5-qty-1",
+    name: "PA7 + T5 qty 1",
+    description: "Should apply the 10% cross-sell discount to T5.",
+    lines: [
+      createCartLine(
+        "line-pa7",
+        PA7_PRODUCT_ID,
+        "gid://shopify/ProductVariant/1313973239892",
+        1,
+        {
+          productTitle: "PA7 Mediator mTOR Elevation",
+          variantTitle: "Trigger product",
+        },
+      ),
+      createCartLine(
+        "line-t5",
+        T5_PRODUCT_ID,
+        "gid://shopify/ProductVariant/1313557741652",
+        1,
+        {
+          productTitle: "T5",
+          variantTitle: "Target product",
+        },
+      ),
+    ],
+  },
+  {
     id: "pa7-c2-qty-2",
     name: "PA7 + C2 qty 2",
     description: "Should not discount because the target quantity is 2.",
@@ -140,7 +165,7 @@ const fixtures: Fixture[] = [
     lines: [
       createCartLine(
         "line-nad3-single",
-        "gid://shopify/Product/placeholder-nad3-single",
+        "gid://shopify/Product/21174522675284",
         NAD3_SINGLE_VARIANT_ID,
         1,
         {
@@ -150,7 +175,7 @@ const fixtures: Fixture[] = [
       ),
       createCartLine(
         "line-planta-pb",
-        "gid://shopify/Product/placeholder-planta-pb",
+        "gid://shopify/Product/40608348438665",
         PLANTA_PB_SAMPLE_VARIANT_ID,
         1,
         {
@@ -160,7 +185,7 @@ const fixtures: Fixture[] = [
       ),
       createCartLine(
         "line-planta-cacao",
-        "gid://shopify/Product/placeholder-planta-cacao",
+        "gid://shopify/Product/40608348373129",
         PLANTA_CACAO_SAMPLE_VARIANT_ID,
         1,
         {
@@ -187,7 +212,7 @@ const fixtures: Fixture[] = [
       ),
       createCartLine(
         "line-s9-pouch",
-        "gid://shopify/Product/placeholder-s9-pouch",
+        "gid://shopify/Product/44633124995209",
         S9_1WK_POUCH_VARIANT_ID,
         1,
         {
@@ -197,7 +222,7 @@ const fixtures: Fixture[] = [
       ),
       createCartLine(
         "line-n4-pouch",
-        "gid://shopify/Product/placeholder-n4-pouch",
+        "gid://shopify/Product/44633124864137",
         N4_1WK_POUCH_VARIANT_ID,
         1,
         {
@@ -224,7 +249,7 @@ const fixtures: Fixture[] = [
       ),
       createCartLine(
         "line-s9-pouch",
-        "gid://shopify/Product/placeholder-s9-pouch",
+        "gid://shopify/Product/44633124995209",
         S9_1WK_POUCH_VARIANT_ID,
         2,
         {
@@ -234,7 +259,7 @@ const fixtures: Fixture[] = [
       ),
       createCartLine(
         "line-n4-pouch",
-        "gid://shopify/Product/placeholder-n4-pouch",
+        "gid://shopify/Product/44633124864137",
         N4_1WK_POUCH_VARIANT_ID,
         3,
         {
@@ -253,6 +278,9 @@ export function CartSimulator({ config, activeRuleId }: CartSimulatorProps) {
   const [newQuantity, setNewQuantity] = useState(1);
   const [lastFixtureId, setLastFixtureId] = useState<string | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "failed">(
+    "idle",
+  );
 
   const activeRule = useMemo(() => {
     if (!activeRuleId) return null;
@@ -301,26 +329,30 @@ export function CartSimulator({ config, activeRuleId }: CartSimulatorProps) {
     setSelectedItem(null);
     setNewQuantity(1);
     setLastFixtureId(null);
+    setCopyStatus("idle");
   }
 
   function removeCartLine(lineId: string) {
     setCartLines((currentLines) =>
       currentLines.filter((line) => line.id !== lineId),
     );
+    setCopyStatus("idle");
   }
 
   function clearCart() {
     setCartLines([]);
     setLastFixtureId(null);
+    setCopyStatus("idle");
   }
 
   function loadFixture(fixture: Fixture) {
     setCartLines(fixture.lines);
     setLastFixtureId(fixture.id);
     setSelectedItem(null);
+    setCopyStatus("idle");
   }
 
-  function copyFixtureJson() {
+  async function copyFixtureJson() {
     const fixture = JSON.stringify(
       {
         lines: cartLines,
@@ -330,7 +362,12 @@ export function CartSimulator({ config, activeRuleId }: CartSimulatorProps) {
       2,
     );
 
-    void navigator.clipboard.writeText(fixture);
+    try {
+      await navigator.clipboard.writeText(fixture);
+      setCopyStatus("copied");
+    } catch {
+      setCopyStatus("failed");
+    }
   }
 
   return (
@@ -473,7 +510,11 @@ export function CartSimulator({ config, activeRuleId }: CartSimulatorProps) {
                   className="btn btn--small"
                   disabled={cartLines.length === 0}
                 >
-                  Copy JSON
+                  {copyStatus === "copied"
+                    ? "Copied"
+                    : copyStatus === "failed"
+                      ? "Copy failed"
+                      : "Copy JSON"}
                 </button>
                 <button
                   type="button"

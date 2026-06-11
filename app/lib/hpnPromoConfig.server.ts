@@ -1,14 +1,16 @@
 import { hpnPromoConfigSchema, type HpnPromoConfig, type HpnPromoRule } from "./validations";
 import { defaultHpnPromoConfig } from "./hpnPromoDefaults";
 import { searchDiscounts, updateAutomaticDiscount } from "./shopifyDiscounts.server";
+import {
+  validateProductIds,
+  validateVariantIds,
+  type GraphQLProxyFn,
+} from "./shopifyProducts.server";
 
 export const DISCOUNT_TITLE = "HPN Scripts Migration Discounts";
 export const FUNCTION_ID_ENV = "SHOPIFY_DISCOUNT_FUNCTION_ID";
 
-export type GraphQLProxy = (
-  query: string,
-  variables?: Record<string, unknown>
-) => Promise<{ data: unknown; errors?: unknown[] }>;
+export type GraphQLProxy = GraphQLProxyFn;
 
 export interface LoadedDiscount {
   discountId: string | null;
@@ -16,6 +18,7 @@ export interface LoadedDiscount {
   status: "ACTIVE" | "EXPIRED" | "SCHEDULED" | null;
   title: string | null;
   startsAt: string | null;
+  functionId: string | null;
 }
 
 export async function loadActiveDiscount(
@@ -23,7 +26,14 @@ export async function loadActiveDiscount(
 ): Promise<LoadedDiscount> {
   const nodes = await searchDiscounts(graphqlProxy, DISCOUNT_TITLE);
 
-  const active = nodes.find((node) => node.status === "ACTIVE") ?? nodes[0];
+  const hpnAppDiscounts = nodes.filter(
+    (node) => node.type === "DiscountAutomaticApp" && node.configMetafield,
+  );
+  const active =
+    hpnAppDiscounts.find((node) => node.status === "ACTIVE") ??
+    hpnAppDiscounts[0] ??
+    nodes.find((node) => node.type === "DiscountAutomaticApp") ??
+    nodes[0];
 
   if (!active) {
     return {
@@ -32,6 +42,7 @@ export async function loadActiveDiscount(
       status: null,
       title: null,
       startsAt: null,
+      functionId: null,
     };
   }
 
@@ -57,7 +68,56 @@ export async function loadActiveDiscount(
         : null,
     title: active.title ?? null,
     startsAt: active.startsAt ?? null,
+    functionId: active.functionId ?? null,
   };
+}
+
+export async function validateRuleReferences(
+  graphqlProxy: GraphQLProxy,
+  rule: HpnPromoRule,
+): Promise<string[]> {
+  const productIds = new Set<string>();
+  const variantIds = new Set<string>();
+
+  if (rule.type === "pa7_cross_sell") {
+    productIds.add(rule.triggerProductId);
+    for (const targetProductId of rule.targetProductIds) {
+      productIds.add(targetProductId);
+    }
+  }
+
+  if (rule.type === "required_variants_free_variants") {
+    for (const requiredVariantId of rule.requiredVariantIds) {
+      variantIds.add(requiredVariantId);
+    }
+    for (const freeVariantId of rule.freeVariantIds) {
+      variantIds.add(freeVariantId);
+    }
+  }
+
+  if (rule.type === "required_product_with_free_variants") {
+    productIds.add(rule.triggerProductId);
+    for (const requiredVariantId of rule.requiredVariantIds) {
+      variantIds.add(requiredVariantId);
+    }
+    for (const freeVariantId of rule.freeVariantIds) {
+      variantIds.add(freeVariantId);
+    }
+  }
+
+  const [productResult, variantResult] = await Promise.all([
+    productIds.size > 0
+      ? validateProductIds(graphqlProxy, Array.from(productIds))
+      : { invalid: [], valid: [] },
+    variantIds.size > 0
+      ? validateVariantIds(graphqlProxy, Array.from(variantIds))
+      : { invalid: [], valid: [] },
+  ]);
+
+  return [
+    ...productResult.invalid.map((id) => `Product not found: ${id}`),
+    ...variantResult.invalid.map((id) => `Variant not found: ${id}`),
+  ];
 }
 
 export async function saveConfig(

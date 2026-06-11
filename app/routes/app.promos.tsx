@@ -39,24 +39,24 @@ export async function action({ request }: ActionFunctionArgs) {
   const formData = await request.formData();
   const intent = String(formData.get("intent") ?? "");
   const ruleId = String(formData.get("ruleId") ?? "");
-  const discountId = String(formData.get("discountId") ?? "");
+  const loaded = await loadActiveDiscount(proxy);
 
-  if (!discountId) {
+  if (!loaded.discountId) {
     return { error: "No active discount found. Create one first from the Discount page." };
   }
 
   if (intent === "pause") {
-    const result = await saveConfig(proxy, discountId, (c) => pauseRule(c, ruleId));
+    const result = await saveConfig(proxy, loaded.discountId, (c) => pauseRule(c, ruleId));
     if (result.userErrors.length) {
       return { error: result.userErrors.map((e) => e.message).join(", ") };
     }
   } else if (intent === "resume") {
-    const result = await saveConfig(proxy, discountId, (c) => resumeRule(c, ruleId));
+    const result = await saveConfig(proxy, loaded.discountId, (c) => resumeRule(c, ruleId));
     if (result.userErrors.length) {
       return { error: result.userErrors.map((e) => e.message).join(", ") };
     }
   } else if (intent === "delete") {
-    const result = await saveConfig(proxy, discountId, (c) => deleteRule(c, ruleId));
+    const result = await saveConfig(proxy, loaded.discountId, (c) => deleteRule(c, ruleId));
     if (result.userErrors.length) {
       return { error: result.userErrors.map((e) => e.message).join(", ") };
     }
@@ -81,7 +81,7 @@ export default function PromosPage() {
       setPendingRuleAction(null);
     }
     fetcher.submit(
-      { intent, ruleId, discountId },
+      { intent, ruleId },
       { method: "post" }
     );
   }

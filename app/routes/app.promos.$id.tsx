@@ -7,6 +7,7 @@ import {
   loadActiveDiscount,
   saveConfig,
   upsertRule,
+  validateRuleReferences,
   type GraphQLProxy,
 } from "~/lib/hpnPromoConfig.server";
 import { hpnPromoRuleSchema, type HpnPromoRule } from "~/lib/validations";
@@ -58,6 +59,11 @@ export async function action({ request, params }: ActionFunctionArgs) {
 
   if (rule.id !== params.id) {
     return { error: "Rule ID mismatch." };
+  }
+
+  const referenceErrors = await validateRuleReferences(proxy, rule);
+  if (referenceErrors.length > 0) {
+    return { error: referenceErrors.join("\n") };
   }
 
   const result = await saveConfig(proxy, loaded.discountId, (c) => upsertRule(c, rule));

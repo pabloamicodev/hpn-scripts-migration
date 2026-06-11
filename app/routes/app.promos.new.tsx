@@ -7,6 +7,7 @@ import {
   loadActiveDiscount,
   saveConfig,
   upsertRule,
+  validateRuleReferences,
   type GraphQLProxy,
 } from "~/lib/hpnPromoConfig.server";
 import { hpnPromoRuleSchema, type HpnPromoRule } from "~/lib/validations";
@@ -45,6 +46,11 @@ export async function action({ request }: ActionFunctionArgs) {
   const already = loaded.config.rules.some((r) => r.id === rule.id);
   if (already) {
     return { error: `Rule "${rule.id}" already exists. Edit it from the promos list instead.` };
+  }
+
+  const referenceErrors = await validateRuleReferences(proxy, rule);
+  if (referenceErrors.length > 0) {
+    return { error: referenceErrors.join("\n") };
   }
 
   const result = await saveConfig(proxy, loaded.discountId, (c) => upsertRule(c, rule));

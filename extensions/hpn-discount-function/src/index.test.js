@@ -5,6 +5,7 @@ import { cartLinesDiscountsGenerateRun } from "./index.js";
 const PRODUCT_IDS = {
   pa7: "gid://shopify/Product/1313973239892",
   c2: "gid://shopify/Product/1319321763924",
+  t5: "gid://shopify/Product/1313557741652",
   unrelated: "gid://shopify/Product/9999999999999",
   nad3_240: "gid://shopify/Product/6784435060873",
 };
@@ -31,7 +32,7 @@ const baseConfig = {
       type: "pa7_cross_sell",
       enabled: true,
       triggerProductId: PRODUCT_IDS.pa7,
-      targetProductIds: [PRODUCT_IDS.c2],
+      targetProductIds: [PRODUCT_IDS.c2, PRODUCT_IDS.t5],
       targetLineQuantityEquals: 1,
       discountPercentage: 10,
       message: "PA7 cross-sell",
@@ -126,12 +127,18 @@ describe("cartLinesDiscountsGenerateRun", () => {
     const result = runWithLines([
       productLine("line-pa7", PRODUCT_IDS.pa7, VARIANT_IDS.unrelated),
       productLine("line-c2", PRODUCT_IDS.c2, VARIANT_IDS.unrelated),
+      productLine("line-t5", PRODUCT_IDS.t5, VARIANT_IDS.unrelated),
       productLine("line-c2-qty2", PRODUCT_IDS.c2, VARIANT_IDS.unrelated, 2),
     ]);
 
     expect(candidates(result)).toEqual([
       {
         targets: [{ cartLine: { id: "line-c2" } }],
+        value: { percentage: { value: "10" } },
+        message: "PA7 cross-sell",
+      },
+      {
+        targets: [{ cartLine: { id: "line-t5" } }],
         value: { percentage: { value: "10" } },
         message: "PA7 cross-sell",
       },

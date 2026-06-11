@@ -9,6 +9,7 @@ import {
   ProductPicker,
   type ProductPickerSelection,
 } from "./ProductPicker";
+import { HPN_PRODUCTS, HPN_PROMO_MESSAGES, HPN_VARIANTS } from "../lib/hpnPromoConstants";
 
 type PromoRuleType = HpnPromoRule["type"];
 
@@ -52,14 +53,14 @@ const DEFAULT_RULES: Record<PromoRuleType, PromoRuleFormValues> = {
     id: "pa7-cross-sell",
     type: "pa7_cross_sell",
     enabled: true,
-    triggerProductId: "gid://shopify/Product/1313973239892",
+    triggerProductId: HPN_PRODUCTS.PA7_PRODUCT_ID,
     targetProductIds: [
-      "gid://shopify/Product/1319321763924",
-      "gid://shopify/Product/1313557741652",
+      HPN_PRODUCTS.C2_PRODUCT_ID,
+      HPN_PRODUCTS.T5_PRODUCT_ID,
     ],
     targetLineQuantityEquals: 1,
     discountPercentage: 10,
-    message: "Congratulations! 10% Off (when purchased with PA7)",
+    message: HPN_PROMO_MESSAGES.PA7_CROSS_SELL,
   },
 
   required_variants_free_variants: {
@@ -67,33 +68,33 @@ const DEFAULT_RULES: Record<PromoRuleType, PromoRuleFormValues> = {
     type: "required_variants_free_variants",
     enabled: true,
     requiredVariantIds: [
-      "gid://shopify/ProductVariant/21174522675284",
-      "gid://shopify/ProductVariant/40608348438665",
-      "gid://shopify/ProductVariant/40608348373129",
+      HPN_VARIANTS.NAD3_SINGLE_VARIANT_ID,
+      HPN_VARIANTS.PLANTA_SAMPLE_VARIANT_ID_1,
+      HPN_VARIANTS.PLANTA_SAMPLE_VARIANT_ID_2,
     ],
     freeVariantIds: [
-      "gid://shopify/ProductVariant/40608348438665",
-      "gid://shopify/ProductVariant/40608348373129",
+      HPN_VARIANTS.PLANTA_SAMPLE_VARIANT_ID_1,
+      HPN_VARIANTS.PLANTA_SAMPLE_VARIANT_ID_2,
     ],
     freeQuantityPerLine: null,
-    message: "Free Planta Samples - NAD3 Subscription",
+    message: HPN_PROMO_MESSAGES.PLANTA_SAMPLES,
   },
 
   required_product_with_free_variants: {
     id: "nad3-240-pouches",
     type: "required_product_with_free_variants",
     enabled: true,
-    triggerProductId: "gid://shopify/Product/6784435060873",
+    triggerProductId: HPN_PRODUCTS.NAD3_240_PRODUCT_ID,
     requiredVariantIds: [
-      "gid://shopify/ProductVariant/44633124995209",
-      "gid://shopify/ProductVariant/44633124864137",
+      HPN_VARIANTS.S9_1WK_POUCH_VARIANT_ID,
+      HPN_VARIANTS.N4_1WK_POUCH_VARIANT_ID,
     ],
     freeVariantIds: [
-      "gid://shopify/ProductVariant/44633124995209",
-      "gid://shopify/ProductVariant/44633124864137",
+      HPN_VARIANTS.S9_1WK_POUCH_VARIANT_ID,
+      HPN_VARIANTS.N4_1WK_POUCH_VARIANT_ID,
     ],
     freeQuantityPerLine: 1,
-    message: "Free 1-Week Pouches - NAD3 240 Bundle",
+    message: HPN_PROMO_MESSAGES.FREE_POUCHES,
   },
 };
 

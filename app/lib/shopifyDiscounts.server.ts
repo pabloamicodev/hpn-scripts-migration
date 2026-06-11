@@ -140,7 +140,7 @@ interface GraphQLProxy {
   (
     query: string,
     variables?: Record<string, unknown>
-  ): Promise<{ data: any; errors?: any[] }>;
+  ): Promise<{ data?: any; errors?: any[] }>;
 }
 
 interface CombinesWithInput {

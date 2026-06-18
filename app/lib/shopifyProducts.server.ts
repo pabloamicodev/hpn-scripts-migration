@@ -285,26 +285,20 @@ export async function validateProductIds(
   graphqlProxy: GraphQLProxyFn,
   productIds: string[],
 ): Promise<ValidationResult> {
-  const valid: string[] = [];
-  const invalid: string[] = [];
-
-  for (const id of productIds) {
-    try {
-      const product = await getProductById(graphqlProxy, id);
-
-      if (product) {
-        valid.push(id);
-      } else {
-        invalid.push(id);
+  const results = await Promise.all(
+    productIds.map(async (id) => {
+      try {
+        const product = await getProductById(graphqlProxy, id);
+        return { id, ok: Boolean(product) };
+      } catch {
+        return { id, ok: false };
       }
-    } catch {
-      invalid.push(id);
-    }
-  }
+    }),
+  );
 
   return {
-    valid,
-    invalid,
+    valid: results.filter((r) => r.ok).map((r) => r.id),
+    invalid: results.filter((r) => !r.ok).map((r) => r.id),
   };
 }
 
@@ -312,25 +306,19 @@ export async function validateVariantIds(
   graphqlProxy: GraphQLProxyFn,
   variantIds: string[],
 ): Promise<ValidationResult> {
-  const valid: string[] = [];
-  const invalid: string[] = [];
-
-  for (const id of variantIds) {
-    try {
-      const variant = await getVariantById(graphqlProxy, id);
-
-      if (variant) {
-        valid.push(id);
-      } else {
-        invalid.push(id);
+  const results = await Promise.all(
+    variantIds.map(async (id) => {
+      try {
+        const variant = await getVariantById(graphqlProxy, id);
+        return { id, ok: Boolean(variant) };
+      } catch {
+        return { id, ok: false };
       }
-    } catch {
-      invalid.push(id);
-    }
-  }
+    }),
+  );
 
   return {
-    valid,
-    invalid,
+    valid: results.filter((r) => r.ok).map((r) => r.id),
+    invalid: results.filter((r) => !r.ok).map((r) => r.id),
   };
 }

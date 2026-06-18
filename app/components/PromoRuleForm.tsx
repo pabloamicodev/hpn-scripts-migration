@@ -10,6 +10,8 @@ import {
   type ProductPickerSelection,
 } from "./ProductPicker";
 import { HPN_PRODUCTS, HPN_PROMO_MESSAGES, HPN_VARIANTS } from "../lib/hpnPromoConstants";
+import type { ActionError } from "../lib/actionError.server";
+import { DevErrorBanner } from "./DevErrorBanner";
 
 type PromoRuleType = HpnPromoRule["type"];
 
@@ -29,7 +31,7 @@ interface SelectedProductMeta {
 
 interface PromoRuleFormProps {
   defaultValues?: HpnPromoRule;
-  submissionError?: string | null;
+  submissionError?: ActionError | null;
   onSubmit: (data: HpnPromoRule) => void;
   onCancel: () => void;
 }
@@ -422,15 +424,14 @@ export function PromoRuleForm({
         </div>
       </header>
 
-      {(schemaError || submissionError) && (
+      {schemaError && (
         <section className="alert alert--critical" role="alert">
-          <strong>{schemaError ? "Validation Error" : "Save Failed"}</strong>
-
-          <pre className="alert__pre">
-            {schemaError ?? submissionError}
-          </pre>
+          <strong>Validation Error</strong>
+          <pre className="alert__pre">{schemaError}</pre>
         </section>
       )}
+
+      <DevErrorBanner error={submissionError} />
 
       <section className="form-section">
       <h2 className="form-section__title">Rule details</h2>

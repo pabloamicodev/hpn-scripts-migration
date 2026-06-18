@@ -56,7 +56,7 @@ export const hpnPromoRuleSchema = z.discriminatedUnion("type", [
 
 export const hpnPromoConfigSchema = z.object({
   version: z.literal(1),
-  rules: z.array(hpnPromoRuleSchema).min(1),
+  rules: z.array(hpnPromoRuleSchema).min(0),
   combinesWith: z.object({
     orderDiscounts: z.boolean(),
     productDiscounts: z.boolean(),

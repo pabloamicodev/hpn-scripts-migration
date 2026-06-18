@@ -6,15 +6,34 @@ import {
 } from "@shopify/shopify-app-react-router/server";
 import { PostgreSQLSessionStorage } from "@shopify/shopify-app-session-storage-postgresql";
 
-const pgSessionStorage = process.env.DATABASE_URL
-  ? (() => {
-      const url = new URL(process.env.DATABASE_URL!);
-      if (!url.searchParams.has('sslmode')) {
-        url.searchParams.append('sslmode', 'require');
-      }
-      return new PostgreSQLSessionStorage(url);
-    })()
-  : undefined;
+// Fail fast at startup — never silently degrade to in-memory sessions on Vercel
+const REQUIRED_ENV = ["SHOPIFY_API_KEY", "SHOPIFY_API_SECRET", "DATABASE_URL"] as const;
+for (const key of REQUIRED_ENV) {
+  if (!process.env[key]) {
+    throw new Error(
+      `Missing required environment variable: ${key}. ` +
+      `Configure it in Vercel → Settings → Environment Variables ` +
+      `(Neon provides DATABASE_URL automatically on project creation).`
+    );
+  }
+}
+
+const pgSessionStorage = (() => {
+  const raw = process.env.DATABASE_URL!;
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    throw new Error(
+      `DATABASE_URL is not a valid connection URL. ` +
+      `Check Neon project settings. Value starts with: ${raw.slice(0, 20)}...`
+    );
+  }
+  if (!url.searchParams.has("sslmode")) {
+    url.searchParams.append("sslmode", "require");
+  }
+  return new PostgreSQLSessionStorage(url);
+})();
 
 const shopify = shopifyApp({
   apiKey: process.env.SHOPIFY_API_KEY!,
@@ -23,7 +42,7 @@ const shopify = shopifyApp({
   scopes: ["write_discounts", "read_products"],
   apiVersion: ApiVersion.April26,
   distribution: AppDistribution.AppStore,
-  ...(pgSessionStorage ? { sessionStorage: pgSessionStorage } : {}),
+  sessionStorage: pgSessionStorage,
 });
 
 export default shopify;

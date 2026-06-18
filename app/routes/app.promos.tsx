@@ -8,8 +8,15 @@ import {
   pauseRule,
   resumeRule,
   deleteRule,
-  type GraphQLProxy,
 } from "~/lib/hpnPromoConfig.server";
+import { makeGraphqlProxy } from "~/lib/graphqlProxy.server";
+import {
+  actionError,
+  loaderError,
+  shopifyUserErrors,
+} from "~/lib/actionError.server";
+import type { ActionError } from "~/lib/actionError.server";
+import { DevErrorBanner } from "~/components/DevErrorBanner";
 import { PromoRulesTable } from "~/components/PromoRulesTable";
 import { ConfirmDialog } from "~/components/ConfirmDialog";
 
@@ -18,57 +25,90 @@ type PendingRuleAction = {
   ruleId: string;
 } | null;
 
-function makeProxy(admin: any): GraphQLProxy {
-  return async (q: string, v?: Record<string, unknown>) => {
-    const res = await admin.graphql(q, { variables: v });
-    return res.json();
-  };
-}
-
 export async function loader({ request }: LoaderFunctionArgs) {
-  const { admin } = await authenticate.admin(request);
-  const proxy = makeProxy(admin);
-  const loaded = await loadActiveDiscount(proxy);
-  return { ...loaded };
+  try {
+    const { admin } = await authenticate.admin(request);
+    const proxy = makeGraphqlProxy(admin);
+    const loaded = await loadActiveDiscount(proxy);
+    return { ...loaded };
+  } catch (err) {
+    return loaderError("Failed to load promo rules", {
+      operation: "loadPromos",
+      cause: err,
+      hint: "Check that the Shopify Admin API is accessible and the discount metafield is valid JSON.",
+    });
+  }
 }
 
 export async function action({ request }: ActionFunctionArgs) {
-  const { admin } = await authenticate.admin(request);
-  const proxy = makeProxy(admin);
+  try {
+    const { admin } = await authenticate.admin(request);
+    const proxy = makeGraphqlProxy(admin);
 
-  const formData = await request.formData();
-  const intent = String(formData.get("intent") ?? "");
-  const ruleId = String(formData.get("ruleId") ?? "");
-  const loaded = await loadActiveDiscount(proxy);
+    const formData = await request.formData();
+    const intent = String(formData.get("intent") ?? "");
+    const ruleId = String(formData.get("ruleId") ?? "");
+    const loaded = await loadActiveDiscount(proxy);
 
-  if (!loaded.discountId) {
-    return { error: "No active discount found. Create one first from the Discount page." };
-  }
-
-  if (!loaded.config.rules.some((rule) => rule.id === ruleId)) {
-    return { error: `Rule "${ruleId}" was not found.` };
-  }
-
-  if (intent === "pause") {
-    const result = await saveConfig(proxy, loaded.discountId, (c) => pauseRule(c, ruleId));
-    if (result.userErrors.length) {
-      return { error: result.userErrors.map((e) => e.message).join(", ") };
+    if (!loaded.discountId) {
+      return actionError("No active discount found", {
+        operation: intent || "promoAction",
+        details: ["The automatic app discount has not been created yet."],
+        hint: "Go to Discount management and create the discount before editing rules.",
+      });
     }
-  } else if (intent === "resume") {
-    const result = await saveConfig(proxy, loaded.discountId, (c) => resumeRule(c, ruleId));
-    if (result.userErrors.length) {
-      return { error: result.userErrors.map((e) => e.message).join(", ") };
-    }
-  } else if (intent === "delete") {
-    const result = await saveConfig(proxy, loaded.discountId, (c) => deleteRule(c, ruleId));
-    if (result.userErrors.length) {
-      return { error: result.userErrors.map((e) => e.message).join(", ") };
-    }
-  } else {
-    return { error: "Unknown action." };
-  }
 
-  return { ok: true };
+    if (!loaded.config.rules.some((rule) => rule.id === ruleId)) {
+      return actionError(`Rule not found`, {
+        operation: intent || "promoAction",
+        details: [`No rule with ID "${ruleId}" exists in the current config.`],
+        hint: "Reload the page — the rule list may be stale.",
+      });
+    }
+
+    if (intent === "pause") {
+      const result = await saveConfig(proxy, loaded.discountId, loaded.config, (c) => pauseRule(c, ruleId));
+      if (result.userErrors.length) {
+        return actionError("Shopify rejected the pause request", {
+          operation: "pauseRule",
+          details: shopifyUserErrors(result.userErrors),
+          hint: `Rule ID: "${ruleId}". Discount ID: ${loaded.discountId}`,
+        });
+      }
+    } else if (intent === "resume") {
+      const result = await saveConfig(proxy, loaded.discountId, loaded.config, (c) => resumeRule(c, ruleId));
+      if (result.userErrors.length) {
+        return actionError("Shopify rejected the resume request", {
+          operation: "resumeRule",
+          details: shopifyUserErrors(result.userErrors),
+          hint: `Rule ID: "${ruleId}"`,
+        });
+      }
+    } else if (intent === "delete") {
+      const result = await saveConfig(proxy, loaded.discountId, loaded.config, (c) => deleteRule(c, ruleId));
+      if (result.userErrors.length) {
+        return actionError("Shopify rejected the delete request", {
+          operation: "deleteRule",
+          details: shopifyUserErrors(result.userErrors),
+          hint: `Rule ID: "${ruleId}"`,
+        });
+      }
+    } else {
+      return actionError("Unrecognized intent", {
+        operation: "promoAction",
+        details: [`Received intent: "${intent}"`],
+        hint: "Expected one of: pause | resume | delete — this is likely a UI bug.",
+      });
+    }
+
+    return { ok: true };
+  } catch (err) {
+    return actionError("Unexpected server error in promo action", {
+      operation: "promoAction",
+      cause: err,
+      hint: "Check Vercel function logs for the full stack trace.",
+    });
+  }
 }
 
 export default function PromosPage() {
@@ -92,8 +132,10 @@ export default function PromosPage() {
     );
   }
 
-  const actionError =
-    fetcher.data && "error" in fetcher.data ? fetcher.data.error : null;
+  const actionErr =
+    fetcher.data && "error" in fetcher.data
+      ? (fetcher.data.error as ActionError)
+      : null;
 
   return (
     <div className="app-page app-page--wide">
@@ -136,11 +178,7 @@ export default function PromosPage() {
         </div>
       )}
 
-      {actionError && (
-        <div className="alert alert--critical">
-          {actionError}
-        </div>
-      )}
+      <DevErrorBanner error={actionErr} />
 
       {!discountId && (
         <section className="card empty-state">

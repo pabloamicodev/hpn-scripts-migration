@@ -6,63 +6,92 @@ import {
 } from "react-router";
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "react-router";
 import { authenticate } from "~/shopify.server";
-import { loadActiveDiscount, type GraphQLProxy } from "~/lib/hpnPromoConfig.server";
+import { loadActiveDiscount } from "~/lib/hpnPromoConfig.server";
 import { findHpnFunctionId, updateAutomaticDiscount } from "~/lib/shopifyDiscounts.server";
+import { makeGraphqlProxy } from "~/lib/graphqlProxy.server";
+import {
+  actionError,
+  loaderError,
+  shopifyUserErrors,
+} from "~/lib/actionError.server";
+import type { ActionError } from "~/lib/actionError.server";
+import { DevErrorBanner } from "~/components/DevErrorBanner";
 import { CartSimulator } from "~/components/CartSimulator";
 import { defaultHpnPromoConfig } from "~/lib/hpnPromoDefaults";
 
-function makeProxy(admin: any): GraphQLProxy {
-  return async (q: string, v?: Record<string, unknown>) => {
-    const res = await admin.graphql(q, { variables: v });
-    return res.json();
-  };
-}
-
 export async function loader({ request }: LoaderFunctionArgs) {
-  const { admin } = await authenticate.admin(request);
-  const proxy = makeProxy(admin);
-  const [loaded, functionId] = await Promise.all([
-    loadActiveDiscount(proxy),
-    findHpnFunctionId(proxy),
-  ]);
-  return {
-    ...loaded,
-    functionId,
-    graphqlConsoleEnabled: process.env.ENABLE_GRAPHQL_CONSOLE === "true",
-  };
+  try {
+    const { admin } = await authenticate.admin(request);
+    const proxy = makeGraphqlProxy(admin);
+    const [loaded, functionId] = await Promise.all([
+      loadActiveDiscount(proxy),
+      findHpnFunctionId(proxy),
+    ]);
+    return {
+      ...loaded,
+      functionId,
+      graphqlConsoleEnabled: process.env.ENABLE_GRAPHQL_CONSOLE === "true",
+    };
+  } catch (err) {
+    return loaderError("Failed to load settings page", {
+      operation: "loadSettings",
+      cause: err,
+      hint: "Check that the Shopify Admin API is accessible and the session is valid.",
+    });
+  }
 }
 
 export async function action({ request }: ActionFunctionArgs) {
-  const { admin } = await authenticate.admin(request);
-  const proxy = makeProxy(admin);
+  try {
+    const { admin } = await authenticate.admin(request);
+    const proxy = makeGraphqlProxy(admin);
 
-  const formData = await request.formData();
-  const intent = String(formData.get("intent") ?? "");
+    const formData = await request.formData();
+    const intent = String(formData.get("intent") ?? "");
 
-  const loaded = await loadActiveDiscount(proxy);
-  if (!loaded.discountId) {
-    return { error: "No active discount to update." };
-  }
-
-  if (intent === "update-combines-with") {
-    const combinesWith = {
-      orderDiscounts: formData.get("orderDiscounts") === "true",
-      productDiscounts: formData.get("productDiscounts") === "true",
-      shippingDiscounts: formData.get("shippingDiscounts") === "true",
-    };
-
-    const result = await updateAutomaticDiscount(proxy, loaded.discountId, {
-      combinesWith,
-      config: { ...loaded.config, combinesWith },
-    });
-
-    if (result?.userErrors?.length) {
-      return { error: result.userErrors.map((e: any) => e.message).join(", ") };
+    const loaded = await loadActiveDiscount(proxy);
+    if (!loaded.discountId) {
+      return actionError("No active discount to update", {
+        operation: "updateSettings",
+        details: ["The automatic app discount has not been created yet."],
+        hint: "Go to Discount management and create the discount first.",
+      });
     }
-    return { ok: true };
-  }
 
-  return { error: "Unknown intent." };
+    if (intent === "update-combines-with") {
+      const combinesWith = {
+        orderDiscounts: formData.get("orderDiscounts") === "true",
+        productDiscounts: formData.get("productDiscounts") === "true",
+        shippingDiscounts: formData.get("shippingDiscounts") === "true",
+      };
+
+      const result = await updateAutomaticDiscount(proxy, loaded.discountId, {
+        combinesWith,
+        config: { ...loaded.config, combinesWith },
+      });
+
+      if (result?.userErrors?.length) {
+        return actionError("Shopify rejected the combination settings update", {
+          operation: "updateCombinesWith",
+          details: shopifyUserErrors(result.userErrors),
+          hint: `Discount ID: ${loaded.discountId}`,
+        });
+      }
+      return { ok: true };
+    }
+
+    return actionError("Unrecognized intent", {
+      operation: "updateSettings",
+      details: [`Received intent: "${intent}"`],
+      hint: "Expected 'update-combines-with' — this is likely a UI bug.",
+    });
+  } catch (err) {
+    return actionError("Unexpected server error in settings action", {
+      operation: "updateSettings",
+      cause: err,
+      hint: "Check Vercel function logs for the full stack trace.",
+    });
+  }
 }
 
 export default function SettingsPage() {
@@ -78,8 +107,10 @@ export default function SettingsPage() {
   const activeRules = rules.filter((rule) => rule.enabled).length;
   const pausedRules = rules.length - activeRules;
 
-  const actionError =
-    fetcher.data && "error" in fetcher.data ? fetcher.data.error : null;
+  const actionErr =
+    fetcher.data && "error" in fetcher.data
+      ? (fetcher.data.error as ActionError)
+      : null;
   const actionOk =
     fetcher.data && "ok" in fetcher.data ? fetcher.data.ok : false;
 
@@ -212,11 +243,7 @@ export default function SettingsPage() {
                   ))}
                 </div>
 
-                {actionError && (
-                  <div className="alert alert--critical" role="alert">
-                    {actionError}
-                  </div>
-                )}
+                <DevErrorBanner error={actionErr} />
                 {actionOk && (
                   <div className="alert alert--success" aria-live="polite">
                     Settings saved.

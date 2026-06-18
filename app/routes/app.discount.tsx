@@ -14,88 +14,132 @@ import {
   deleteDiscount,
   findHpnFunctionId,
 } from "~/lib/shopifyDiscounts.server";
+import { makeGraphqlProxy } from "~/lib/graphqlProxy.server";
+import {
+  actionError,
+  loaderError,
+  shopifyUserErrors,
+} from "~/lib/actionError.server";
+import type { ActionError } from "~/lib/actionError.server";
+import { DevErrorBanner } from "~/components/DevErrorBanner";
 import { StatusBadge } from "~/components/StatusBadge";
 import { ConfirmDialog } from "~/components/ConfirmDialog";
 
-function makeProxy(admin: any) {
-  return async (q: string, v?: Record<string, unknown>) => {
-    const res = await admin.graphql(q, { variables: v });
-    return res.json();
-  };
-}
-
 export async function loader({ request }: LoaderFunctionArgs) {
-  const { admin } = await authenticate.admin(request);
-  const proxy = makeProxy(admin);
-  const [loaded, functionId] = await Promise.all([
-    loadActiveDiscount(proxy),
-    findHpnFunctionId(proxy),
-  ]);
-  return { ...loaded, functionId };
+  try {
+    const { admin } = await authenticate.admin(request);
+    const proxy = makeGraphqlProxy(admin);
+    const [loaded, functionId] = await Promise.all([
+      loadActiveDiscount(proxy),
+      findHpnFunctionId(proxy),
+    ]);
+    return { ...loaded, functionId };
+  } catch (err) {
+    return loaderError("Failed to load discount management page", {
+      operation: "loadDiscountPage",
+      cause: err,
+      hint: "Check that the Shopify Admin API is accessible and the session is valid.",
+    });
+  }
 }
 
 export async function action({ request }: ActionFunctionArgs) {
-  const { admin } = await authenticate.admin(request);
-  const proxy = makeProxy(admin);
+  try {
+    const { admin } = await authenticate.admin(request);
+    const proxy = makeGraphqlProxy(admin);
+    const formData = await request.formData();
+    const intent = String(formData.get("intent") ?? "");
 
-  const formData = await request.formData();
-  const intent = String(formData.get("intent") ?? "");
+    if (intent === "create") {
+      const functionId = await findHpnFunctionId(proxy);
+      if (!functionId) {
+        return actionError("Shopify Function not found on this store", {
+          operation: "createDiscount",
+          details: [
+            "No discount function matched app handle 'hpn-scripts-migration'",
+          ],
+          hint: "Run `shopify app deploy` and ensure the app is installed on this store. Check Vercel logs if the function was recently deployed.",
+        });
+      }
 
-  if (intent === "create") {
-    const functionId = await findHpnFunctionId(proxy);
-    if (!functionId) {
-      return {
-        error: "The Shopify Function could not be found. Make sure the app is installed on this store and the function has been deployed.",
-      };
+      const startsAt = new Date().toISOString();
+      const result = await createAutomaticDiscount(
+        proxy,
+        DISCOUNT_TITLE,
+        functionId,
+        startsAt,
+        defaultHpnPromoConfig,
+        defaultHpnPromoConfig.combinesWith
+      );
+
+      if (result?.userErrors?.length) {
+        return actionError("Shopify rejected the discount creation", {
+          operation: "createDiscount",
+          details: shopifyUserErrors(result.userErrors),
+          hint: "The mutation constraints may have changed — check the Shopify Admin API docs for discountAutomaticAppCreate.",
+        });
+      }
+      return { ok: true, message: "Discount created and activated." };
     }
 
-    const startsAt = new Date().toISOString();
-    const result = await createAutomaticDiscount(
-      proxy,
-      DISCOUNT_TITLE,
-      functionId,
-      startsAt,
-      defaultHpnPromoConfig,
-      defaultHpnPromoConfig.combinesWith
-    );
+    const loaded = await loadActiveDiscount(proxy);
 
-    if (result?.userErrors?.length) {
-      return { error: result.userErrors.map((e: any) => e.message).join(", ") };
+    if (!loaded.discountId) {
+      return actionError("No active discount found", {
+        operation: intent || "discountAction",
+        details: [`Searched for title: "${DISCOUNT_TITLE}" — no results`],
+        hint: "Create the discount first from this page before activating or deleting.",
+      });
     }
-    return { ok: true, message: "Discount created and activated." };
-  }
 
-  const loaded = await loadActiveDiscount(proxy);
-
-  if (!loaded.discountId) {
-    return { error: "No active discount found." };
-  }
-
-  if (intent === "activate") {
-    const result = await activateDiscount(proxy, loaded.discountId);
-    if (result?.userErrors?.length) {
-      return { error: result.userErrors.map((e: any) => e.message).join(", ") };
+    if (intent === "activate") {
+      const result = await activateDiscount(proxy, loaded.discountId);
+      if (result?.userErrors?.length) {
+        return actionError("Shopify rejected the activation", {
+          operation: "activateDiscount",
+          details: shopifyUserErrors(result.userErrors),
+          hint: `Discount ID: ${loaded.discountId}. The discount may already be active or in a state that prevents activation.`,
+        });
+      }
+      return { ok: true, message: "Discount activated." };
     }
-    return { ok: true, message: "Discount activated." };
-  }
 
-  if (intent === "deactivate") {
-    const result = await deactivateDiscount(proxy, loaded.discountId);
-    if (result?.userErrors?.length) {
-      return { error: result.userErrors.map((e: any) => e.message).join(", ") };
+    if (intent === "deactivate") {
+      const result = await deactivateDiscount(proxy, loaded.discountId);
+      if (result?.userErrors?.length) {
+        return actionError("Shopify rejected the deactivation", {
+          operation: "deactivateDiscount",
+          details: shopifyUserErrors(result.userErrors),
+          hint: `Discount ID: ${loaded.discountId}`,
+        });
+      }
+      return { ok: true, message: "Discount deactivated." };
     }
-    return { ok: true, message: "Discount deactivated." };
-  }
 
-  if (intent === "delete") {
-    const result = await deleteDiscount(proxy, loaded.discountId);
-    if (result?.userErrors?.length) {
-      return { error: result.userErrors.map((e: any) => e.message).join(", ") };
+    if (intent === "delete") {
+      const result = await deleteDiscount(proxy, loaded.discountId);
+      if (result?.userErrors?.length) {
+        return actionError("Shopify rejected the delete request", {
+          operation: "deleteDiscount",
+          details: shopifyUserErrors(result.userErrors),
+          hint: `Discount ID: ${loaded.discountId}. You may need to deactivate it first.`,
+        });
+      }
+      return { ok: true, message: "Discount deleted." };
     }
-    return { ok: true, message: "Discount deleted." };
-  }
 
-  return { error: "Unknown action." };
+    return actionError("Unrecognized intent", {
+      operation: "discountAction",
+      details: [`Received intent: "${intent}"`],
+      hint: "Expected one of: create | activate | deactivate | delete — this is likely a UI bug.",
+    });
+  } catch (err) {
+    return actionError("Unexpected server error in discount action", {
+      operation: "discountAction",
+      cause: err,
+      hint: "Check Vercel function logs for the full stack trace.",
+    });
+  }
 }
 
 export default function DiscountPage() {
@@ -106,8 +150,10 @@ export default function DiscountPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   const isPending = fetcher.state !== "idle";
-  const actionError =
-    fetcher.data && "error" in fetcher.data ? fetcher.data.error : null;
+  const actionErr =
+    fetcher.data && "error" in fetcher.data
+      ? (fetcher.data.error as ActionError)
+      : null;
   const actionMessage =
     fetcher.data && "message" in fetcher.data ? fetcher.data.message : null;
 
@@ -155,16 +201,10 @@ export default function DiscountPage() {
         </div>
       )}
 
-      {actionError && (
-        <div className="alert alert--critical">
-          {actionError}
-        </div>
-      )}
+      <DevErrorBanner error={actionErr} />
 
       {actionMessage && (
-        <div className="alert alert--success">
-          {actionMessage}
-        </div>
+        <div className="alert alert--success">{actionMessage}</div>
       )}
 
       <div className="summary-grid">

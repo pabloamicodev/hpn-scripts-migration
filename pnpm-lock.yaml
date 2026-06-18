@@ -9,71 +9,71 @@ importers:
   .:
     dependencies:
       '@hookform/resolvers':
-        specifier: latest
+        specifier: ^5.4.0
         version: 5.4.0(react-hook-form@7.77.0(react@19.2.7))
       '@react-router/node':
         specifier: ^7.17.0
         version: 7.17.0(react-router@7.17.0(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(typescript@6.0.3)
       '@shopify/polaris-types':
-        specifier: latest
+        specifier: ^1.0.7
         version: 1.0.7
       '@shopify/shopify-app-react-router':
-        specifier: latest
+        specifier: ^1.2.0
         version: 1.2.0(react-dom@19.2.7(react@19.2.7))(react-router@7.17.0(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(react@19.2.7)
       '@shopify/shopify-app-session-storage-postgresql':
-        specifier: latest
+        specifier: ^6.0.0
         version: 6.0.0(@shopify/shopify-api@13.0.0)(@shopify/shopify-app-session-storage@5.0.0(@shopify/shopify-api@13.0.0))
       '@tanstack/react-table':
-        specifier: latest
+        specifier: ^8.21.3
         version: 8.21.3(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       date-fns:
-        specifier: latest
+        specifier: ^4.4.0
         version: 4.4.0
       graphiql:
-        specifier: latest
+        specifier: ^5.2.3
         version: 5.2.3(@types/node@25.9.1)(@types/react-dom@19.2.3(@types/react@19.2.16))(@types/react@19.2.16)(graphql-ws@6.0.8(graphql@16.14.1)(ws@8.21.0))(graphql@16.14.1)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(use-sync-external-store@1.6.0(react@19.2.7))
       graphql:
-        specifier: latest
+        specifier: ^16.14.1
         version: 16.14.1
       isbot:
-        specifier: latest
+        specifier: ^5.1.40
         version: 5.1.40
       pg:
-        specifier: ^8.13.0
+        specifier: ^8.21.0
         version: 8.21.0
       react:
-        specifier: latest
+        specifier: ^19.2.7
         version: 19.2.7
       react-dom:
-        specifier: latest
+        specifier: ^19.2.7
         version: 19.2.7(react@19.2.7)
       react-hook-form:
-        specifier: latest
+        specifier: ^7.77.0
         version: 7.77.0(react@19.2.7)
       react-router:
-        specifier: latest
+        specifier: ^7.17.0
         version: 7.17.0(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       zod:
-        specifier: latest
+        specifier: ^4.4.3
         version: 4.4.3
     devDependencies:
       '@playwright/test':
-        specifier: latest
+        specifier: ^1.60.0
         version: 1.60.0
       '@react-router/dev':
-        specifier: latest
+        specifier: ^7.17.0
         version: 7.17.0(@types/node@25.9.1)(jiti@2.7.0)(lightningcss@1.32.0)(react-router@7.17.0(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(typescript@6.0.3)(vite@8.0.16(@types/node@25.9.1)(esbuild@0.28.0)(jiti@2.7.0)(yaml@2.9.0))(yaml@2.9.0)
       '@shopify/api-codegen-preset':
-        specifier: latest
+        specifier: ^2.0.0
         version: 2.0.0(@types/node@25.9.1)(typescript@6.0.3)
       '@shopify/cli':
-        specifier: latest
+        specifier: ^4.1.0
         version: 4.1.0
       '@types/node':
         specifier: ^25.9.1
         version: 25.9.1
       '@types/pg':
-        specifier: ^8.11.10
+        specifier: ^8.20.0
         version: 8.20.0
       '@types/react':
         specifier: ^19.2.16
@@ -82,25 +82,25 @@ importers:
         specifier: ^19.2.3
         version: 19.2.3(@types/react@19.2.16)
       '@vercel/react-router':
-        specifier: latest
+        specifier: ^1.3.1
         version: 1.3.1(@react-router/dev@7.17.0(@types/node@25.9.1)(jiti@2.7.0)(lightningcss@1.32.0)(react-router@7.17.0(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(typescript@6.0.3)(vite@8.0.16(@types/node@25.9.1)(esbuild@0.28.0)(jiti@2.7.0)(yaml@2.9.0))(yaml@2.9.0))(@react-router/node@7.17.0(react-router@7.17.0(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(typescript@6.0.3))(isbot@5.1.40)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       eslint:
-        specifier: latest
+        specifier: ^10.4.1
         version: 10.4.1(jiti@2.7.0)
       prettier:
-        specifier: latest
+        specifier: ^3.8.3
         version: 3.8.3
       typescript:
-        specifier: latest
+        specifier: ^6.0.3
         version: 6.0.3
       vite:
-        specifier: latest
+        specifier: ^8.0.16
         version: 8.0.16(@types/node@25.9.1)(esbuild@0.28.0)(jiti@2.7.0)(yaml@2.9.0)
       vite-tsconfig-paths:
-        specifier: latest
+        specifier: ^6.1.1
         version: 6.1.1(typescript@6.0.3)(vite@8.0.16(@types/node@25.9.1)(esbuild@0.28.0)(jiti@2.7.0)(yaml@2.9.0))
       vitest:
-        specifier: latest
+        specifier: ^4.1.8
         version: 4.1.8(@types/node@25.9.1)(vite@8.0.16(@types/node@25.9.1)(esbuild@0.28.0)(jiti@2.7.0)(yaml@2.9.0))
 
   extensions/hpn-discount-function:
@@ -3972,6 +3972,7 @@ packages:
   tsconfck@3.1.6:
     resolution: {integrity: sha512-ks6Vjr/jEw0P1gmOVwutM3B7fWxoWBL2KRDb1JfqGVawBmO5UsvmWOQFGHBPl5yxYz4eERr19E6L7NMv+Fej4w==}
     engines: {node: ^18 || >=20}
+    deprecated: unmaintained
     hasBin: true
     peerDependencies:
       typescript: ^5.0.0

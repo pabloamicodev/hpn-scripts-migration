@@ -8,6 +8,7 @@ import {
   type GraphQLProxyFn,
 } from "~/lib/shopifyProducts.server";
 import { authenticate } from "~/shopify.server";
+import { makeGraphqlProxy } from "~/lib/graphqlProxy.server";
 
 function json(data: unknown, init?: ResponseInit) {
   return new Response(JSON.stringify(data), {
@@ -17,13 +18,6 @@ function json(data: unknown, init?: ResponseInit) {
       ...init?.headers,
     },
   });
-}
-
-function makeProxy(admin: any): GraphQLProxyFn {
-  return async (query: string, variables?: Record<string, unknown>) => {
-    const response = await admin.graphql(query, { variables });
-    return response.json();
-  };
 }
 
 function getImage(product: {
@@ -91,7 +85,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
   if (ids.length > 0) {
     try {
-      const selections = await lookupSelections(makeProxy(admin), ids);
+      const selections = await lookupSelections(makeGraphqlProxy(admin), ids);
       return json({ selections });
     } catch (error) {
       return json(
@@ -108,8 +102,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
   try {
     const products =
       query.length > 0
-        ? await searchProducts(makeProxy(admin), query, first)
-        : await listProducts(makeProxy(admin), first);
+        ? await searchProducts(makeGraphqlProxy(admin), query, first)
+        : await listProducts(makeGraphqlProxy(admin), first);
 
     return json({ products });
   } catch (error) {

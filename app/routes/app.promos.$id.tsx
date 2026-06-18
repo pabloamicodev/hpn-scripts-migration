@@ -8,77 +8,117 @@ import {
   saveConfig,
   upsertRule,
   validateRuleReferences,
-  type GraphQLProxy,
 } from "~/lib/hpnPromoConfig.server";
+import { makeGraphqlProxy } from "~/lib/graphqlProxy.server";
 import { hpnPromoRuleSchema, type HpnPromoRule } from "~/lib/validations";
+import {
+  actionError,
+  loaderError,
+  shopifyUserErrors,
+} from "~/lib/actionError.server";
+import type { ActionError } from "~/lib/actionError.server";
 import { PromoRuleForm } from "~/components/PromoRuleForm";
 
-function makeProxy(admin: any): GraphQLProxy {
-  return async (q: string, v?: Record<string, unknown>) => {
-    const res = await admin.graphql(q, { variables: v });
-    return res.json();
-  };
-}
-
 export async function loader({ request, params }: LoaderFunctionArgs) {
-  const { admin } = await authenticate.admin(request);
-  const proxy = makeProxy(admin);
-  const loaded = await loadActiveDiscount(proxy);
+  try {
+    const { admin } = await authenticate.admin(request);
+    const proxy = makeGraphqlProxy(admin);
+    const loaded = await loadActiveDiscount(proxy);
 
-  const rule = loaded.config.rules.find((r) => r.id === params.id);
+    const rule = loaded.config.rules.find((r) => r.id === params.id);
 
-  if (!rule) {
-    throw new Response("Rule not found", { status: 404 });
+    if (!rule) {
+      throw new Response(`Rule "${params.id}" not found`, { status: 404 });
+    }
+
+    return { rule, discountId: loaded.discountId };
+  } catch (err) {
+    if (err instanceof Response) throw err;
+    loaderError("Failed to load rule editor", {
+      operation: "loadEditRule",
+      cause: err,
+      hint: `Rule ID: "${params.id}". Check that the discount metafield is valid JSON.`,
+    });
   }
-
-  return { rule, discountId: loaded.discountId };
 }
 
 export async function action({ request, params }: ActionFunctionArgs) {
-  const { admin } = await authenticate.admin(request);
-  const proxy = makeProxy(admin);
-
-  const loaded = await loadActiveDiscount(proxy);
-
-  if (!loaded.discountId) {
-    return { error: "No active discount found." };
-  }
-
-  const body = await request.text();
-  let rule: HpnPromoRule;
-
   try {
-    const parsed = hpnPromoRuleSchema.safeParse(JSON.parse(body));
-    if (!parsed.success) {
-      return { error: parsed.error.issues.map((i) => i.message).join(", ") };
+    const { admin } = await authenticate.admin(request);
+    const proxy = makeGraphqlProxy(admin);
+
+    const loaded = await loadActiveDiscount(proxy);
+
+    if (!loaded.discountId) {
+      return actionError("No active discount found", {
+        operation: "updateRule",
+        details: ["The automatic app discount has not been created yet."],
+        hint: "Go to Discount management and create the discount before editing rules.",
+      });
     }
-    rule = parsed.data;
-  } catch {
-    return { error: "Invalid rule data." };
+
+    const body = await request.text();
+    let rule: HpnPromoRule;
+
+    try {
+      const parsed = hpnPromoRuleSchema.safeParse(JSON.parse(body));
+      if (!parsed.success) {
+        return actionError("Rule validation failed", {
+          operation: "updateRule",
+          details: parsed.error.issues.map((i) => `${i.path.join(".") || "field"}: ${i.message}`),
+          hint: "Check all required fields and value ranges.",
+        });
+      }
+      rule = parsed.data;
+    } catch {
+      return actionError("Invalid rule payload", {
+        operation: "updateRule",
+        details: ["The request body could not be parsed as JSON."],
+        hint: "This is likely a client-side serialization bug — check PromoRuleForm.handleSubmit.",
+      });
+    }
+
+    if (rule.id !== params.id) {
+      return actionError("Rule ID mismatch", {
+        operation: "updateRule",
+        details: [`Expected ID "${params.id}", got "${rule.id}"`],
+        hint: "The URL param and the rule payload must have the same ID.",
+      });
+    }
+
+    const referenceErrors = await validateRuleReferences(proxy, rule);
+    if (referenceErrors.length > 0) {
+      return actionError("Product or variant references are invalid", {
+        operation: "updateRule",
+        details: referenceErrors,
+        hint: "Verify that all product/variant IDs exist in this store and the Shopify Products API is accessible.",
+      });
+    }
+
+    const result = await saveConfig(proxy, loaded.discountId, loaded.config, (c) => upsertRule(c, rule));
+
+    if (result.userErrors.length) {
+      return actionError("Shopify rejected the rule save", {
+        operation: "updateRule",
+        details: shopifyUserErrors(result.userErrors),
+        hint: `Discount ID: ${loaded.discountId}`,
+      });
+    }
+
+    return redirect("/app/promos");
+  } catch (err) {
+    return actionError("Unexpected server error while updating rule", {
+      operation: "updateRule",
+      cause: err,
+      hint: "Check Vercel function logs for the full stack trace.",
+    });
   }
-
-  if (rule.id !== params.id) {
-    return { error: "Rule ID mismatch." };
-  }
-
-  const referenceErrors = await validateRuleReferences(proxy, rule);
-  if (referenceErrors.length > 0) {
-    return { error: referenceErrors.join("\n") };
-  }
-
-  const result = await saveConfig(proxy, loaded.discountId, (c) => upsertRule(c, rule));
-
-  if (result.userErrors.length) {
-    return { error: result.userErrors.map((e) => e.message).join(", ") };
-  }
-
-  return redirect("/app/promos");
 }
 
 export default function EditPromoPage() {
   const { rule } = useLoaderData<typeof loader>();
   const navigate = useNavigate();
-  const [submissionError, setSubmissionError] = useState<string | null>(null);
+  const [submissionError, setSubmissionError] = useState<ActionError | null>(null);
 
   function handleSubmit(updatedRule: HpnPromoRule) {
     setSubmissionError(null);
@@ -98,14 +138,24 @@ export default function EditPromoPage() {
         : null;
 
       if (data?.error) {
-        setSubmissionError(data.error);
+        setSubmissionError(data.error as ActionError);
       } else if (res.ok) {
         navigate("/app/promos");
       } else {
-        setSubmissionError("The promo rule could not be saved. Review the form and try again.");
+        setSubmissionError({
+          message: "The promo rule could not be saved. Review the form and try again.",
+          operation: "updateRule",
+          details: [`HTTP ${res.status} — ${res.statusText}`],
+          timestamp: new Date().toISOString(),
+        });
       }
-    }).catch(() => {
-      setSubmissionError("The promo rule could not be saved. Check your connection and try again.");
+    }).catch((err) => {
+      setSubmissionError({
+        message: "The promo rule could not be saved. Check your connection and try again.",
+        operation: "updateRule",
+        details: [err instanceof Error ? err.message : String(err)],
+        timestamp: new Date().toISOString(),
+      });
     });
   }
 

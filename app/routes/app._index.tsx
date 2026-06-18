@@ -2,6 +2,8 @@ import { useLoaderData, useNavigate } from "react-router";
 import type { LoaderFunctionArgs } from "react-router";
 import { authenticate } from "~/shopify.server";
 import { findHpnFunctionId, searchDiscounts } from "~/lib/shopifyDiscounts.server";
+import { makeGraphqlProxy } from "~/lib/graphqlProxy.server";
+import { loaderError } from "~/lib/actionError.server";
 import { StatusBadge } from "~/components/StatusBadge";
 
 const DISCOUNT_TITLE = "HPN Scripts Migration Discounts";
@@ -15,17 +17,9 @@ interface HpnPromoConfig {
 }
 
 export async function loader({ request }: LoaderFunctionArgs) {
+  try {
   const { admin } = await authenticate.admin(request);
-
-  const graphqlProxy = async (
-    query: string,
-    variables?: Record<string, unknown>
-  ): Promise<{ data: any; errors?: any[] }> => {
-    const response = await admin.graphql(query, { variables });
-    const json = await response.json();
-
-    return json as { data: any; errors?: any[] };
-  };
+  const graphqlProxy = makeGraphqlProxy(admin);
 
   const [discounts, functionId] = await Promise.all([
     searchDiscounts(graphqlProxy, DISCOUNT_TITLE),
@@ -57,6 +51,13 @@ export async function loader({ request }: LoaderFunctionArgs) {
     lastUpdate: activeDiscount?.startsAt ?? null,
     functionId,
   };
+  } catch (err) {
+    return loaderError("Failed to load dashboard", {
+      operation: "loadDashboard",
+      cause: err,
+      hint: "Check that the Shopify Admin API is accessible and the session is valid.",
+    });
+  }
 }
 
 export default function AppIndex() {

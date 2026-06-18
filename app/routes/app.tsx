@@ -9,6 +9,8 @@ import type { LoaderFunctionArgs } from "react-router";
 import { AppProvider } from "@shopify/shopify-app-react-router/react";
 import { authenticate } from "~/shopify.server";
 import { AppNav } from "~/components/AppNav";
+import { DevErrorBanner } from "~/components/DevErrorBanner";
+import type { ActionError } from "~/lib/actionError.server";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   await authenticate.admin(request);
@@ -90,25 +92,80 @@ export default function AppLayout() {
 
 export function ErrorBoundary() {
   const error = useRouteError();
-  const message = isRouteErrorResponse(error)
-    ? typeof error.data === "string"
-      ? error.data
-      : error.statusText
-    : error instanceof Error
-      ? error.message
-      : "Unexpected application error.";
+
+  // Structured loader errors thrown via loaderError() — render with DevErrorBanner
+  if (isRouteErrorResponse(error)) {
+    // Try to parse as our ActionError JSON shape
+    let structuredError: ActionError | null = null;
+    if (typeof error.data === "string") {
+      try {
+        const parsed = JSON.parse(error.data);
+        if (parsed && typeof parsed.operation === "string") {
+          structuredError = parsed as ActionError;
+        }
+      } catch {
+        // Not our format — fall through
+      }
+    } else if (
+      error.data &&
+      typeof error.data === "object" &&
+      typeof (error.data as ActionError).operation === "string"
+    ) {
+      structuredError = error.data as ActionError;
+    }
+
+    if (structuredError) {
+      return (
+        <div className="app-shell">
+          <main className="app-main">
+            <div className="page-header" style={{ marginBottom: 0 }}>
+              <h1 className="page-title">Page failed to load</h1>
+            </div>
+            <DevErrorBanner error={structuredError} />
+          </main>
+        </div>
+      );
+    }
+
+    // Plain HTTP error (404, 403, guard throws, etc.)
+    const message =
+      typeof error.data === "string" ? error.data : error.statusText;
+
+    return (
+      <div className="app-shell">
+        <main className="app-main">
+          <div className="alert alert--critical">
+            <h2 className="card__title card__title--spaced">
+              {error.status} — {error.statusText}
+            </h2>
+            {message && (
+              <pre className="alert__pre alert__pre--flush">{message}</pre>
+            )}
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  // Unexpected runtime errors: full details in dev, generic in production
+  const isDev =
+    typeof process !== "undefined" && process.env.NODE_ENV !== "production";
+  const devMessage =
+    error instanceof Error
+      ? `${error.message}\n\n${error.stack ?? ""}`
+      : String(error);
 
   return (
     <div className="app-shell">
       <main className="app-main">
-    <div className="alert alert--critical">
-      <h2 className="card__title card__title--spaced">
-        Something went wrong
-      </h2>
-      <pre className="alert__pre alert__pre--flush">
-        {message}
-      </pre>
-    </div>
+        <div className="alert alert--critical">
+          <h2 className="card__title card__title--spaced">Something went wrong</h2>
+          {isDev ? (
+            <pre className="alert__pre alert__pre--flush">{devMessage}</pre>
+          ) : (
+            <p>An unexpected error occurred. Please try again or contact support.</p>
+          )}
+        </div>
       </main>
     </div>
   );

@@ -2,19 +2,22 @@ import { useLoaderData } from "react-router";
 import type { LoaderFunctionArgs } from "react-router";
 import { authenticate } from "~/shopify.server";
 import { listAllDiscounts } from "~/lib/shopifyDiscounts.server";
-
-function makeProxy(admin: any) {
-  return async (query: string, variables?: Record<string, unknown>) => {
-    const response = await admin.graphql(query, { variables });
-    return response.json() as Promise<{ data: any; errors?: any[] }>;
-  };
-}
+import { makeGraphqlProxy } from "~/lib/graphqlProxy.server";
+import { loaderError } from "~/lib/actionError.server";
 
 export async function loader({ request }: LoaderFunctionArgs) {
-  const { admin } = await authenticate.admin(request);
-  const proxy = makeProxy(admin);
-  const discounts = await listAllDiscounts(proxy);
-  return { discounts };
+  try {
+    const { admin } = await authenticate.admin(request);
+    const proxy = makeGraphqlProxy(admin);
+    const { discounts, truncated } = await listAllDiscounts(proxy);
+    return { discounts, truncated };
+  } catch (err) {
+    return loaderError("Failed to load discounts overview", {
+      operation: "listAllDiscounts",
+      cause: err,
+      hint: "Check that the Shopify Admin API is accessible and the discountNodes query is returning results.",
+    });
+  }
 }
 
 const TYPE_LABELS: Record<string, string> = {
@@ -49,7 +52,7 @@ function shortId(gid: string) {
 }
 
 export default function DiscountsOverviewPage() {
-  const { discounts } = useLoaderData<typeof loader>();
+  const { discounts, truncated } = useLoaderData<typeof loader>();
 
   const sorted = [...discounts].sort((a, b) => {
     const aOrd = STATUS_ORDER[a.status] ?? 9;
@@ -72,10 +75,17 @@ export default function DiscountsOverviewPage() {
         </div>
       </header>
 
+      {truncated && (
+        <div className="alert alert--warning">
+          This store has more than 100 automatic discounts. Only the first 100 are shown.
+          Run a manual GraphQL query with pagination to see the rest.
+        </div>
+      )}
+
       <div className="metric-grid">
         <section className="card metric-card metric-card--info">
-          <p className="metric-label">Total discounts</p>
-          <p className="metric-value">{discounts.length}</p>
+          <p className="metric-label">Total shown</p>
+          <p className="metric-value">{discounts.length}{truncated ? "+" : ""}</p>
         </section>
 
         <section className="card metric-card metric-card--success">
@@ -99,7 +109,8 @@ export default function DiscountsOverviewPage() {
           <div>
             <h2 className="resource-title">All automatic discounts</h2>
             <p className="resource-meta">
-              {discounts.length} discount{discounts.length !== 1 ? "s" : ""} found
+              {discounts.length} discount{discounts.length !== 1 ? "s" : ""} shown
+              {truncated ? " (store has more — page limit reached)" : ""}
             </p>
           </div>
         </div>

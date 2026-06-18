@@ -77,7 +77,7 @@ const DELETE_DISCOUNT_MUTATION = `
 
 const SEARCH_DISCOUNTS_QUERY = `
   query SearchDiscounts($query: String!) {
-    discountNodes(first: 10, query: $query) {
+    discountNodes(first: 25, query: $query) {
       edges {
         node {
           id
@@ -124,6 +124,9 @@ const SEARCH_DISCOUNTS_QUERY = `
 const LIST_ALL_DISCOUNTS_QUERY = `
   query ListAllDiscounts {
     discountNodes(first: 100) {
+      pageInfo {
+        hasNextPage
+      }
       edges {
         node {
           id
@@ -176,6 +179,7 @@ const GET_SHOPIFY_FUNCTIONS_QUERY = `
         apiType
         app {
           title
+          handle
         }
       }
     }
@@ -417,16 +421,25 @@ export async function searchDiscounts(
   return discounts;
 }
 
+export interface ListAllDiscountsResult {
+  discounts: SearchDiscountResult[];
+  truncated: boolean;
+}
+
 export async function listAllDiscounts(
   graphqlProxy: GraphQLProxy
-): Promise<SearchDiscountResult[]> {
+): Promise<ListAllDiscountsResult> {
   const result = await graphqlProxy(LIST_ALL_DISCOUNTS_QUERY);
 
   assertNoGraphqlErrors(result, "ListAllDiscounts");
 
+  const truncated: boolean =
+    result.data?.discountNodes?.pageInfo?.hasNextPage === true;
+
   const nodes: SearchDiscountNode[] =
-    result.data?.discountNodes?.edges?.map((edge: { node: SearchDiscountNode }) => edge.node) ??
-    [];
+    result.data?.discountNodes?.edges?.map(
+      (edge: { node: SearchDiscountNode }) => edge.node
+    ) ?? [];
 
   const discounts: SearchDiscountResult[] = [];
 
@@ -456,31 +469,63 @@ export async function listAllDiscounts(
     });
   }
 
-  return discounts;
+  return { discounts, truncated };
 }
+
+// The app handle is set in shopify.app.toml — used to scope function lookup
+// to our own app only, preventing accidental matches against other installed apps.
+const APP_HANDLE = "hpn-scripts-migration";
 
 export async function findHpnFunctionId(
   graphqlProxy: GraphQLProxy
 ): Promise<string | null> {
+  let result: { data?: any; errors?: any[] };
   try {
-    const result = await graphqlProxy(GET_SHOPIFY_FUNCTIONS_QUERY);
-    assertNoGraphqlErrors(result, "GetShopifyFunctions");
-    const nodes: any[] = result.data?.shopifyFunctions?.nodes ?? [];
-
-    const discountFunctions = nodes.filter((node) =>
-      String(node.apiType ?? "").toLowerCase().includes("discount")
-    );
-
-    const fn =
-      discountFunctions.find((node) => {
-        const appTitle = String(node.app?.title ?? "").toLowerCase();
-        const title = String(node.title ?? "").toLowerCase();
-
-        return appTitle.includes("hpn") || title.includes("hpn");
-      }) ?? discountFunctions[0];
-
-    return fn?.id ?? null;
-  } catch {
+    result = await graphqlProxy(GET_SHOPIFY_FUNCTIONS_QUERY);
+  } catch (err) {
+    console.error("[findHpnFunctionId] GraphQL request failed:", err);
     return null;
   }
+
+  if (result.errors?.length) {
+    console.error("[findHpnFunctionId] GraphQL errors:", result.errors);
+    return null;
+  }
+
+  const nodes: any[] = result.data?.shopifyFunctions?.nodes ?? [];
+
+  // Primary match: function belonging to this app with a discount apiType.
+  // Matching by app handle (stable, not editable by store owners) is safer
+  // than matching by title, which can be changed in the Partner Dashboard.
+  const fn = nodes.find(
+    (node) =>
+      String(node.app?.handle ?? "") === APP_HANDLE &&
+      String(node.apiType ?? "").toLowerCase().includes("discount")
+  );
+
+  // Secondary match: title-based within our app only, for dev environments
+  // where the app handle may differ from production.
+  const fallback = fn ?? nodes.find(
+    (node) =>
+      String(node.app?.handle ?? "") === APP_HANDLE
+  );
+
+  if (!fn && fallback) {
+    console.warn(
+      "[findHpnFunctionId] No discount function found by apiType for app handle " +
+      `"${APP_HANDLE}". Using first function from this app as fallback. ` +
+      `Function id: ${fallback.id}, apiType: ${fallback.apiType}`
+    );
+  }
+
+  if (!fn && !fallback) {
+    console.error(
+      "[findHpnFunctionId] No Shopify Function found for app handle " +
+      `"${APP_HANDLE}". Ensure the app is installed and \`shopify app deploy\` ` +
+      "has been run. Functions from other apps will never be used as fallback."
+    );
+    return null;
+  }
+
+  return (fn ?? fallback)?.id ?? null;
 }

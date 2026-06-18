@@ -8,7 +8,6 @@ import {
 } from "./shopifyProducts.server";
 
 export const DISCOUNT_TITLE = "HPN Scripts Migration Discounts";
-export const FUNCTION_ID_ENV = "SHOPIFY_DISCOUNT_FUNCTION_ID";
 
 export type GraphQLProxy = GraphQLProxyFn;
 
@@ -51,9 +50,21 @@ export async function loadActiveDiscount(
   if (active.configMetafield) {
     try {
       const parsed = hpnPromoConfigSchema.safeParse(JSON.parse(active.configMetafield));
-      if (parsed.success) config = parsed.data;
-    } catch {
-      // fall back to defaults
+      if (parsed.success) {
+        config = parsed.data;
+      } else {
+        console.warn(
+          "[hpnPromoConfig] Metafield failed Zod validation, using defaults.",
+          "discountId:", active.discountId,
+          "issues:", parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`)
+        );
+      }
+    } catch (err) {
+      console.warn(
+        "[hpnPromoConfig] Metafield is not valid JSON, using defaults.",
+        "discountId:", active.discountId,
+        err
+      );
     }
   }
 
@@ -123,10 +134,10 @@ export async function validateRuleReferences(
 export async function saveConfig(
   graphqlProxy: GraphQLProxy,
   discountId: string,
+  currentConfig: HpnPromoConfig,
   updater: (current: HpnPromoConfig) => HpnPromoConfig
 ): Promise<{ userErrors: { field: string[]; message: string }[] }> {
-  const loaded = await loadActiveDiscount(graphqlProxy);
-  const nextConfig = updater(loaded.config);
+  const nextConfig = updater(currentConfig);
 
   const result = await updateAutomaticDiscount(graphqlProxy, discountId, {
     config: nextConfig,

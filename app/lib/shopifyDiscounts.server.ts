@@ -121,6 +121,52 @@ const SEARCH_DISCOUNTS_QUERY = `
   }
 `;
 
+const LIST_ALL_DISCOUNTS_QUERY = `
+  query ListAllDiscounts {
+    discountNodes(first: 100) {
+      edges {
+        node {
+          id
+          metafield(namespace: "hpn_scripts", key: "function_configuration") {
+            value
+          }
+          discount {
+            __typename
+
+            ... on DiscountAutomaticApp {
+              discountId
+              title
+              status
+              startsAt
+              appDiscountType {
+                functionId
+              }
+            }
+
+            ... on DiscountAutomaticBasic {
+              title
+              status
+              startsAt
+            }
+
+            ... on DiscountAutomaticBxgy {
+              title
+              status
+              startsAt
+            }
+
+            ... on DiscountAutomaticFreeShipping {
+              title
+              status
+              startsAt
+            }
+          }
+        }
+      }
+    }
+  }
+`;
+
 const GET_SHOPIFY_FUNCTIONS_QUERY = `
   query GetShopifyFunctions {
     shopifyFunctions(first: 25) {
@@ -346,6 +392,48 @@ export async function searchDiscounts(
     if (!discount) {
       continue;
     }
+
+    discounts.push({
+      id: node.id,
+      discountId:
+        discount.__typename === "DiscountAutomaticApp"
+          ? discount.discountId
+          : node.id,
+      type: discount.__typename,
+      title: discount.title,
+      status: discount.status,
+      startsAt: discount.startsAt,
+      configMetafield:
+        discount.__typename === "DiscountAutomaticApp"
+          ? node.metafield?.value ?? null
+          : null,
+      functionId:
+        discount.__typename === "DiscountAutomaticApp"
+          ? discount.appDiscountType?.functionId ?? null
+          : null,
+    });
+  }
+
+  return discounts;
+}
+
+export async function listAllDiscounts(
+  graphqlProxy: GraphQLProxy
+): Promise<SearchDiscountResult[]> {
+  const result = await graphqlProxy(LIST_ALL_DISCOUNTS_QUERY);
+
+  assertNoGraphqlErrors(result, "ListAllDiscounts");
+
+  const nodes: SearchDiscountNode[] =
+    result.data?.discountNodes?.edges?.map((edge: { node: SearchDiscountNode }) => edge.node) ??
+    [];
+
+  const discounts: SearchDiscountResult[] = [];
+
+  for (const node of nodes) {
+    const discount = node.discount;
+
+    if (!discount) continue;
 
     discounts.push({
       id: node.id,

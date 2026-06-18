@@ -4,6 +4,7 @@ const links = [
   { href: "/app", label: "Home", rel: "home" },
   { href: "/app/promos", label: "Promos" },
   { href: "/app/discount", label: "Discount" },
+  { href: "/app/discounts-overview", label: "All Discounts" },
   { href: "/app/graphql", label: "GraphQL" },
   { href: "/app/settings", label: "Settings" },
 ];

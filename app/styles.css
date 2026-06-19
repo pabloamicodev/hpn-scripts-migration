@@ -1066,7 +1066,7 @@ input[type="radio"] {
 
 .graphql-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(320px, 460px);
+  grid-template-columns: 1fr 1fr;
   gap: 16px;
   align-items: start;
 }

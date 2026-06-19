@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState, useEffect, useRef } from "react";
+import { useCallback, useMemo, useState, useEffect } from "react";
 
 // ─── Toast ────────────────────────────────────────────────────────────────────
 
@@ -82,7 +82,7 @@ function CollapseBtn({ open, onClick }: { open: boolean; onClick: () => void }) 
 }
 
 function JsonNode({ value, depth = 0 }: { value: unknown; depth?: number }) {
-  const [open, setOpen] = useState(depth < 2);
+  const [open, setOpen] = useState(true);
   const toggle = useCallback(() => setOpen((v) => !v), []);
 
   if (value === null) return <span style={U}>null</span>;

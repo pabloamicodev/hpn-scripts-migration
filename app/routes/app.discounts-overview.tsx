@@ -112,12 +112,12 @@ export default function DiscountsOverviewPage() {
           )}
           {truncated && endCursor && (
             <Link to={`?after=${encodeURIComponent(endCursor)}`} className="btn btn--secondary" style={{ fontSize: 13 }}>
-              Siguientes 100 →
+              Siguientes 50 →
             </Link>
           )}
           {truncated && (
             <span style={{ fontSize: 12, color: "var(--text-subdued)" }}>
-              Hay más de 100 descuentos automáticos en esta tienda.
+              Hay más descuentos en la tienda.
             </span>
           )}
         </div>
@@ -151,7 +151,7 @@ export default function DiscountsOverviewPage() {
             <h2 className="resource-title">All automatic discounts</h2>
             <p className="resource-meta">
               {discounts.length} discount{discounts.length !== 1 ? "s" : ""} shown
-              {truncated ? " (store has more — page limit reached)" : ""}
+              {truncated ? " (hay más — usá el paginador)" : ""}
             </p>
           </div>
         </div>

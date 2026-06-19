@@ -123,7 +123,7 @@ const SEARCH_DISCOUNTS_QUERY = `
 
 const LIST_ALL_DISCOUNTS_QUERY = `
   query ListAllDiscounts($cursor: String) {
-    discountNodes(first: 100, after: $cursor) {
+    discountNodes(first: 50, after: $cursor) {
       pageInfo {
         hasNextPage
         endCursor

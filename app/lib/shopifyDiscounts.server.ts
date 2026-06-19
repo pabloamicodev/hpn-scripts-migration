@@ -443,10 +443,20 @@ export async function listAllDiscounts(
 
   const discounts: SearchDiscountResult[] = [];
 
+  const KNOWN_AUTOMATIC_TYPES: AutomaticDiscountTypename[] = [
+    "DiscountAutomaticApp",
+    "DiscountAutomaticBasic",
+    "DiscountAutomaticBxgy",
+    "DiscountAutomaticFreeShipping",
+  ];
+
   for (const node of nodes) {
     const discount = node.discount;
 
-    if (!discount) continue;
+    // Skip null discounts and code discounts (DiscountCodeBasic, DiscountCodeApp, etc.)
+    // For non-matching __typename the inline fragments don't spread, so title/status
+    // would be undefined at runtime even though TypeScript thinks they're strings.
+    if (!discount || !KNOWN_AUTOMATIC_TYPES.includes(discount.__typename as AutomaticDiscountTypename)) continue;
 
     discounts.push({
       id: node.id,
@@ -454,7 +464,7 @@ export async function listAllDiscounts(
         discount.__typename === "DiscountAutomaticApp"
           ? discount.discountId
           : node.id,
-      type: discount.__typename,
+      type: discount.__typename as AutomaticDiscountTypename,
       title: discount.title,
       status: discount.status,
       startsAt: discount.startsAt,

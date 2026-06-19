@@ -58,7 +58,7 @@ export default function DiscountsOverviewPage() {
     const aOrd = STATUS_ORDER[a.status] ?? 9;
     const bOrd = STATUS_ORDER[b.status] ?? 9;
     if (aOrd !== bOrd) return aOrd - bOrd;
-    return (a.title ?? "").localeCompare(b.title ?? "");
+    return a.title.localeCompare(b.title);
   });
 
   const activeCount = discounts.filter((d) => d.status === "ACTIVE").length;

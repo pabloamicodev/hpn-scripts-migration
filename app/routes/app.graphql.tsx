@@ -1,10 +1,8 @@
 import { useLoaderData } from "react-router";
-import type { LoaderFunctionArgs } from "react-router";
-import { authenticate } from "~/shopify.server";
 import { GraphqlConsole } from "~/components/GraphqlConsole";
 
-export async function loader({ request }: LoaderFunctionArgs) {
-  await authenticate.admin(request);
+export function loader() {
+  // app.tsx parent already calls authenticate.admin — no need to repeat here
   return { enabled: process.env.ENABLE_GRAPHQL_CONSOLE === "true" };
 }
 

@@ -123,7 +123,7 @@ const SEARCH_DISCOUNTS_QUERY = `
 
 const LIST_ALL_DISCOUNTS_QUERY = `
   query ListAllDiscounts($cursor: String) {
-    discountNodes(first: 100, after: $cursor, query: "discount_type:automatic") {
+    discountNodes(first: 100, after: $cursor) {
       pageInfo {
         hasNextPage
         endCursor
@@ -163,6 +163,33 @@ const LIST_ALL_DISCOUNTS_QUERY = `
               title
               status
               startsAt
+            }
+
+            ... on DiscountCodeBasic {
+              title
+              status
+              startsAt
+            }
+
+            ... on DiscountCodeBxgy {
+              title
+              status
+              startsAt
+            }
+
+            ... on DiscountCodeFreeShipping {
+              title
+              status
+              startsAt
+            }
+
+            ... on DiscountCodeApp {
+              title
+              status
+              startsAt
+              appDiscountType {
+                functionId
+              }
             }
           }
         }
@@ -213,11 +240,15 @@ interface CombinesWithInput {
   shippingDiscounts: boolean;
 }
 
-type AutomaticDiscountTypename =
+type DiscountTypename =
   | "DiscountAutomaticApp"
   | "DiscountAutomaticBasic"
   | "DiscountAutomaticBxgy"
-  | "DiscountAutomaticFreeShipping";
+  | "DiscountAutomaticFreeShipping"
+  | "DiscountCodeBasic"
+  | "DiscountCodeBxgy"
+  | "DiscountCodeFreeShipping"
+  | "DiscountCodeApp";
 
 interface SearchDiscountNode {
   id: string;
@@ -231,18 +262,26 @@ interface SearchDiscountNode {
         title: string;
         status: string;
         startsAt: string | null;
-        appDiscountType?: {
-          functionId: string | null;
-        } | null;
+        appDiscountType?: { functionId: string | null } | null;
       }
     | {
         __typename:
           | "DiscountAutomaticBasic"
           | "DiscountAutomaticBxgy"
-          | "DiscountAutomaticFreeShipping";
+          | "DiscountAutomaticFreeShipping"
+          | "DiscountCodeBasic"
+          | "DiscountCodeBxgy"
+          | "DiscountCodeFreeShipping";
         title: string;
         status: string;
         startsAt: string | null;
+      }
+    | {
+        __typename: "DiscountCodeApp";
+        title: string;
+        status: string;
+        startsAt: string | null;
+        appDiscountType?: { functionId: string | null } | null;
       }
     | null;
 }
@@ -250,7 +289,7 @@ interface SearchDiscountNode {
 export interface SearchDiscountResult {
   id: string;
   discountId: string;
-  type: AutomaticDiscountTypename;
+  type: DiscountTypename;
   title: string;
   status: string;
   startsAt: string | null;
@@ -447,37 +486,37 @@ export async function listAllDiscounts(
 
   const discounts: SearchDiscountResult[] = [];
 
-  const KNOWN_AUTOMATIC_TYPES: AutomaticDiscountTypename[] = [
+  const KNOWN_TYPES: DiscountTypename[] = [
     "DiscountAutomaticApp",
     "DiscountAutomaticBasic",
     "DiscountAutomaticBxgy",
     "DiscountAutomaticFreeShipping",
+    "DiscountCodeBasic",
+    "DiscountCodeBxgy",
+    "DiscountCodeFreeShipping",
+    "DiscountCodeApp",
   ];
 
   for (const node of nodes) {
     const discount = node.discount;
 
-    // Skip null discounts and code discounts (DiscountCodeBasic, DiscountCodeApp, etc.)
-    // For non-matching __typename the inline fragments don't spread, so title/status
-    // would be undefined at runtime even though TypeScript thinks they're strings.
-    if (!discount || !KNOWN_AUTOMATIC_TYPES.includes(discount.__typename as AutomaticDiscountTypename)) continue;
+    // Skip null or unrecognized types — their inline fragments won't have spread
+    // so title/status would be undefined at runtime.
+    if (!discount || !KNOWN_TYPES.includes(discount.__typename as DiscountTypename)) continue;
+
+    const isAutomaticApp = discount.__typename === "DiscountAutomaticApp";
+    const isCodeApp = discount.__typename === "DiscountCodeApp";
 
     discounts.push({
       id: node.id,
-      discountId:
-        discount.__typename === "DiscountAutomaticApp"
-          ? discount.discountId
-          : node.id,
-      type: discount.__typename as AutomaticDiscountTypename,
+      discountId: isAutomaticApp ? discount.discountId : node.id,
+      type: discount.__typename as DiscountTypename,
       title: discount.title,
       status: discount.status,
       startsAt: discount.startsAt,
-      configMetafield:
-        discount.__typename === "DiscountAutomaticApp"
-          ? node.metafield?.value ?? null
-          : null,
+      configMetafield: isAutomaticApp ? node.metafield?.value ?? null : null,
       functionId:
-        discount.__typename === "DiscountAutomaticApp"
+        isAutomaticApp || isCodeApp
           ? discount.appDiscountType?.functionId ?? null
           : null,
     });

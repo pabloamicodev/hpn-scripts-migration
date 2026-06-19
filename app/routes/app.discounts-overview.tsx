@@ -1,4 +1,5 @@
 import { useLoaderData, Link } from "react-router";
+import type { CSSProperties } from "react";
 import type { LoaderFunctionArgs } from "react-router";
 import { authenticate } from "~/shopify.server";
 import { listAllDiscounts } from "~/lib/shopifyDiscounts.server";
@@ -23,11 +24,35 @@ export async function loader({ request }: LoaderFunctionArgs) {
   }
 }
 
-const TYPE_LABELS: Record<string, string> = {
-  DiscountAutomaticApp: "App (HPN)",
-  DiscountAutomaticBasic: "Basic",
-  DiscountAutomaticBxgy: "Buy X Get Y",
-  DiscountAutomaticFreeShipping: "Free Shipping",
+type DiscountCategory = "auto-hpn" | "auto" | "code";
+
+const TYPE_META: Record<string, { label: string; category: DiscountCategory }> = {
+  DiscountAutomaticApp:          { label: "HPN App",      category: "auto-hpn" },
+  DiscountAutomaticBasic:        { label: "Auto · Basic", category: "auto" },
+  DiscountAutomaticBxgy:         { label: "Auto · BxGY",  category: "auto" },
+  DiscountAutomaticFreeShipping: { label: "Auto · Ship",  category: "auto" },
+  DiscountCodeBasic:             { label: "Código · Basic", category: "code" },
+  DiscountCodeBxgy:              { label: "Código · BxGY",  category: "code" },
+  DiscountCodeFreeShipping:      { label: "Código · Ship",  category: "code" },
+  DiscountCodeApp:               { label: "Código · App",   category: "code" },
+};
+
+const CATEGORY_STYLE: Record<DiscountCategory, CSSProperties> = {
+  "auto-hpn": {
+    background: "var(--info-bg)",
+    color: "var(--info-text)",
+    border: "1px solid #b8d4ff",
+  },
+  auto: {
+    background: "#e8f5e9",
+    color: "#2e7d32",
+    border: "1px solid #a5d6a7",
+  },
+  code: {
+    background: "#fff3e0",
+    color: "#e65100",
+    border: "1px solid #ffcc80",
+  },
 };
 
 const STATUS_ORDER: Record<string, number> = {
@@ -164,31 +189,23 @@ export default function DiscountsOverviewPage() {
                     </td>
 
                     <td data-label="Type">
-                      <span
-                        style={{
+                      {(() => {
+                        const meta = TYPE_META[discount.type];
+                        const style: CSSProperties = {
                           display: "inline-flex",
                           alignItems: "center",
-                          gap: 5,
                           fontSize: 12,
                           fontWeight: 600,
                           padding: "2px 8px",
                           borderRadius: 999,
-                          background:
-                            discount.type === "DiscountAutomaticApp"
-                              ? "var(--info-bg)"
-                              : "var(--surface-subdued)",
-                          color:
-                            discount.type === "DiscountAutomaticApp"
-                              ? "var(--info-text)"
-                              : "var(--text-subdued)",
-                          border:
-                            discount.type === "DiscountAutomaticApp"
-                              ? "1px solid #b8d4ff"
-                              : "1px solid var(--border)",
-                        }}
-                      >
-                        {TYPE_LABELS[discount.type] ?? discount.type}
-                      </span>
+                          ...(meta ? CATEGORY_STYLE[meta.category] : {
+                            background: "var(--surface-subdued)",
+                            color: "var(--text-subdued)",
+                            border: "1px solid var(--border)",
+                          }),
+                        };
+                        return <span style={style}>{meta?.label ?? discount.type}</span>;
+                      })()}
                     </td>
 
                     <td data-label="Status">

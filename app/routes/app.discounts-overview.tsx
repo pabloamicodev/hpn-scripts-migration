@@ -6,15 +6,18 @@ import { listAllDiscounts } from "~/lib/shopifyDiscounts.server";
 import { makeGraphqlProxy } from "~/lib/graphqlProxy.server";
 import { loaderError } from "~/lib/actionError.server";
 
+const PAGE_SIZE = 50;
+
 export async function loader({ request }: LoaderFunctionArgs) {
   const url = new URL(request.url);
   const cursor = url.searchParams.get("after") ?? undefined;
+  const page = Math.max(1, parseInt(url.searchParams.get("page") ?? "1", 10));
 
   try {
     const { admin } = await authenticate.admin(request);
     const proxy = makeGraphqlProxy(admin);
     const { discounts, truncated, endCursor } = await listAllDiscounts(proxy, cursor);
-    return { discounts, truncated, endCursor, hasPrev: Boolean(cursor) };
+    return { discounts, truncated, endCursor, page, hasPrev: page > 1 };
   } catch (err) {
     return loaderError("Failed to load discounts overview", {
       operation: "listAllDiscounts",
@@ -31,10 +34,10 @@ const TYPE_META: Record<string, { label: string; category: DiscountCategory }> =
   DiscountAutomaticBasic:        { label: "Auto · Basic", category: "auto" },
   DiscountAutomaticBxgy:         { label: "Auto · BxGY",  category: "auto" },
   DiscountAutomaticFreeShipping: { label: "Auto · Ship",  category: "auto" },
-  DiscountCodeBasic:             { label: "Código · Basic", category: "code" },
-  DiscountCodeBxgy:              { label: "Código · BxGY",  category: "code" },
-  DiscountCodeFreeShipping:      { label: "Código · Ship",  category: "code" },
-  DiscountCodeApp:               { label: "Código · App",   category: "code" },
+  DiscountCodeBasic:             { label: "Code · Basic", category: "code" },
+  DiscountCodeBxgy:              { label: "Code · BxGY",  category: "code" },
+  DiscountCodeFreeShipping:      { label: "Code · Ship",  category: "code" },
+  DiscountCodeApp:               { label: "Code · App",   category: "code" },
 };
 
 const CATEGORY_STYLE: Record<DiscountCategory, CSSProperties> = {
@@ -80,7 +83,7 @@ function shortId(gid: string) {
 }
 
 export default function DiscountsOverviewPage() {
-  const { discounts, truncated, endCursor, hasPrev } = useLoaderData<typeof loader>();
+  const { discounts, truncated, endCursor, page, hasPrev } = useLoaderData<typeof loader>();
 
   const sorted = [...discounts].sort((a, b) => {
     const aOrd = STATUS_ORDER[a.status] ?? 9;
@@ -91,6 +94,10 @@ export default function DiscountsOverviewPage() {
 
   const activeCount = discounts.filter((d) => d.status === "ACTIVE").length;
   const hpnCount = discounts.filter((d) => d.type === "DiscountAutomaticApp").length;
+  const rowOffset = (page - 1) * PAGE_SIZE;
+  const nextPageParams = endCursor
+    ? `?after=${encodeURIComponent(endCursor)}&page=${page + 1}`
+    : null;
 
   return (
     <div className="app-page app-page--wide">
@@ -98,7 +105,7 @@ export default function DiscountsOverviewPage() {
         <div>
           <h1 className="page-title">Discounts overview</h1>
           <p className="page-subtitle">
-            All automatic discounts in this store — sin correr queries manuales.
+            All discounts in this store — no manual queries needed.
           </p>
         </div>
       </header>
@@ -107,17 +114,17 @@ export default function DiscountsOverviewPage() {
         <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 16 }}>
           {hasPrev && (
             <Link to="?" className="btn btn--secondary" style={{ fontSize: 13 }}>
-              ← Primera página
+              ← First page
             </Link>
           )}
-          {truncated && endCursor && (
-            <Link to={`?after=${encodeURIComponent(endCursor)}`} className="btn btn--secondary" style={{ fontSize: 13 }}>
-              Siguientes 50 →
+          {truncated && nextPageParams && (
+            <Link to={nextPageParams} className="btn btn--secondary" style={{ fontSize: 13 }}>
+              Next 50 →
             </Link>
           )}
           {truncated && (
             <span style={{ fontSize: 12, color: "var(--text-subdued)" }}>
-              Hay más descuentos en la tienda.
+              More discounts available in the store.
             </span>
           )}
         </div>
@@ -125,7 +132,7 @@ export default function DiscountsOverviewPage() {
 
       <div className="metric-grid">
         <section className="card metric-card metric-card--info">
-          <p className="metric-label">Total shown</p>
+          <p className="metric-label">Shown this page</p>
           <p className="metric-value">{discounts.length}{truncated ? "+" : ""}</p>
         </section>
 
@@ -148,10 +155,10 @@ export default function DiscountsOverviewPage() {
       <div className="resource-card">
         <div className="resource-header">
           <div>
-            <h2 className="resource-title">All automatic discounts</h2>
+            <h2 className="resource-title">All discounts — page {page}</h2>
             <p className="resource-meta">
-              {discounts.length} discount{discounts.length !== 1 ? "s" : ""} shown
-              {truncated ? " (hay más — usá el paginador)" : ""}
+              Showing #{rowOffset + 1}–#{rowOffset + discounts.length}
+              {truncated ? " · more available, use pagination" : ""}
             </p>
           </div>
         </div>
@@ -160,12 +167,13 @@ export default function DiscountsOverviewPage() {
           {sorted.length === 0 ? (
             <div className="empty-state">
               <h2>No discounts found</h2>
-              <p>No automatic discounts exist in this store.</p>
+              <p>No discounts exist in this store.</p>
             </div>
           ) : (
             <table className="data-table">
               <thead>
                 <tr>
+                  <th style={{ width: 48 }}>#</th>
                   <th>Title</th>
                   <th>Type</th>
                   <th>Status</th>
@@ -175,7 +183,7 @@ export default function DiscountsOverviewPage() {
                 </tr>
               </thead>
               <tbody>
-                {sorted.map((discount) => (
+                {sorted.map((discount, index) => (
                   <tr
                     key={discount.id}
                     className={
@@ -184,6 +192,10 @@ export default function DiscountsOverviewPage() {
                         : undefined
                     }
                   >
+                    <td data-label="#" className="cell-muted" style={{ fontSize: 12 }}>
+                      {rowOffset + index + 1}
+                    </td>
+
                     <td data-label="Title">
                       <span className="cell-strong">{discount.title}</span>
                     </td>
@@ -216,7 +228,7 @@ export default function DiscountsOverviewPage() {
 
                     <td data-label="Started" className="cell-muted cell-nowrap">
                       {discount.startsAt
-                        ? new Date(discount.startsAt).toLocaleDateString("es-AR", {
+                        ? new Date(discount.startsAt).toLocaleDateString("en-US", {
                             day: "2-digit",
                             month: "short",
                             year: "numeric",

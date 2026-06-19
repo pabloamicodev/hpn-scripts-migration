@@ -122,10 +122,11 @@ const SEARCH_DISCOUNTS_QUERY = `
 `;
 
 const LIST_ALL_DISCOUNTS_QUERY = `
-  query ListAllDiscounts {
-    discountNodes(first: 100) {
+  query ListAllDiscounts($cursor: String) {
+    discountNodes(first: 100, after: $cursor, query: "discount_type:automatic") {
       pageInfo {
         hasNextPage
+        endCursor
       }
       edges {
         node {
@@ -424,17 +425,20 @@ export async function searchDiscounts(
 export interface ListAllDiscountsResult {
   discounts: SearchDiscountResult[];
   truncated: boolean;
+  endCursor: string | null;
 }
 
 export async function listAllDiscounts(
-  graphqlProxy: GraphQLProxy
+  graphqlProxy: GraphQLProxy,
+  cursor?: string | null
 ): Promise<ListAllDiscountsResult> {
-  const result = await graphqlProxy(LIST_ALL_DISCOUNTS_QUERY);
+  const result = await graphqlProxy(LIST_ALL_DISCOUNTS_QUERY, cursor ? { cursor } : {});
 
   assertNoGraphqlErrors(result, "ListAllDiscounts");
 
-  const truncated: boolean =
-    result.data?.discountNodes?.pageInfo?.hasNextPage === true;
+  const pageInfo = result.data?.discountNodes?.pageInfo;
+  const truncated: boolean = pageInfo?.hasNextPage === true;
+  const endCursor: string | null = pageInfo?.endCursor ?? null;
 
   const nodes: SearchDiscountNode[] =
     result.data?.discountNodes?.edges?.map(
@@ -479,7 +483,7 @@ export async function listAllDiscounts(
     });
   }
 
-  return { discounts, truncated };
+  return { discounts, truncated, endCursor };
 }
 
 // The app handle is set in shopify.app.toml — used to scope function lookup

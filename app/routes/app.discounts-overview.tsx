@@ -1,4 +1,4 @@
-import { useLoaderData } from "react-router";
+import { useLoaderData, Link } from "react-router";
 import type { LoaderFunctionArgs } from "react-router";
 import { authenticate } from "~/shopify.server";
 import { listAllDiscounts } from "~/lib/shopifyDiscounts.server";
@@ -6,11 +6,14 @@ import { makeGraphqlProxy } from "~/lib/graphqlProxy.server";
 import { loaderError } from "~/lib/actionError.server";
 
 export async function loader({ request }: LoaderFunctionArgs) {
+  const url = new URL(request.url);
+  const cursor = url.searchParams.get("after") ?? undefined;
+
   try {
     const { admin } = await authenticate.admin(request);
     const proxy = makeGraphqlProxy(admin);
-    const { discounts, truncated } = await listAllDiscounts(proxy);
-    return { discounts, truncated };
+    const { discounts, truncated, endCursor } = await listAllDiscounts(proxy, cursor);
+    return { discounts, truncated, endCursor, hasPrev: Boolean(cursor) };
   } catch (err) {
     return loaderError("Failed to load discounts overview", {
       operation: "listAllDiscounts",
@@ -52,7 +55,7 @@ function shortId(gid: string) {
 }
 
 export default function DiscountsOverviewPage() {
-  const { discounts, truncated } = useLoaderData<typeof loader>();
+  const { discounts, truncated, endCursor, hasPrev } = useLoaderData<typeof loader>();
 
   const sorted = [...discounts].sort((a, b) => {
     const aOrd = STATUS_ORDER[a.status] ?? 9;
@@ -75,10 +78,23 @@ export default function DiscountsOverviewPage() {
         </div>
       </header>
 
-      {truncated && (
-        <div className="alert alert--warning">
-          This store has more than 100 automatic discounts. Only the first 100 are shown.
-          Run a manual GraphQL query with pagination to see the rest.
+      {(hasPrev || truncated) && (
+        <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 16 }}>
+          {hasPrev && (
+            <Link to="?" className="btn btn--secondary" style={{ fontSize: 13 }}>
+              ← Primera página
+            </Link>
+          )}
+          {truncated && endCursor && (
+            <Link to={`?after=${encodeURIComponent(endCursor)}`} className="btn btn--secondary" style={{ fontSize: 13 }}>
+              Siguientes 100 →
+            </Link>
+          )}
+          {truncated && (
+            <span style={{ fontSize: 12, color: "var(--text-subdued)" }}>
+              Hay más de 100 descuentos automáticos en esta tienda.
+            </span>
+          )}
         </div>
       )}
 

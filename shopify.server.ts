@@ -32,6 +32,11 @@ const pgSessionStorage = (() => {
   if (!url.searchParams.has("sslmode")) {
     url.searchParams.append("sslmode", "require");
   }
+  // Give Neon's compute time to wake up from auto-suspend before TCP times out.
+  // Without this, cold starts get ECONNRESET during the TLS handshake.
+  if (!url.searchParams.has("connect_timeout")) {
+    url.searchParams.append("connect_timeout", "15");
+  }
   return new PostgreSQLSessionStorage(url);
 })();
 

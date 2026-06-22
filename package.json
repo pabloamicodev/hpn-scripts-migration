@@ -11,7 +11,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
-    "test:e2e:shopify": "playwright test --grep @shopify",
+    "test:e2e:shopify": "node scripts/test-shopify-e2e.mjs",
     "lint": "eslint .",
     "check": "pnpm typecheck && pnpm lint && pnpm test && pnpm build",
     "audit": "pnpm audit --audit-level=moderate",

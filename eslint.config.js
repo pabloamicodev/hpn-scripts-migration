@@ -12,6 +12,7 @@ export default tseslint.config(
       "node_modules/**",
       "extensions/**/types.d.ts",
       "extensions/**/dist/**",
+      "playwright/**",
     ],
   },
   js.configs.recommended,

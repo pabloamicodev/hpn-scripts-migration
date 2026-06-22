@@ -33,11 +33,12 @@ the Vercel application, and run:
 E2E_BASE_URL=https://hpn-scripts-migration.vercel.app pnpm test:e2e
 ```
 
-For authenticated admin checks, provide a Playwright storage state:
+For authenticated admin checks, launch a dedicated Chrome profile with remote
+debugging, complete Shopify login and 2FA, leave the app open, then connect the
+test to that browser:
 
 ```bash
-E2E_BASE_URL=https://hpn-scripts-migration.vercel.app \
-E2E_STORAGE_STATE=./playwright/.auth/shopify.json \
+E2E_CDP_URL=http://127.0.0.1:9223 \
 pnpm test:e2e:shopify
 ```
 

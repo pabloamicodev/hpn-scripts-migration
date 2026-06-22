@@ -16,22 +16,3 @@ test.describe("production smoke", () => {
     expect(response.headers().allow).toContain("POST");
   });
 });
-
-test.describe("@shopify authenticated admin smoke", () => {
-  test.skip(
-    !baseUrl || !process.env.E2E_STORAGE_STATE,
-    "Set E2E_BASE_URL and E2E_STORAGE_STATE for authenticated Shopify tests.",
-  );
-
-  test.use({ storageState: process.env.E2E_STORAGE_STATE });
-
-  test("settings and discount management render", async ({ page }) => {
-    await page.goto("/app/settings");
-    await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();
-
-    await page.goto("/app/discount");
-    await expect(
-      page.getByRole("heading", { name: "Discount management" }),
-    ).toBeVisible();
-  });
-});

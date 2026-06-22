@@ -23,6 +23,9 @@ extensions/*/dist/
 Cargo.lock
 playwright-report/
 test-results/
+playwright/.auth/
+playwright/.chrome-profile*/
+playwright/.active-profile
 .codegraph/
 
 .vercel

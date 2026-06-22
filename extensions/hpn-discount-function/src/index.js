@@ -184,6 +184,7 @@ function applyPouchesRule(rule, byProduct, byVariant, candidates) {
     const freeLines = byVariant.get(freeId) ?? [];
 
     for (const line of freeLines) {
+      if (line.quantity !== 1) continue;
       addCandidate(
         candidates,
         line,

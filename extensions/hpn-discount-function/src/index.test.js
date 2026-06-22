@@ -183,11 +183,11 @@ describe("cartLinesDiscountsGenerateRun", () => {
     expect(result).toEqual({ operations: [] });
   });
 
-  it("applies only one free pouch unit per eligible pouch line", () => {
+  it("applies pouches discount when each free pouch line has exactly one unit", () => {
     const result = runWithLines([
       productLine("nad3-240", PRODUCT_IDS.nad3_240, VARIANT_IDS.unrelated),
-      productLine("s9", PRODUCT_IDS.unrelated, VARIANT_IDS.s9, 3),
-      productLine("n4", PRODUCT_IDS.unrelated, VARIANT_IDS.n4, 2),
+      productLine("s9", PRODUCT_IDS.unrelated, VARIANT_IDS.s9, 1),
+      productLine("n4", PRODUCT_IDS.unrelated, VARIANT_IDS.n4, 1),
     ]);
 
     expect(candidates(result)).toEqual([
@@ -202,6 +202,16 @@ describe("cartLinesDiscountsGenerateRun", () => {
         message: "Free Pouches",
       },
     ]);
+  });
+
+  it("does not apply pouches discount when any pouch line quantity exceeds one", () => {
+    const result = runWithLines([
+      productLine("nad3-240", PRODUCT_IDS.nad3_240, VARIANT_IDS.unrelated),
+      productLine("s9", PRODUCT_IDS.unrelated, VARIANT_IDS.s9, 3),
+      productLine("n4", PRODUCT_IDS.unrelated, VARIANT_IDS.n4, 2),
+    ]);
+
+    expect(result).toEqual({ operations: [] });
   });
 
   it("does not apply pouches discount without the NAD3 240 trigger product", () => {

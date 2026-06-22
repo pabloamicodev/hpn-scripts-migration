@@ -267,6 +267,7 @@ try {
         id: existingDiscount.discountId,
         automaticAppDiscount: {
           title: DISCOUNT_TITLE,
+          discountClasses: ["PRODUCT"],
           combinesWith: config.combinesWith,
           metafields: [
             {
@@ -294,6 +295,7 @@ try {
       automaticAppDiscount: {
         title: DISCOUNT_TITLE,
         functionId,
+        discountClasses: ["PRODUCT"],
         startsAt,
         combinesWith: config.combinesWith,
         metafields: [

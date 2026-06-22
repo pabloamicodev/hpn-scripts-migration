@@ -295,6 +295,8 @@ interface CombinesWithInput {
   shippingDiscounts: boolean;
 }
 
+const HPN_DISCOUNT_CLASSES = ["PRODUCT"] as const;
+
 type DiscountTypename =
   | "DiscountAutomaticApp"
   | "DiscountAutomaticBasic"
@@ -366,6 +368,7 @@ export async function createAutomaticDiscount(
     automaticAppDiscount: {
       title,
       functionId,
+      discountClasses: HPN_DISCOUNT_CLASSES,
       startsAt,
       combinesWith,
       metafields: [
@@ -394,7 +397,9 @@ export async function updateAutomaticDiscount(
     combinesWith?: CombinesWithInput;
   }
 ) {
-  const input: Record<string, unknown> = {};
+  const input: Record<string, unknown> = {
+    discountClasses: HPN_DISCOUNT_CLASSES,
+  };
 
   if (updates.title) {
     input.title = updates.title;

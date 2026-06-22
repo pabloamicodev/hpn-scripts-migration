@@ -143,13 +143,16 @@ export function evaluateRequiredProductWithFreeVariants(
     if (!freeLines) continue;
 
     for (const line of freeLines) {
-      if (line.quantity !== 1) continue;
+      const discountedQty =
+        rule.freeQuantityPerLine < line.quantity
+          ? rule.freeQuantityPerLine
+          : line.quantity;
 
       actions.push({
         lineId: line.id,
         variantId: line.merchandise.id,
         productId: line.merchandise.product.id,
-        discountedQuantity: 1,
+        discountedQuantity: discountedQty,
         percentageOff: 100,
         message: rule.message,
       });

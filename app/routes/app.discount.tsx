@@ -13,6 +13,7 @@ import {
   deactivateDiscount,
   deleteDiscount,
   findHpnFunctionId,
+  updateAutomaticDiscount,
 } from "~/lib/shopifyDiscounts.server";
 import { makeGraphqlProxy } from "~/lib/graphqlProxy.server";
 import {
@@ -24,6 +25,7 @@ import type { ActionError } from "~/lib/actionError.server";
 import { DevErrorBanner } from "~/components/DevErrorBanner";
 import { StatusBadge } from "~/components/StatusBadge";
 import { ConfirmDialog } from "~/components/ConfirmDialog";
+import { withDatabaseLock } from "~/lib/databaseLock.server";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   try {
@@ -51,35 +53,42 @@ export async function action({ request }: ActionFunctionArgs) {
     const intent = String(formData.get("intent") ?? "");
 
     if (intent === "create") {
-      const functionId = await findHpnFunctionId(proxy);
-      if (!functionId) {
-        return actionError("Shopify Function not found on this store", {
-          operation: "createDiscount",
-          details: [
-            "No discount function matched app handle 'hpn-scripts-migration'",
-          ],
-          hint: "Run `shopify app deploy` and ensure the app is installed on this store. Check Vercel logs if the function was recently deployed.",
-        });
-      }
+      return withDatabaseLock("hpn-discount-create", async () => {
+        const existing = await loadActiveDiscount(proxy);
+        if (existing.discountId) {
+          return {
+            ok: true,
+            message: "Discount already exists; no duplicate was created.",
+          };
+        }
 
-      const startsAt = new Date().toISOString();
-      const result = await createAutomaticDiscount(
-        proxy,
-        DISCOUNT_TITLE,
-        functionId,
-        startsAt,
-        defaultHpnPromoConfig,
-        defaultHpnPromoConfig.combinesWith
-      );
+        const functionId = await findHpnFunctionId(proxy);
+        if (!functionId) {
+          return actionError("Shopify Function not found on this store", {
+            operation: "createDiscount",
+            details: ["No deployed HPN discount function could be resolved."],
+            hint: "Run `shopify app deploy`, verify SHOPIFY_DISCOUNT_FUNCTION_ID, and ensure the app is installed on this store.",
+          });
+        }
 
-      if (result?.userErrors?.length) {
-        return actionError("Shopify rejected the discount creation", {
-          operation: "createDiscount",
-          details: shopifyUserErrors(result.userErrors),
-          hint: "The mutation constraints may have changed — check the Shopify Admin API docs for discountAutomaticAppCreate.",
-        });
-      }
-      return { ok: true, message: "Discount created and activated." };
+        const result = await createAutomaticDiscount(
+          proxy,
+          DISCOUNT_TITLE,
+          functionId,
+          new Date().toISOString(),
+          defaultHpnPromoConfig,
+          defaultHpnPromoConfig.combinesWith,
+        );
+
+        if (result?.userErrors?.length) {
+          return actionError("Shopify rejected the discount creation", {
+            operation: "createDiscount",
+            details: shopifyUserErrors(result.userErrors),
+            hint: "Check the Shopify Admin API constraints for discountAutomaticAppCreate.",
+          });
+        }
+        return { ok: true, message: "Discount created and activated." };
+      });
     }
 
     const loaded = await loadActiveDiscount(proxy);
@@ -90,6 +99,41 @@ export async function action({ request }: ActionFunctionArgs) {
         details: [`Searched for title: "${DISCOUNT_TITLE}" — no results`],
         hint: "Create the discount first from this page before activating or deleting.",
       });
+    }
+
+    if (intent === "repair-config") {
+      return withDatabaseLock(
+        `hpn-discount-config:${loaded.discountId}`,
+        async () => {
+          const latest = await loadActiveDiscount(proxy);
+          if (!latest.discountId) {
+            return actionError("Discount disappeared before repair", {
+              operation: "repairConfig",
+              details: ["No automatic app discount was found under the lock."],
+              hint: "Reload the page and create the discount again if necessary.",
+            });
+          }
+          const result = await updateAutomaticDiscount(
+            proxy,
+            latest.discountId,
+            {
+              config: defaultHpnPromoConfig,
+              combinesWith: defaultHpnPromoConfig.combinesWith,
+            },
+          );
+          if (result?.userErrors?.length) {
+            return actionError("Shopify rejected the configuration repair", {
+              operation: "repairConfig",
+              details: shopifyUserErrors(result.userErrors),
+              hint: `Discount ID: ${latest.discountId}`,
+            });
+          }
+          return {
+            ok: true,
+            message: "Configuration restored to validated defaults.",
+          };
+        },
+      );
     }
 
     if (intent === "activate") {
@@ -143,7 +187,16 @@ export async function action({ request }: ActionFunctionArgs) {
 }
 
 export default function DiscountPage() {
-  const { discountId, status, title, startsAt, functionId, config } =
+  const {
+    discountId,
+    status,
+    title,
+    startsAt,
+    functionId,
+    config,
+    configValid,
+    configError,
+  } =
     useLoaderData<typeof loader>();
   const fetcher = useFetcher();
   const navigate = useNavigate();
@@ -257,6 +310,21 @@ export default function DiscountPage() {
             </div>
 
             <div className="card__body">
+              {!configValid && discountId && (
+                <div className="alert alert--critical" role="alert">
+                  <p>{configError}</p>
+                  <fetcher.Form method="post">
+                    <input type="hidden" name="intent" value="repair-config" />
+                    <button
+                      type="submit"
+                      disabled={isPending}
+                      className="btn btn--warning"
+                    >
+                      {isPending ? "Repairing…" : "Restore validated defaults"}
+                    </button>
+                  </fetcher.Form>
+                </div>
+              )}
               {discountId ? (
                 <dl className="definition-list">
                   <dt>Title</dt>
@@ -387,7 +455,7 @@ export default function DiscountPage() {
                   type="button"
                   onClick={() => navigate("/app/promos")}
                   className="btn btn--full"
-                  disabled={!discountId}
+                  disabled={!discountId || !configValid}
                 >
                   Edit promo rules
                 </button>

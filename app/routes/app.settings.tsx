@@ -6,8 +6,8 @@ import {
 } from "react-router";
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "react-router";
 import { authenticate } from "~/shopify.server";
-import { loadActiveDiscount } from "~/lib/hpnPromoConfig.server";
-import { findHpnFunctionId, updateAutomaticDiscount } from "~/lib/shopifyDiscounts.server";
+import { loadActiveDiscount, saveConfig } from "~/lib/hpnPromoConfig.server";
+import { findHpnFunctionId } from "~/lib/shopifyDiscounts.server";
 import { makeGraphqlProxy } from "~/lib/graphqlProxy.server";
 import {
   actionError,
@@ -65,10 +65,14 @@ export async function action({ request }: ActionFunctionArgs) {
         shippingDiscounts: formData.get("shippingDiscounts") === "true",
       };
 
-      const result = await updateAutomaticDiscount(proxy, loaded.discountId, {
-        combinesWith,
-        config: { ...loaded.config, combinesWith },
-      });
+      const expectedRevision = String(formData.get("configRevision") ?? "");
+      const result = await saveConfig(
+        proxy,
+        loaded.discountId,
+        loaded.config,
+        expectedRevision,
+        (config) => ({ ...config, combinesWith }),
+      );
 
       if (result?.userErrors?.length) {
         return actionError("Shopify rejected the combination settings update", {
@@ -95,7 +99,15 @@ export async function action({ request }: ActionFunctionArgs) {
 }
 
 export default function SettingsPage() {
-  const { config, discountId, functionId, graphqlConsoleEnabled } =
+  const {
+    config,
+    discountId,
+    functionId,
+    graphqlConsoleEnabled,
+    configValid,
+    configError,
+    configRevision,
+  } =
     useLoaderData<typeof loader>();
   const fetcher = useFetcher();
   const navigate = useNavigate();
@@ -202,12 +214,21 @@ export default function SettingsPage() {
                 No active discount to configure. Create the discount before
                 saving combination settings.
               </div>
+            ) : !configValid ? (
+              <div className="alert alert--critical" role="alert">
+                {configError} Mutations are blocked. Repair it from Discount management.
+              </div>
             ) : (
               <fetcher.Form method="post">
                 <input
                   type="hidden"
                   name="intent"
                   value="update-combines-with"
+                />
+                <input
+                  type="hidden"
+                  name="configRevision"
+                  value={configRevision}
                 />
 
                 <div className="section-grid">
@@ -299,10 +320,16 @@ export default function SettingsPage() {
           </div>
         </section>
 
-        <CartSimulator
-          config={config ?? defaultHpnPromoConfig}
-          activeRuleId={activeRuleId}
-        />
+        {configValid ? (
+          <CartSimulator
+            config={config ?? defaultHpnPromoConfig}
+            activeRuleId={activeRuleId}
+          />
+        ) : (
+          <div className="alert alert--critical" role="alert">
+            Cart simulation is disabled because the published configuration is invalid.
+          </div>
+        )}
       </main>
     </div>
   );

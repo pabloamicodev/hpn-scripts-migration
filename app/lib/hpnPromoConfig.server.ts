@@ -1,6 +1,9 @@
+import { createHash } from "node:crypto";
 import { hpnPromoConfigSchema, type HpnPromoConfig, type HpnPromoRule } from "./validations";
+import { logger } from "./logger";
 import { defaultHpnPromoConfig } from "./hpnPromoDefaults";
 import { searchDiscounts, updateAutomaticDiscount } from "./shopifyDiscounts.server";
+import { withDatabaseLock } from "./databaseLock.server";
 import {
   validateProductIds,
   validateVariantIds,
@@ -18,6 +21,27 @@ export interface LoadedDiscount {
   title: string | null;
   startsAt: string | null;
   functionId: string | null;
+  configValid: boolean;
+  configError: string | null;
+  configRevision: string;
+}
+
+export class ConfigConflictError extends Error {
+  constructor() {
+    super("The discount configuration changed since this page was loaded.");
+    this.name = "ConfigConflictError";
+  }
+}
+
+export class InvalidStoredConfigError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "InvalidStoredConfigError";
+  }
+}
+
+export function getConfigRevision(config: HpnPromoConfig): string {
+  return createHash("sha256").update(JSON.stringify(config)).digest("hex");
 }
 
 export async function loadActiveDiscount(
@@ -26,13 +50,11 @@ export async function loadActiveDiscount(
   const nodes = await searchDiscounts(graphqlProxy, DISCOUNT_TITLE);
 
   const hpnAppDiscounts = nodes.filter(
-    (node) => node.type === "DiscountAutomaticApp" && node.configMetafield,
+    (node) => node.type === "DiscountAutomaticApp",
   );
   const active =
     hpnAppDiscounts.find((node) => node.status === "ACTIVE") ??
-    hpnAppDiscounts[0] ??
-    nodes.find((node) => node.type === "DiscountAutomaticApp") ??
-    nodes[0];
+    hpnAppDiscounts[0];
 
   if (!active) {
     return {
@@ -42,10 +64,15 @@ export async function loadActiveDiscount(
       title: null,
       startsAt: null,
       functionId: null,
+      configValid: true,
+      configError: null,
+      configRevision: getConfigRevision(defaultHpnPromoConfig),
     };
   }
 
   let config = defaultHpnPromoConfig;
+  let configValid = true;
+  let configError: string | null = null;
 
   if (active.configMetafield) {
     try {
@@ -53,19 +80,27 @@ export async function loadActiveDiscount(
       if (parsed.success) {
         config = parsed.data;
       } else {
-        console.warn(
+        configValid = false;
+        configError = "The stored discount configuration failed validation.";
+        logger.warn(
           "[hpnPromoConfig] Metafield failed Zod validation, using defaults.",
           "discountId:", active.discountId,
           "issues:", parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`)
         );
       }
     } catch (err) {
-      console.warn(
+      configValid = false;
+      configError = "The stored discount configuration is not valid JSON.";
+      logger.warn(
         "[hpnPromoConfig] Metafield is not valid JSON, using defaults.",
         "discountId:", active.discountId,
         err
       );
     }
+  }
+  else {
+    configValid = false;
+    configError = "The automatic discount is missing its configuration metafield.";
   }
 
   return {
@@ -80,6 +115,9 @@ export async function loadActiveDiscount(
     title: active.title ?? null,
     startsAt: active.startsAt ?? null,
     functionId: active.functionId ?? null,
+    configValid,
+    configError,
+    configRevision: getConfigRevision(config),
   };
 }
 
@@ -135,17 +173,30 @@ export async function saveConfig(
   graphqlProxy: GraphQLProxy,
   discountId: string,
   currentConfig: HpnPromoConfig,
-  updater: (current: HpnPromoConfig) => HpnPromoConfig
-): Promise<{ userErrors: { field: string[]; message: string }[] }> {
-  const nextConfig = updater(currentConfig);
+  expectedRevision: string,
+  updater: (current: HpnPromoConfig) => HpnPromoConfig,
+): Promise<{ userErrors: { field: string[] | null; message: string }[] }> {
+  return withDatabaseLock(`hpn-discount-config:${discountId}`, async () => {
+    const latest = await loadActiveDiscount(graphqlProxy);
+    if (!latest.configValid) {
+      throw new InvalidStoredConfigError(
+        latest.configError ?? "The stored configuration is invalid.",
+      );
+    }
+    if (latest.discountId !== discountId || latest.configRevision !== expectedRevision) {
+      throw new ConfigConflictError();
+    }
 
-  const result = await updateAutomaticDiscount(graphqlProxy, discountId, {
-    config: nextConfig,
+    const nextConfig = hpnPromoConfigSchema.parse(updater(currentConfig));
+    const result = await updateAutomaticDiscount(graphqlProxy, discountId, {
+      config: nextConfig,
+      combinesWith: nextConfig.combinesWith,
+    });
+
+    return {
+      userErrors: result?.userErrors ?? [],
+    };
   });
-
-  return {
-    userErrors: result?.userErrors ?? [],
-  };
 }
 
 export function pauseRule(config: HpnPromoConfig, ruleId: string): HpnPromoConfig {

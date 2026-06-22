@@ -31,7 +31,11 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
       throw new Response(`Rule "${params.id}" not found`, { status: 404 });
     }
 
-    return { rule, discountId: loaded.discountId };
+    return {
+      rule,
+      discountId: loaded.discountId,
+      configRevision: loaded.configRevision,
+    };
   } catch (err) {
     if (err instanceof Response) throw err;
     loaderError("Failed to load rule editor", {
@@ -59,9 +63,14 @@ export async function action({ request, params }: ActionFunctionArgs) {
 
     const body = await request.text();
     let rule: HpnPromoRule;
+    let expectedRevision: string;
 
     try {
-      const parsed = hpnPromoRuleSchema.safeParse(JSON.parse(body));
+      const payload = JSON.parse(body) as {
+        rule?: unknown;
+        expectedRevision?: unknown;
+      };
+      const parsed = hpnPromoRuleSchema.safeParse(payload.rule);
       if (!parsed.success) {
         return actionError("Rule validation failed", {
           operation: "updateRule",
@@ -70,6 +79,17 @@ export async function action({ request, params }: ActionFunctionArgs) {
         });
       }
       rule = parsed.data;
+      expectedRevision =
+        typeof payload.expectedRevision === "string"
+          ? payload.expectedRevision
+          : "";
+      if (!expectedRevision) {
+        return actionError("Missing configuration revision", {
+          operation: "updateRule",
+          details: ["The editor did not send its configuration revision."],
+          hint: "Reload the page before saving again.",
+        });
+      }
     } catch {
       return actionError("Invalid rule payload", {
         operation: "updateRule",
@@ -95,7 +115,13 @@ export async function action({ request, params }: ActionFunctionArgs) {
       });
     }
 
-    const result = await saveConfig(proxy, loaded.discountId, loaded.config, (c) => upsertRule(c, rule));
+    const result = await saveConfig(
+      proxy,
+      loaded.discountId,
+      loaded.config,
+      expectedRevision,
+      (c) => upsertRule(c, rule),
+    );
 
     if (result.userErrors.length) {
       return actionError("Shopify rejected the rule save", {
@@ -116,7 +142,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
 }
 
 export default function EditPromoPage() {
-  const { rule } = useLoaderData<typeof loader>();
+  const { rule, configRevision } = useLoaderData<typeof loader>();
   const navigate = useNavigate();
   const [submissionError, setSubmissionError] = useState<ActionError | null>(null);
 
@@ -125,7 +151,7 @@ export default function EditPromoPage() {
     fetch(`/app/promos/${updatedRule.id}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(updatedRule),
+      body: JSON.stringify({ rule: updatedRule, expectedRevision: configRevision }),
     }).then(async (res) => {
       if (res.redirected) {
         navigate("/app/promos");

@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.5.1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Type check
+        run: pnpm typecheck
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Unit tests
+        run: pnpm test
+
+      - name: Dependency audit
+        run: pnpm audit --audit-level=moderate
+
+      - name: Production build
+        run: pnpm build
+        env:
+          SHOPIFY_API_KEY: ci-placeholder
+          SHOPIFY_API_SECRET: ci-placeholder
+          SHOPIFY_APP_URL: https://example.invalid
+          DATABASE_URL: postgresql://ci:ci@127.0.0.1:5432/ci

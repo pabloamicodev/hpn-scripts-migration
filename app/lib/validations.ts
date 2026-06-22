@@ -44,7 +44,7 @@ export const requiredProductWithFreeVariantsRuleSchema = z.object({
   triggerProductId: productGidSchema,
   requiredVariantIds: z.array(variantGidSchema).min(1),
   freeVariantIds: z.array(variantGidSchema).min(1),
-  freeQuantityPerLine: z.number().int().positive(),
+  freeQuantityPerLine: z.literal(1),
   message: z.string().trim().min(1),
 });
 

@@ -4,6 +4,7 @@ export {
   login,
   registerWebhooks,
   shopifySessionStorage,
+  addDocumentResponseHeaders,
 } from "../shopify.server";
 
 import { authenticate } from "../shopify.server";

@@ -71,7 +71,13 @@ export async function action({ request }: ActionFunctionArgs) {
       });
     }
 
-    const result = await saveConfig(proxy, loaded.discountId, loaded.config, (c) => upsertRule(c, rule));
+    const result = await saveConfig(
+      proxy,
+      loaded.discountId,
+      loaded.config,
+      loaded.configRevision,
+      (c) => upsertRule(c, rule),
+    );
 
     if (result.userErrors.length) {
       return actionError("Shopify rejected the rule save", {

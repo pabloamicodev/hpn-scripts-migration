@@ -203,4 +203,390 @@ describe("cartLinesDiscountsGenerateRun", () => {
       },
     ]);
   });
+
+  it("does not apply pouches discount without the NAD3 240 trigger product", () => {
+    const result = runWithLines([
+      productLine("s9", PRODUCT_IDS.unrelated, VARIANT_IDS.s9),
+      productLine("n4", PRODUCT_IDS.unrelated, VARIANT_IDS.n4),
+    ]);
+
+    expect(result).toEqual({ operations: [] });
+  });
+
+  it("does not apply pouches discount when one pouch variant is missing", () => {
+    const result = runWithLines([
+      productLine("nad3-240", PRODUCT_IDS.nad3_240, VARIANT_IDS.unrelated),
+      productLine("s9", PRODUCT_IDS.unrelated, VARIANT_IDS.s9),
+      // n4 is absent
+    ]);
+
+    expect(result).toEqual({ operations: [] });
+  });
+
+  it("skips disabled rules and produces no discounts", () => {
+    const disabledConfig = {
+      ...baseConfig,
+      rules: baseConfig.rules.map((r) => ({ ...r, enabled: false })),
+    };
+
+    const result = runWithLines(
+      [
+        productLine("pa7", PRODUCT_IDS.pa7, VARIANT_IDS.unrelated),
+        productLine("c2", PRODUCT_IDS.c2, VARIANT_IDS.unrelated),
+      ],
+      disabledConfig,
+    );
+
+    expect(result).toEqual({ operations: [] });
+  });
+
+  it("returns no discounts for an empty cart", () => {
+    expect(runWithLines([])).toEqual({ operations: [] });
+  });
+
+  it("applies all three rules simultaneously when every trigger is present", () => {
+    const result = runWithLines([
+      // PA7 cross-sell: trigger + C2 qty 1
+      productLine("pa7", PRODUCT_IDS.pa7, VARIANT_IDS.unrelated),
+      productLine("c2", PRODUCT_IDS.c2, VARIANT_IDS.unrelated),
+      // Planta samples: all three required variants
+      productLine("nad3-single", PRODUCT_IDS.unrelated, VARIANT_IDS.nad3Single),
+      productLine("pb", PRODUCT_IDS.unrelated, VARIANT_IDS.plantaPb),
+      productLine("cacao", PRODUCT_IDS.unrelated, VARIANT_IDS.plantaCacao),
+      // Pouches: NAD3 240 product + both pouch variants
+      productLine("nad3-240", PRODUCT_IDS.nad3_240, VARIANT_IDS.unrelated),
+      productLine("s9", PRODUCT_IDS.unrelated, VARIANT_IDS.s9),
+      productLine("n4", PRODUCT_IDS.unrelated, VARIANT_IDS.n4),
+    ]);
+
+    const list = candidates(result);
+    expect(list).toHaveLength(5);
+    expect(list).toContainEqual({
+      targets: [{ cartLine: { id: "c2" } }],
+      value: { percentage: { value: "10" } },
+      message: "PA7 cross-sell",
+    });
+    expect(list).toContainEqual({
+      targets: [{ cartLine: { id: "pb" } }],
+      value: { percentage: { value: "100.0" } },
+      message: "Free Planta Samples",
+    });
+    expect(list).toContainEqual({
+      targets: [{ cartLine: { id: "cacao" } }],
+      value: { percentage: { value: "100.0" } },
+      message: "Free Planta Samples",
+    });
+    expect(list).toContainEqual({
+      targets: [{ cartLine: { id: "s9", quantity: 1 } }],
+      value: { percentage: { value: "100.0" } },
+      message: "Free Pouches",
+    });
+    expect(list).toContainEqual({
+      targets: [{ cartLine: { id: "n4", quantity: 1 } }],
+      value: { percentage: { value: "100.0" } },
+      message: "Free Pouches",
+    });
+  });
+
+  it("applies PA7 cross-sell correctly with multiple PA7 trigger lines in cart", () => {
+    const result = runWithLines([
+      productLine("pa7-a", PRODUCT_IDS.pa7, VARIANT_IDS.unrelated),
+      productLine("pa7-b", PRODUCT_IDS.pa7, VARIANT_IDS.unrelated),
+      productLine("c2", PRODUCT_IDS.c2, VARIANT_IDS.unrelated),
+    ]);
+
+    expect(candidates(result)).toEqual([
+      {
+        targets: [{ cartLine: { id: "c2" } }],
+        value: { percentage: { value: "10" } },
+        message: "PA7 cross-sell",
+      },
+    ]);
+  });
+
+  // ── PA7: percentage serialisation and non-default quantity threshold ──────
+
+  it("serialises decimal PA7 discount percentage correctly", () => {
+    const config = {
+      ...baseConfig,
+      rules: [
+        {
+          ...baseConfig.rules[0],
+          discountPercentage: 15.5,
+        },
+        ...baseConfig.rules.slice(1),
+      ],
+    };
+
+    const result = runWithLines(
+      [
+        productLine("pa7", PRODUCT_IDS.pa7, VARIANT_IDS.unrelated),
+        productLine("c2", PRODUCT_IDS.c2, VARIANT_IDS.unrelated),
+      ],
+      config,
+    );
+
+    expect(candidates(result)[0].value).toEqual({ percentage: { value: "15.5" } });
+  });
+
+  it("applies PA7 cross-sell only when target line quantity matches a non-default threshold", () => {
+    const config = {
+      ...baseConfig,
+      rules: [
+        {
+          ...baseConfig.rules[0],
+          targetLineQuantityEquals: 2,
+        },
+        ...baseConfig.rules.slice(1),
+      ],
+    };
+
+    const result = runWithLines(
+      [
+        productLine("pa7", PRODUCT_IDS.pa7, VARIANT_IDS.unrelated),
+        productLine("c2-qty1", PRODUCT_IDS.c2, VARIANT_IDS.unrelated, 1), // wrong qty
+        productLine("c2-qty2", PRODUCT_IDS.c2, VARIANT_IDS.unrelated, 2), // correct qty
+      ],
+      config,
+    );
+
+    expect(candidates(result)).toEqual([
+      {
+        targets: [{ cartLine: { id: "c2-qty2" } }],
+        value: { percentage: { value: "10" } },
+        message: "PA7 cross-sell",
+      },
+    ]);
+  });
+
+  // ── Planta: freeQuantityPerLine capping ───────────────────────────────────
+
+  it("caps Planta free quantity when freeQuantityPerLine is set and less than cart qty", () => {
+    const config = {
+      ...baseConfig,
+      rules: [
+        baseConfig.rules[0],
+        {
+          ...baseConfig.rules[1],
+          freeQuantityPerLine: 1,
+        },
+        baseConfig.rules[2],
+      ],
+    };
+
+    const result = runWithLines(
+      [
+        productLine("nad3", PRODUCT_IDS.unrelated, VARIANT_IDS.nad3Single),
+        productLine("pb", PRODUCT_IDS.unrelated, VARIANT_IDS.plantaPb, 3),
+        productLine("cacao", PRODUCT_IDS.unrelated, VARIANT_IDS.plantaCacao, 2),
+      ],
+      config,
+    );
+
+    expect(candidates(result)).toEqual([
+      {
+        targets: [{ cartLine: { id: "pb", quantity: 1 } }],
+        value: { percentage: { value: "100.0" } },
+        message: "Free Planta Samples",
+      },
+      {
+        targets: [{ cartLine: { id: "cacao", quantity: 1 } }],
+        value: { percentage: { value: "100.0" } },
+        message: "Free Planta Samples",
+      },
+    ]);
+  });
+
+  it("discounts the entire Planta line when freeQuantityPerLine equals or exceeds cart qty", () => {
+    const config = {
+      ...baseConfig,
+      rules: [
+        baseConfig.rules[0],
+        {
+          ...baseConfig.rules[1],
+          freeQuantityPerLine: 5, // cap bigger than qty in cart
+        },
+        baseConfig.rules[2],
+      ],
+    };
+
+    const result = runWithLines(
+      [
+        productLine("nad3", PRODUCT_IDS.unrelated, VARIANT_IDS.nad3Single),
+        productLine("pb", PRODUCT_IDS.unrelated, VARIANT_IDS.plantaPb, 2),
+        productLine("cacao", PRODUCT_IDS.unrelated, VARIANT_IDS.plantaCacao),
+      ],
+      config,
+    );
+
+    // No quantity field = entire line discounted
+    expect(candidates(result)).toEqual([
+      {
+        targets: [{ cartLine: { id: "pb" } }],
+        value: { percentage: { value: "100.0" } },
+        message: "Free Planta Samples",
+      },
+      {
+        targets: [{ cartLine: { id: "cacao" } }],
+        value: { percentage: { value: "100.0" } },
+        message: "Free Planta Samples",
+      },
+    ]);
+  });
+
+  // ── Pouches: missing freeQuantityPerLine guard ────────────────────────────
+
+  it("skips pouches rule when freeQuantityPerLine is missing from config", () => {
+    const { freeQuantityPerLine: _omitted, ...pouchesRuleWithoutCap } = baseConfig.rules[2];
+    const config = {
+      ...baseConfig,
+      rules: [baseConfig.rules[0], baseConfig.rules[1], pouchesRuleWithoutCap],
+    };
+
+    const result = runWithLines(
+      [
+        productLine("nad3-240", PRODUCT_IDS.nad3_240, VARIANT_IDS.unrelated),
+        productLine("s9", PRODUCT_IDS.unrelated, VARIANT_IDS.s9),
+        productLine("n4", PRODUCT_IDS.unrelated, VARIANT_IDS.n4),
+      ],
+      config,
+    );
+
+    expect(result).toEqual({ operations: [] });
+  });
+
+  // ── Error handling: non-ProductVariant lines and malformed rules ──────────
+
+  it("ignores non-ProductVariant cart lines when evaluating rules", () => {
+    const giftCardLine = {
+      id: "gift",
+      quantity: 1,
+      merchandise: { __typename: "CustomProduct", id: "gid://shopify/CustomProduct/1" },
+    };
+
+    const result = runWithLines([
+      productLine("pa7", PRODUCT_IDS.pa7, VARIANT_IDS.unrelated),
+      productLine("c2", PRODUCT_IDS.c2, VARIANT_IDS.unrelated),
+      giftCardLine,
+    ]);
+
+    // Gift card is filtered out; PA7 rule still fires for c2
+    expect(candidates(result)).toEqual([
+      {
+        targets: [{ cartLine: { id: "c2" } }],
+        value: { percentage: { value: "10" } },
+        message: "PA7 cross-sell",
+      },
+    ]);
+  });
+
+  it("skips null and malformed entries inside the rules array", () => {
+    const config = {
+      ...baseConfig,
+      rules: [
+        null,
+        { id: "broken" }, // missing type
+        { type: 42, enabled: true }, // type is not a string
+        baseConfig.rules[0], // valid — should still fire
+      ],
+    };
+
+    const result = runWithLines(
+      [
+        productLine("pa7", PRODUCT_IDS.pa7, VARIANT_IDS.unrelated),
+        productLine("c2", PRODUCT_IDS.c2, VARIANT_IDS.unrelated),
+      ],
+      config,
+    );
+
+    expect(candidates(result)).toEqual([
+      {
+        targets: [{ cartLine: { id: "c2" } }],
+        value: { percentage: { value: "10" } },
+        message: "PA7 cross-sell",
+      },
+    ]);
+  });
+
+  // ── Enabled: partial disable (one rule off, others still fire) ────────────
+
+  it("fires remaining rules when only one rule is disabled", () => {
+    const config = {
+      ...baseConfig,
+      rules: [
+        { ...baseConfig.rules[0], enabled: false }, // PA7 disabled
+        baseConfig.rules[1], // Planta enabled
+        baseConfig.rules[2], // Pouches enabled
+      ],
+    };
+
+    const result = runWithLines(
+      [
+        // PA7 trigger in cart but rule is off
+        productLine("pa7", PRODUCT_IDS.pa7, VARIANT_IDS.unrelated),
+        productLine("c2", PRODUCT_IDS.c2, VARIANT_IDS.unrelated),
+        // Planta: all required present
+        productLine("nad3", PRODUCT_IDS.unrelated, VARIANT_IDS.nad3Single),
+        productLine("pb", PRODUCT_IDS.unrelated, VARIANT_IDS.plantaPb),
+        productLine("cacao", PRODUCT_IDS.unrelated, VARIANT_IDS.plantaCacao),
+      ],
+      config,
+    );
+
+    const list = candidates(result);
+    // c2 must NOT be discounted (PA7 rule is off)
+    expect(list.some((c) => c.targets[0]?.cartLine?.id === "c2")).toBe(false);
+    // Planta samples must still be discounted
+    expect(list).toContainEqual({
+      targets: [{ cartLine: { id: "pb" } }],
+      value: { percentage: { value: "100.0" } },
+      message: "Free Planta Samples",
+    });
+    expect(list).toContainEqual({
+      targets: [{ cartLine: { id: "cacao" } }],
+      value: { percentage: { value: "100.0" } },
+      message: "Free Planta Samples",
+    });
+  });
+
+  it("deduplicates overlapping rules and keeps the strongest discount per line", () => {
+    const result = runWithLines([
+      productLine("pa7", PRODUCT_IDS.pa7, VARIANT_IDS.unrelated),
+      productLine("nad3", PRODUCT_IDS.unrelated, VARIANT_IDS.nad3Single),
+      productLine("shared", PRODUCT_IDS.c2, VARIANT_IDS.plantaPb),
+      productLine("cacao", PRODUCT_IDS.unrelated, VARIANT_IDS.plantaCacao),
+    ]);
+
+    const list = candidates(result);
+    expect(list.filter((candidate) => candidate.targets[0].cartLine.id === "shared"))
+      .toEqual([
+        {
+          targets: [{ cartLine: { id: "shared" } }],
+          value: { percentage: { value: "100.0" } },
+          message: "Free Planta Samples",
+        },
+      ]);
+  });
+
+  it("skips a pouches rule configured with more than one free unit", () => {
+    const config = {
+      ...baseConfig,
+      rules: [
+        baseConfig.rules[0],
+        baseConfig.rules[1],
+        { ...baseConfig.rules[2], freeQuantityPerLine: 2 },
+      ],
+    };
+
+    const result = runWithLines(
+      [
+        productLine("nad3-240", PRODUCT_IDS.nad3_240, VARIANT_IDS.unrelated),
+        productLine("s9", PRODUCT_IDS.unrelated, VARIANT_IDS.s9, 3),
+        productLine("n4", PRODUCT_IDS.unrelated, VARIANT_IDS.n4, 3),
+      ],
+      config,
+    );
+
+    expect(result).toEqual({ operations: [] });
+  });
 });

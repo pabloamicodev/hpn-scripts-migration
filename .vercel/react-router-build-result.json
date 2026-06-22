@@ -20,8 +20,10 @@
       "routes/app.graphql": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/app.settings": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/app.api.products": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/app.discounts-overview": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/auth.login": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
-      "routes/auth.$": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0"
+      "routes/auth.$": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/webhooks": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0"
     },
     "routes": {
       "root": {
@@ -127,6 +129,15 @@
           "runtime": "nodejs"
         }
       },
+      "routes/app.discounts-overview": {
+        "id": "routes/app.discounts-overview",
+        "parentId": "routes/app",
+        "file": "app/routes/app.discounts-overview.tsx",
+        "path": "discounts-overview",
+        "config": {
+          "runtime": "nodejs"
+        }
+      },
       "routes/auth.login": {
         "id": "routes/auth.login",
         "parentId": "root",
@@ -141,6 +152,15 @@
         "parentId": "root",
         "file": "app/routes/auth.$.tsx",
         "path": "auth/*",
+        "config": {
+          "runtime": "nodejs"
+        }
+      },
+      "routes/webhooks": {
+        "id": "routes/webhooks",
+        "parentId": "root",
+        "file": "app/routes/webhooks.tsx",
+        "path": "webhooks",
         "config": {
           "runtime": "nodejs"
         }
@@ -232,6 +252,12 @@
         "file": "routes/app.api.products.tsx",
         "path": "api/products"
       },
+      "routes/app.discounts-overview": {
+        "id": "routes/app.discounts-overview",
+        "parentId": "routes/app",
+        "file": "routes/app.discounts-overview.tsx",
+        "path": "discounts-overview"
+      },
       "routes/auth.login": {
         "id": "routes/auth.login",
         "parentId": "root",
@@ -243,6 +269,12 @@
         "parentId": "root",
         "file": "routes/auth.$.tsx",
         "path": "auth/*"
+      },
+      "routes/webhooks": {
+        "id": "routes/webhooks",
+        "parentId": "root",
+        "file": "routes/webhooks.tsx",
+        "path": "webhooks"
       }
     },
     "routeDiscovery": {
@@ -302,6 +334,10 @@
               {
                 "file": "routes/app.api.products.tsx",
                 "path": "api/products"
+              },
+              {
+                "file": "routes/app.discounts-overview.tsx",
+                "path": "discounts-overview"
               }
             ],
             "path": "app"
@@ -313,6 +349,10 @@
           {
             "file": "routes/auth.$.tsx",
             "path": "auth/*"
+          },
+          {
+            "file": "routes/webhooks.tsx",
+            "path": "webhooks"
           }
         ]
       }

@@ -76,12 +76,27 @@ async function lookupSelections(graphqlProxy: GraphQLProxyFn, ids: string[]) {
   return selections;
 }
 
+const MAX_FIRST = 50;
+const MAX_QUERY_LENGTH = 200;
+const VALID_GID_PREFIXES = [
+  "gid://shopify/Product/",
+  "gid://shopify/ProductVariant/",
+] as const;
+
+function isValidShopifyGid(id: string): boolean {
+  return VALID_GID_PREFIXES.some((prefix) => id.startsWith(prefix));
+}
+
 export async function loader({ request }: LoaderFunctionArgs) {
   const { admin } = await authenticate.admin(request);
   const url = new URL(request.url);
-  const ids = url.searchParams.get("ids")?.split(",").map((id) => id.trim()) ?? [];
-  const query = url.searchParams.get("query")?.trim() ?? "";
-  const first = Number.parseInt(url.searchParams.get("first") ?? "12", 10);
+
+  const rawIds = url.searchParams.get("ids")?.split(",").map((id) => id.trim()) ?? [];
+  const ids = rawIds.filter(isValidShopifyGid);
+
+  const query = (url.searchParams.get("query")?.trim() ?? "").slice(0, MAX_QUERY_LENGTH);
+  const rawFirst = Number.parseInt(url.searchParams.get("first") ?? "12", 10);
+  const first = Math.min(Number.isNaN(rawFirst) ? 12 : rawFirst, MAX_FIRST);
 
   if (ids.length > 0) {
     try {

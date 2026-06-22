@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useLoaderData, useNavigate, useFetcher, useRevalidator } from "react-router";
+import { useLoaderData, useNavigate, useFetcher } from "react-router";
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "react-router";
 import { authenticate } from "~/shopify.server";
 import {
@@ -67,7 +67,13 @@ export async function action({ request }: ActionFunctionArgs) {
     }
 
     if (intent === "pause") {
-      const result = await saveConfig(proxy, loaded.discountId, loaded.config, (c) => pauseRule(c, ruleId));
+      const result = await saveConfig(
+        proxy,
+        loaded.discountId,
+        loaded.config,
+        loaded.configRevision,
+        (c) => pauseRule(c, ruleId),
+      );
       if (result.userErrors.length) {
         return actionError("Shopify rejected the pause request", {
           operation: "pauseRule",
@@ -76,7 +82,13 @@ export async function action({ request }: ActionFunctionArgs) {
         });
       }
     } else if (intent === "resume") {
-      const result = await saveConfig(proxy, loaded.discountId, loaded.config, (c) => resumeRule(c, ruleId));
+      const result = await saveConfig(
+        proxy,
+        loaded.discountId,
+        loaded.config,
+        loaded.configRevision,
+        (c) => resumeRule(c, ruleId),
+      );
       if (result.userErrors.length) {
         return actionError("Shopify rejected the resume request", {
           operation: "resumeRule",
@@ -85,7 +97,13 @@ export async function action({ request }: ActionFunctionArgs) {
         });
       }
     } else if (intent === "delete") {
-      const result = await saveConfig(proxy, loaded.discountId, loaded.config, (c) => deleteRule(c, ruleId));
+      const result = await saveConfig(
+        proxy,
+        loaded.discountId,
+        loaded.config,
+        loaded.configRevision,
+        (c) => deleteRule(c, ruleId),
+      );
       if (result.userErrors.length) {
         return actionError("Shopify rejected the delete request", {
           operation: "deleteRule",
@@ -112,10 +130,10 @@ export async function action({ request }: ActionFunctionArgs) {
 }
 
 export default function PromosPage() {
-  const { config, discountId, status } = useLoaderData<typeof loader>();
+  const { config, discountId, status, configValid, configError } =
+    useLoaderData<typeof loader>();
   const navigate = useNavigate();
   const fetcher = useFetcher();
-  const { revalidate } = useRevalidator();
   const [pendingRuleAction, setPendingRuleAction] =
     useState<PendingRuleAction>(null);
 
@@ -156,7 +174,7 @@ export default function PromosPage() {
           <button
             type="button"
             onClick={() => navigate("/app/promos/new")}
-            disabled={!discountId}
+            disabled={!discountId || !configValid}
             className="btn btn--primary"
           >
             Add Rule
@@ -175,6 +193,12 @@ export default function PromosPage() {
           >
             Create the discount first.
           </button>
+        </div>
+      )}
+      {discountId && !configValid && (
+        <div className="alert alert--critical" role="alert">
+          {configError} Rule mutations are disabled until the configuration is
+          repaired from Discount management.
         </div>
       )}
 

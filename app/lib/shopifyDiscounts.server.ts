@@ -1,4 +1,5 @@
 import type { HpnPromoConfig } from "./validations";
+import { logger } from "./logger";
 
 const CREATE_AUTOMATIC_DISCOUNT_MUTATION = `
   mutation CreateHpnDiscount($automaticAppDiscount: DiscountAutomaticAppInput!) {
@@ -214,19 +215,73 @@ const GET_SHOPIFY_FUNCTIONS_QUERY = `
   }
 `;
 
-interface GraphQLProxy {
-  (
-    query: string,
-    variables?: Record<string, unknown>
-  ): Promise<{ data?: any; errors?: any[] }>;
+interface GraphQLError {
+  message: string;
+  locations?: { line: number; column: number }[];
+  path?: (string | number)[];
+  extensions?: Record<string, unknown>;
 }
 
-function getGraphqlErrorMessage(errors?: any[]) {
+interface GraphQLProxy {
+  <T extends object = Record<string, unknown>>(
+    query: string,
+    variables?: Record<string, unknown>
+  ): Promise<{ data?: T; errors?: GraphQLError[] }>;
+}
+
+interface DiscountUserError {
+  field: string[] | null;
+  message: string;
+}
+
+interface AutomaticAppDiscountFragment {
+  discountId: string;
+  title: string;
+  status: string;
+  startsAt?: string | null;
+}
+
+interface CreateDiscountData {
+  discountAutomaticAppCreate: {
+    automaticAppDiscount: AutomaticAppDiscountFragment;
+    userErrors: DiscountUserError[];
+  };
+}
+
+interface UpdateDiscountData {
+  discountAutomaticAppUpdate: {
+    automaticAppDiscount: Omit<AutomaticAppDiscountFragment, "startsAt">;
+    userErrors: DiscountUserError[];
+  };
+}
+
+interface ActivateDiscountData {
+  discountAutomaticActivate: {
+    automaticAppDiscount: Pick<AutomaticAppDiscountFragment, "discountId" | "status">;
+    userErrors: DiscountUserError[];
+  };
+}
+
+interface DeactivateDiscountData {
+  discountAutomaticDeactivate: {
+    automaticAppDiscount: Pick<AutomaticAppDiscountFragment, "discountId" | "status">;
+    userErrors: DiscountUserError[];
+  };
+}
+
+interface DeleteDiscountData {
+  discountAutomaticDelete: {
+    deletedAutomaticAppDiscountId: string | null;
+    userErrors: DiscountUserError[];
+  };
+}
+
+function getGraphqlErrorMessage(errors?: GraphQLError[]) {
   return errors?.map((error) => error.message ?? String(error)).join(", ");
 }
 
 function assertNoGraphqlErrors(
-  result: { errors?: any[] },
+  result: { errors?: GraphQLError[] },
   operationName: string,
 ) {
   if (result.errors?.length) {
@@ -307,7 +362,7 @@ export async function createAutomaticDiscount(
 ) {
   const configJson = JSON.stringify(config);
 
-  const result = await graphqlProxy(CREATE_AUTOMATIC_DISCOUNT_MUTATION, {
+  const result = await graphqlProxy<CreateDiscountData>(CREATE_AUTOMATIC_DISCOUNT_MUTATION, {
     automaticAppDiscount: {
       title,
       functionId,
@@ -364,7 +419,7 @@ export async function updateAutomaticDiscount(
     ];
   }
 
-  const result = await graphqlProxy(UPDATE_AUTOMATIC_DISCOUNT_MUTATION, {
+  const result = await graphqlProxy<UpdateDiscountData>(UPDATE_AUTOMATIC_DISCOUNT_MUTATION, {
     id: discountId,
     automaticAppDiscount: input,
   });
@@ -378,7 +433,7 @@ export async function activateDiscount(
   graphqlProxy: GraphQLProxy,
   discountId: string
 ) {
-  const result = await graphqlProxy(ACTIVATE_DISCOUNT_MUTATION, {
+  const result = await graphqlProxy<ActivateDiscountData>(ACTIVATE_DISCOUNT_MUTATION, {
     id: discountId,
   });
 
@@ -391,7 +446,7 @@ export async function deactivateDiscount(
   graphqlProxy: GraphQLProxy,
   discountId: string
 ) {
-  const result = await graphqlProxy(DEACTIVATE_DISCOUNT_MUTATION, {
+  const result = await graphqlProxy<DeactivateDiscountData>(DEACTIVATE_DISCOUNT_MUTATION, {
     id: discountId,
   });
 
@@ -404,7 +459,7 @@ export async function deleteDiscount(
   graphqlProxy: GraphQLProxy,
   discountId: string
 ) {
-  const result = await graphqlProxy(DELETE_DISCOUNT_MUTATION, {
+  const result = await graphqlProxy<DeleteDiscountData>(DELETE_DISCOUNT_MUTATION, {
     id: discountId,
   });
 
@@ -418,15 +473,17 @@ export async function searchDiscounts(
   query: string
 ): Promise<SearchDiscountResult[]> {
   const escapedQuery = query.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
-  const result = await graphqlProxy(SEARCH_DISCOUNTS_QUERY, {
+  interface SearchDiscountsData {
+    discountNodes: { edges: { node: SearchDiscountNode }[] };
+  }
+  const result = await graphqlProxy<SearchDiscountsData>(SEARCH_DISCOUNTS_QUERY, {
     query: `title:'${escapedQuery}'`,
   });
 
   assertNoGraphqlErrors(result, "SearchDiscounts");
 
   const nodes: SearchDiscountNode[] =
-    result.data?.discountNodes?.edges?.map((edge: { node: SearchDiscountNode }) => edge.node) ??
-    [];
+    result.data?.discountNodes?.edges?.map((edge) => edge.node) ?? [];
 
   const discounts: SearchDiscountResult[] = [];
 
@@ -471,7 +528,13 @@ export async function listAllDiscounts(
   graphqlProxy: GraphQLProxy,
   cursor?: string | null
 ): Promise<ListAllDiscountsResult> {
-  const result = await graphqlProxy(LIST_ALL_DISCOUNTS_QUERY, cursor ? { cursor } : {});
+  interface ListAllDiscountsData {
+    discountNodes: {
+      pageInfo: { hasNextPage: boolean; endCursor: string | null };
+      edges: { node: SearchDiscountNode }[];
+    };
+  }
+  const result = await graphqlProxy<ListAllDiscountsData>(LIST_ALL_DISCOUNTS_QUERY, cursor ? { cursor } : {});
 
   assertNoGraphqlErrors(result, "ListAllDiscounts");
 
@@ -480,9 +543,7 @@ export async function listAllDiscounts(
   const endCursor: string | null = pageInfo?.endCursor ?? null;
 
   const nodes: SearchDiscountNode[] =
-    result.data?.discountNodes?.edges?.map(
-      (edge: { node: SearchDiscountNode }) => edge.node
-    ) ?? [];
+    result.data?.discountNodes?.edges?.map((edge) => edge.node) ?? [];
 
   const discounts: SearchDiscountResult[] = [];
 
@@ -527,32 +588,54 @@ export async function listAllDiscounts(
 
 // The app handle is set in shopify.app.toml — used to scope function lookup
 // to our own app only, preventing accidental matches against other installed apps.
-const APP_HANDLE = "hpn-scripts-migration";
+const DEFAULT_APP_HANDLE = "hpn-scripts-migration";
 
 export async function findHpnFunctionId(
   graphqlProxy: GraphQLProxy
 ): Promise<string | null> {
-  let result: { data?: any; errors?: any[] };
+  const configuredFunctionId = process.env.SHOPIFY_DISCOUNT_FUNCTION_ID?.trim();
+  if (configuredFunctionId) {
+    if (configuredFunctionId.startsWith("gid://shopify/ShopifyFunction/")) {
+      return configuredFunctionId;
+    }
+    logger.error(
+      "[findHpnFunctionId] SHOPIFY_DISCOUNT_FUNCTION_ID is not a ShopifyFunction GID.",
+    );
+  }
+
+  const appHandle =
+    process.env.SHOPIFY_APP_HANDLE?.trim() || DEFAULT_APP_HANDLE;
+  interface ShopifyFunctionNode {
+    id: string;
+    title: string;
+    apiType: string;
+    app: { title: string; handle: string } | null;
+  }
+  interface GetShopifyFunctionsData {
+    shopifyFunctions: { nodes: ShopifyFunctionNode[] };
+  }
+
+  let result: Awaited<ReturnType<typeof graphqlProxy<GetShopifyFunctionsData>>>;
   try {
-    result = await graphqlProxy(GET_SHOPIFY_FUNCTIONS_QUERY);
+    result = await graphqlProxy<GetShopifyFunctionsData>(GET_SHOPIFY_FUNCTIONS_QUERY);
   } catch (err) {
-    console.error("[findHpnFunctionId] GraphQL request failed:", err);
+    logger.error("[findHpnFunctionId] GraphQL request failed:", err);
     return null;
   }
 
   if (result.errors?.length) {
-    console.error("[findHpnFunctionId] GraphQL errors:", result.errors);
+    logger.error("[findHpnFunctionId] GraphQL errors:", result.errors);
     return null;
   }
 
-  const nodes: any[] = result.data?.shopifyFunctions?.nodes ?? [];
+  const nodes: ShopifyFunctionNode[] = result.data?.shopifyFunctions?.nodes ?? [];
 
   // Primary match: function belonging to this app with a discount apiType.
   // Matching by app handle (stable, not editable by store owners) is safer
   // than matching by title, which can be changed in the Partner Dashboard.
   const fn = nodes.find(
     (node) =>
-      String(node.app?.handle ?? "") === APP_HANDLE &&
+      String(node.app?.handle ?? "") === appHandle &&
       String(node.apiType ?? "").toLowerCase().includes("discount")
   );
 
@@ -560,21 +643,21 @@ export async function findHpnFunctionId(
   // where the app handle may differ from production.
   const fallback = fn ?? nodes.find(
     (node) =>
-      String(node.app?.handle ?? "") === APP_HANDLE
+      String(node.app?.handle ?? "") === appHandle
   );
 
   if (!fn && fallback) {
-    console.warn(
+    logger.warn(
       "[findHpnFunctionId] No discount function found by apiType for app handle " +
-      `"${APP_HANDLE}". Using first function from this app as fallback. ` +
+      `"${appHandle}". Using first function from this app as fallback. ` +
       `Function id: ${fallback.id}, apiType: ${fallback.apiType}`
     );
   }
 
   if (!fn && !fallback) {
-    console.error(
+    logger.error(
       "[findHpnFunctionId] No Shopify Function found for app handle " +
-      `"${APP_HANDLE}". Ensure the app is installed and \`shopify app deploy\` ` +
+      `"${appHandle}". Ensure the app is installed and \`shopify app deploy\` ` +
       "has been run. Functions from other apps will never be used as fallback."
     );
     return null;

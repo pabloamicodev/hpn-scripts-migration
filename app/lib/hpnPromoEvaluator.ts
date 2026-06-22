@@ -106,9 +106,11 @@ export function evaluateRequiredVariantsFreeVariants(
     if (!freeLines) continue;
 
     for (const line of freeLines) {
+      // Mirror the function's ternary exactly: cap only when it is set AND less than qty.
+      // When cap >= qty we discount the entire line (same as omitting quantity in the function output).
       const discountedQty =
-        rule.freeQuantityPerLine !== null
-          ? Math.min(rule.freeQuantityPerLine, line.quantity)
+        rule.freeQuantityPerLine !== null && rule.freeQuantityPerLine < line.quantity
+          ? rule.freeQuantityPerLine
           : line.quantity;
 
       actions.push({
@@ -149,7 +151,10 @@ export function evaluateRequiredProductWithFreeVariants(
     if (!freeLines) continue;
 
     for (const line of freeLines) {
-      const discountedQty = Math.min(rule.freeQuantityPerLine, line.quantity);
+      const discountedQty =
+        rule.freeQuantityPerLine < line.quantity
+          ? rule.freeQuantityPerLine
+          : line.quantity;
 
       actions.push({
         lineId: line.id,

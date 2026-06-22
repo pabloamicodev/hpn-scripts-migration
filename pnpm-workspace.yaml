@@ -5,3 +5,8 @@ packages:
 allowBuilds:
   '@parcel/watcher': false
   esbuild: false
+
+overrides:
+  lodash: 4.18.1
+  esbuild: 0.28.1
+  '@vercel/static-config>ajv': 8.18.0

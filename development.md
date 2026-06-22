@@ -124,7 +124,7 @@ Acceptance cases:
 - NAD3 Single + one Planta sample -> no discount.
 - Both Planta samples without NAD3 Single -> no discount.
 - NAD3 Single + both Planta samples -> both Planta samples free.
-- For MVP, all quantity on Planta sample target lines can be discounted unless the existing Script proves it only discounts 1 unit.
+- Exactly 1 unit of each Planta sample variant is free across the entire cart.
 
 ---
 
@@ -480,7 +480,7 @@ export const requiredVariantsFreeVariantsRuleSchema = z.object({
   enabled: z.boolean(),
   requiredVariantIds: z.array(variantGidSchema).min(1),
   freeVariantIds: z.array(variantGidSchema).min(1),
-  freeQuantityPerLine: z.number().int().positive().nullable(),
+  freeQuantityPerLine: z.literal(1),
   message: z.string().min(1),
 });
 
@@ -553,7 +553,7 @@ export const defaultHpnPromoConfig: HpnPromoConfig = {
         "gid://shopify/ProductVariant/40608348438665",
         "gid://shopify/ProductVariant/40608348373129",
       ],
-      freeQuantityPerLine: null,
+      freeQuantityPerLine: 1,
       message: "Free Planta Samples - NAD3 Subscription",
     },
     {
@@ -758,8 +758,8 @@ if true:
   apply 100% discount to Planta Cacao line
 ```
 
-If `freeQuantityPerLine` is null, discount all quantity.  
-If not null, discount only that quantity.
+Discount exactly 1 unit of each free Planta variant across the entire cart,
+including when the same variant is split across multiple cart lines.
 
 ### Pouches rule
 

@@ -460,9 +460,7 @@ function getDiscountSummary(rule: HpnPromoRule): string {
     case "pa7_cross_sell":
       return `${rule.discountPercentage}% Off`;
     case "required_variants_free_variants":
-      return rule.freeQuantityPerLine
-        ? `Free up to ${rule.freeQuantityPerLine} unit`
-        : "Free";
+      return "1 free unit per variant";
     case "required_product_with_free_variants":
       return `Free up to ${rule.freeQuantityPerLine ?? 1} unit`;
     default:

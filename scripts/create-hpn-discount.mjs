@@ -50,7 +50,7 @@ const config = {
         "gid://shopify/ProductVariant/40608348438665",
         "gid://shopify/ProductVariant/40608348373129",
       ],
-      freeQuantityPerLine: null,
+      freeQuantityPerLine: 1,
       message: "Free Planta Samples - NAD3 Subscription",
     },
     {

@@ -33,7 +33,12 @@ export const requiredVariantsFreeVariantsRuleSchema = z.object({
   enabled: z.boolean(),
   requiredVariantIds: z.array(variantGidSchema).min(1),
   freeVariantIds: z.array(variantGidSchema).min(1),
-  freeQuantityPerLine: z.number().int().positive().nullable(),
+  // Legacy configs used null to mean unlimited. Normalize them to the safe
+  // business rule: exactly one free unit per target variant across the cart.
+  freeQuantityPerLine: z.preprocess(
+    (value) => (value === null || value === undefined ? 1 : value),
+    z.literal(1),
+  ),
   message: z.string().trim().min(1),
 });
 

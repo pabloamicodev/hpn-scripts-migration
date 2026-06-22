@@ -103,25 +103,17 @@ export function evaluateRequiredVariantsFreeVariants(
   // All required variants present, now discount free variants
   for (const freeVariantId of rule.freeVariantIds) {
     const freeLines = cartIndex.linesByVariantId.get(freeVariantId);
-    if (!freeLines) continue;
+    const line = freeLines?.[0];
+    if (!line) continue;
 
-    for (const line of freeLines) {
-      // Mirror the function's ternary exactly: cap only when it is set AND less than qty.
-      // When cap >= qty we discount the entire line (same as omitting quantity in the function output).
-      const discountedQty =
-        rule.freeQuantityPerLine !== null && rule.freeQuantityPerLine < line.quantity
-          ? rule.freeQuantityPerLine
-          : line.quantity;
-
-      actions.push({
-        lineId: line.id,
-        variantId: line.merchandise.id,
-        productId: line.merchandise.product.id,
-        discountedQuantity: discountedQty,
-        percentageOff: 100,
-        message: rule.message,
-      });
-    }
+    actions.push({
+      lineId: line.id,
+      variantId: line.merchandise.id,
+      productId: line.merchandise.product.id,
+      discountedQuantity: 1,
+      percentageOff: 100,
+      message: rule.message,
+    });
   }
 
   return actions;

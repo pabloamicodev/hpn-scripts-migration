@@ -47,7 +47,7 @@ const baseConfig = {
         VARIANT_IDS.plantaCacao,
       ],
       freeVariantIds: [VARIANT_IDS.plantaPb, VARIANT_IDS.plantaCacao],
-      freeQuantityPerLine: null,
+      freeQuantityPerLine: 1,
       message: "Free Planta Samples",
     },
     {
@@ -162,12 +162,12 @@ describe("cartLinesDiscountsGenerateRun", () => {
 
     expect(candidates(result)).toEqual([
       {
-        targets: [{ cartLine: { id: "pb" } }],
+        targets: [{ cartLine: { id: "pb", quantity: 1 } }],
         value: { percentage: { value: "100.0" } },
         message: "Free Planta Samples",
       },
       {
-        targets: [{ cartLine: { id: "cacao" } }],
+        targets: [{ cartLine: { id: "cacao", quantity: 1 } }],
         value: { percentage: { value: "100.0" } },
         message: "Free Planta Samples",
       },
@@ -267,12 +267,12 @@ describe("cartLinesDiscountsGenerateRun", () => {
       message: "PA7 cross-sell",
     });
     expect(list).toContainEqual({
-      targets: [{ cartLine: { id: "pb" } }],
+      targets: [{ cartLine: { id: "pb", quantity: 1 } }],
       value: { percentage: { value: "100.0" } },
       message: "Free Planta Samples",
     });
     expect(list).toContainEqual({
-      targets: [{ cartLine: { id: "cacao" } }],
+      targets: [{ cartLine: { id: "cacao", quantity: 1 } }],
       value: { percentage: { value: "100.0" } },
       message: "Free Planta Samples",
     });
@@ -359,9 +359,9 @@ describe("cartLinesDiscountsGenerateRun", () => {
     ]);
   });
 
-  // ── Planta: freeQuantityPerLine capping ───────────────────────────────────
+  // ── Planta: one free unit per variant across the cart ─────────────────────
 
-  it("caps Planta free quantity when freeQuantityPerLine is set and less than cart qty", () => {
+  it("discounts exactly one unit of each Planta variant", () => {
     const config = {
       ...baseConfig,
       rules: [
@@ -397,14 +397,14 @@ describe("cartLinesDiscountsGenerateRun", () => {
     ]);
   });
 
-  it("discounts the entire Planta line when freeQuantityPerLine equals or exceeds cart qty", () => {
+  it("skips an unsafe Planta config that allows more than one free unit", () => {
     const config = {
       ...baseConfig,
       rules: [
         baseConfig.rules[0],
         {
           ...baseConfig.rules[1],
-          freeQuantityPerLine: 5, // cap bigger than qty in cart
+          freeQuantityPerLine: 5,
         },
         baseConfig.rules[2],
       ],
@@ -419,15 +419,26 @@ describe("cartLinesDiscountsGenerateRun", () => {
       config,
     );
 
-    // No quantity field = entire line discounted
+    expect(result).toEqual({ operations: [] });
+  });
+
+  it("discounts only one line when the same Planta variant is split across cart lines", () => {
+    const result = runWithLines([
+      productLine("nad3", PRODUCT_IDS.unrelated, VARIANT_IDS.nad3Single),
+      productLine("pb-a", PRODUCT_IDS.unrelated, VARIANT_IDS.plantaPb),
+      productLine("pb-b", PRODUCT_IDS.unrelated, VARIANT_IDS.plantaPb),
+      productLine("cacao-a", PRODUCT_IDS.unrelated, VARIANT_IDS.plantaCacao),
+      productLine("cacao-b", PRODUCT_IDS.unrelated, VARIANT_IDS.plantaCacao),
+    ]);
+
     expect(candidates(result)).toEqual([
       {
-        targets: [{ cartLine: { id: "pb" } }],
+        targets: [{ cartLine: { id: "pb-a", quantity: 1 } }],
         value: { percentage: { value: "100.0" } },
         message: "Free Planta Samples",
       },
       {
-        targets: [{ cartLine: { id: "cacao" } }],
+        targets: [{ cartLine: { id: "cacao-a", quantity: 1 } }],
         value: { percentage: { value: "100.0" } },
         message: "Free Planta Samples",
       },
@@ -538,12 +549,12 @@ describe("cartLinesDiscountsGenerateRun", () => {
     expect(list.some((c) => c.targets[0]?.cartLine?.id === "c2")).toBe(false);
     // Planta samples must still be discounted
     expect(list).toContainEqual({
-      targets: [{ cartLine: { id: "pb" } }],
+      targets: [{ cartLine: { id: "pb", quantity: 1 } }],
       value: { percentage: { value: "100.0" } },
       message: "Free Planta Samples",
     });
     expect(list).toContainEqual({
-      targets: [{ cartLine: { id: "cacao" } }],
+      targets: [{ cartLine: { id: "cacao", quantity: 1 } }],
       value: { percentage: { value: "100.0" } },
       message: "Free Planta Samples",
     });
@@ -561,7 +572,7 @@ describe("cartLinesDiscountsGenerateRun", () => {
     expect(list.filter((candidate) => candidate.targets[0].cartLine.id === "shared"))
       .toEqual([
         {
-          targets: [{ cartLine: { id: "shared" } }],
+          targets: [{ cartLine: { id: "shared", quantity: 1 } }],
           value: { percentage: { value: "100.0" } },
           message: "Free Planta Samples",
         },

@@ -30,7 +30,7 @@ export const defaultHpnPromoConfig: HpnPromoConfig = {
         HPN_VARIANTS.PLANTA_SAMPLE_VARIANT_ID_1,
         HPN_VARIANTS.PLANTA_SAMPLE_VARIANT_ID_2,
       ],
-      freeQuantityPerLine: null,
+      freeQuantityPerLine: 1,
       message: HPN_PROMO_MESSAGES.PLANTA_SAMPLES,
     },
     {

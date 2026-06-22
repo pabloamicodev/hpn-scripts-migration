@@ -78,7 +78,7 @@ const DEFAULT_RULES: Record<PromoRuleType, PromoRuleFormValues> = {
       HPN_VARIANTS.PLANTA_SAMPLE_VARIANT_ID_1,
       HPN_VARIANTS.PLANTA_SAMPLE_VARIANT_ID_2,
     ],
-    freeQuantityPerLine: null,
+    freeQuantityPerLine: 1,
     message: HPN_PROMO_MESSAGES.PLANTA_SAMPLES,
   },
 
@@ -152,7 +152,7 @@ function buildRulePayload(values: PromoRuleFormValues): unknown {
       enabled: values.enabled,
       requiredVariantIds: values.requiredVariantIds ?? [],
       freeVariantIds: values.freeVariantIds ?? [],
-      freeQuantityPerLine: values.freeQuantityPerLine ?? null,
+      freeQuantityPerLine: 1,
       message: values.message,
     };
   }
@@ -227,7 +227,6 @@ export function PromoRuleForm({
   const targetProductIds = watch("targetProductIds");
   const requiredVariantIds = watch("requiredVariantIds");
   const freeVariantIds = watch("freeVariantIds");
-  const freeQuantityPerLine = watch("freeQuantityPerLine");
   const selectedIds = useMemo(() => {
     return Array.from(
       new Set(
@@ -623,34 +622,10 @@ export function PromoRuleForm({
           </div>
 
           <div className="form-group">
-            <label
-              htmlFor="freeQuantityPerLine"
-              className="form-label"
-            >
-              Free Quantity Per Line
-            </label>
-            <p className="field-hint">Leave empty to discount all eligible units.</p>
-
-            <input
-              type="number"
-              id="freeQuantityPerLine"
-              min={1}
-              value={freeQuantityPerLine ?? ""}
-              onChange={(event) => {
-                const nextValue = event.target.value.trim();
-
-                setValue(
-                  "freeQuantityPerLine",
-                  nextValue ? Number.parseInt(nextValue, 10) : null,
-                  {
-                    shouldDirty: true,
-                    shouldValidate: false,
-                  },
-                );
-              }}
-              placeholder="All…"
-              className="number-field"
-            />
+            <span className="form-label">Free quantity</span>
+            <p className="field-hint">
+              Exactly 1 unit of each free variant across the entire cart.
+            </p>
           </div>
         </section>
       )}

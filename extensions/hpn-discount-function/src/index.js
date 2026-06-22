@@ -140,10 +140,14 @@ function applyPa7Rule(rule, byProduct, candidates) {
 
 /**
  * NAD3 Single + Planta Samples: all required variants must be present,
- * then free variants get 100% off (optionally capped to freeQuantityPerLine).
+ * then exactly one unit of each free variant gets 100% off across the cart.
  */
 function applyPlantaRule(rule, byVariant, candidates) {
-  if (!Array.isArray(rule.requiredVariantIds) || !Array.isArray(rule.freeVariantIds)) return;
+  if (
+    !Array.isArray(rule.requiredVariantIds) ||
+    !Array.isArray(rule.freeVariantIds) ||
+    rule.freeQuantityPerLine !== 1
+  ) return;
   // All required variants must be in cart
   for (const requiredId of rule.requiredVariantIds) {
     if (!byVariant.get(requiredId)?.length) return;
@@ -151,15 +155,9 @@ function applyPlantaRule(rule, byVariant, candidates) {
 
   for (const freeId of rule.freeVariantIds) {
     const freeLines = byVariant.get(freeId) ?? [];
-
-    for (const line of freeLines) {
-      const cap = rule.freeQuantityPerLine;
-      // Omitting `quantity` in the cartLine target tells Shopify to discount
-      // the entire line. We do this when cap is null (no limit) or when cap
-      // is >= line.quantity (no point capping beyond what's in cart).
-      const quantity = cap !== null && cap < line.quantity ? cap : null;
-      addCandidate(candidates, line, quantity, 100, rule.message);
-    }
+    const line = freeLines[0];
+    if (!line) continue;
+    addCandidate(candidates, line, 1, 100, rule.message);
   }
 }
 

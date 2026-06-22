@@ -70,4 +70,34 @@ describe("loadActiveDiscount", () => {
       getConfigRevision(structuredClone(defaultHpnPromoConfig)),
     );
   });
+
+  it("migrates legacy unlimited Planta configs to one free unit", async () => {
+    const legacyConfig = structuredClone(defaultHpnPromoConfig);
+    const plantaRule = legacyConfig.rules.find(
+      (rule) => rule.type === "required_variants_free_variants",
+    );
+    if (!plantaRule) throw new Error("Planta rule fixture is missing.");
+
+    const loaded = await loadActiveDiscount(
+      proxyFor([
+        automaticDiscount(
+          JSON.stringify({
+            ...legacyConfig,
+            rules: legacyConfig.rules.map((rule) =>
+              rule.id === plantaRule.id
+                ? { ...rule, freeQuantityPerLine: null }
+                : rule,
+            ),
+          }),
+        ),
+      ]),
+    );
+
+    expect(loaded.configValid).toBe(true);
+    expect(
+      loaded.config.rules.find(
+        (rule) => rule.type === "required_variants_free_variants",
+      )?.freeQuantityPerLine,
+    ).toBe(1);
+  });
 });

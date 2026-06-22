@@ -37,9 +37,8 @@ const UPDATE_AUTOMATIC_DISCOUNT_MUTATION = `
 const ACTIVATE_DISCOUNT_MUTATION = `
   mutation ActivateDiscount($id: ID!) {
     discountAutomaticActivate(id: $id) {
-      automaticAppDiscount {
-        discountId
-        status
+      automaticDiscountNode {
+        id
       }
       userErrors {
         field
@@ -52,9 +51,8 @@ const ACTIVATE_DISCOUNT_MUTATION = `
 const DEACTIVATE_DISCOUNT_MUTATION = `
   mutation DeactivateDiscount($id: ID!) {
     discountAutomaticDeactivate(id: $id) {
-      automaticAppDiscount {
-        discountId
-        status
+      automaticDiscountNode {
+        id
       }
       userErrors {
         field
@@ -257,14 +255,14 @@ interface UpdateDiscountData {
 
 interface ActivateDiscountData {
   discountAutomaticActivate: {
-    automaticAppDiscount: Pick<AutomaticAppDiscountFragment, "discountId" | "status">;
+    automaticDiscountNode: { id: string } | null;
     userErrors: DiscountUserError[];
   };
 }
 
 interface DeactivateDiscountData {
   discountAutomaticDeactivate: {
-    automaticAppDiscount: Pick<AutomaticAppDiscountFragment, "discountId" | "status">;
+    automaticDiscountNode: { id: string } | null;
     userErrors: DiscountUserError[];
   };
 }

@@ -87,7 +87,11 @@ export async function action({ request }: ActionFunctionArgs) {
             hint: "Check the Shopify Admin API constraints for discountAutomaticAppCreate.",
           });
         }
-        return { ok: true, message: "Discount created and activated." };
+        return {
+          ok: true,
+          message:
+            "Automatic discount created and activated. Configure its rules from Promo rules.",
+        };
       });
     }
 
@@ -420,7 +424,9 @@ export default function DiscountPage() {
                       disabled={isPending || !functionId}
                       className="btn btn--primary btn--full"
                     >
-                      {isPending ? "Creating…" : "Create discount"}
+                      {isPending
+                        ? "Creating and activating…"
+                        : "Create and activate discount"}
                     </button>
                   </fetcher.Form>
                 )}

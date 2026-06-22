@@ -78,4 +78,36 @@ describe("Shopify discount mutations", () => {
       },
     });
   });
+
+  it("uses the 2026-04 automaticDiscountNode payload for lifecycle mutations", async () => {
+    const queries: string[] = [];
+    const proxy: GraphQLProxyFn = async <TData>(query: string) => {
+      queries.push(query);
+      const operation = query.includes("discountAutomaticDeactivate")
+        ? "discountAutomaticDeactivate"
+        : "discountAutomaticActivate";
+      return {
+        data: {
+          [operation]: {
+            automaticDiscountNode: {
+              id: "gid://shopify/DiscountAutomaticNode/1",
+            },
+            userErrors: [],
+          },
+        } as TData,
+      };
+    };
+
+    const { activateDiscount, deactivateDiscount } = await import(
+      "./shopifyDiscounts.server"
+    );
+    await activateDiscount(proxy, "gid://shopify/DiscountAutomaticNode/1");
+    await deactivateDiscount(proxy, "gid://shopify/DiscountAutomaticNode/1");
+
+    expect(queries).toHaveLength(2);
+    for (const query of queries) {
+      expect(query).toContain("automaticDiscountNode");
+      expect(query).not.toContain("automaticAppDiscount {");
+    }
+  });
 });

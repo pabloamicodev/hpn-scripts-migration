@@ -3,230 +3,228 @@ export default function DocsPage() {
     <div className="app-page app-page--wide">
       <header className="page-header">
         <div>
-          <h1 className="page-title">Rule Types & Configuration</h1>
+          <h1 className="page-title">How your discount rules work</h1>
           <p className="page-subtitle">
-            Reference guide for every discount rule type and condition available
-            in this app.
+            Each rule fires automatically at checkout — no coupons, no manual effort.
+            Pick the one that matches what you want customers to experience.
           </p>
         </div>
       </header>
 
-      {/* ------------------------------------------------------------------ */}
-      {/* Rule types                                                          */}
-      {/* ------------------------------------------------------------------ */}
+      <nav className="docs-nav" aria-label="Jump to rule type">
+        <a href="#pa7" className="docs-nav-chip docs-nav-chip--pa7">🤝 Cross-sell</a>
+        <a href="#planta" className="docs-nav-chip docs-nav-chip--planta">🎁 Free samples</a>
+        <a href="#pouches" className="docs-nav-chip docs-nav-chip--pouches">📦 Bundle unlock</a>
+        <a href="#landing" className="docs-nav-chip docs-nav-chip--landing">🎯 Landing page offer</a>
+        <a href="#loyalty" className="docs-nav-chip docs-nav-chip--loyalty">⭐ Loyalty rewards</a>
+      </nav>
+
+      {/* ── Rule types ─────────────────────────────────────────────────── */}
 
       <section className="form-section settings-card">
-        <h2 className="form-section__title">Rule Types</h2>
+        <h2 className="form-section__title">Rule types</h2>
 
-        <DocsCard
-          id="pa7_cross_sell"
-          title="Trigger Product → Same % off targets"
-          type="pa7_cross_sell"
-          description="When a trigger product is in the cart and a target product is present with exactly the configured quantity, applies a flat discount percentage to that target line."
-          fields={[
-            { name: "triggerProductId", type: "Product GID", desc: "Product that must be in cart to activate the discount." },
-            { name: "targetProductIds", type: "Product GID[]", desc: "Products that receive the discount when the trigger is present." },
-            { name: "targetLineQuantityEquals", type: "integer ≥ 1", desc: "The target line must have exactly this quantity. Lines with a different quantity are ignored." },
-            { name: "discountPercentage", type: "number 1–100", desc: "Percentage discount applied to all matching target lines." },
-            { name: "message", type: "string", desc: "Customer-facing message shown at checkout." },
+        <RuleCard
+          id="pa7"
+          variant="pa7"
+          icon="🤝"
+          name="Reward buying your hero product"
+          pitch="Cross-sell with a flat percentage off"
+          description="When a key product is in the cart, a complementary product gets a discount — but only if that product is present at the exact quantity you choose. Works best for cross-sells where the deal only makes sense for a single unit."
+          needs={[
+            "Trigger product",
+            "Target products",
+            "Exact target quantity (e.g. 1)",
+            "Discount %",
           ]}
-          example="PA7 in cart + C2 qty 1 → 10% off C2."
+          example="A customer adds PA7® Mediator mTOR Elevation. If they also have exactly 1 unit of C2 Pürest Creatine™, the creatine gets 10% off — automatically."
         />
 
-        <DocsCard
-          id="required_variants_free_variants"
-          title="Required Variants → Discounted Variants"
-          type="required_variants_free_variants"
-          description="All required variants must be present in the cart. When they are, applies a discount to each configured free variant line. Useful for subscription sample bundles."
-          fields={[
-            { name: "requiredVariantIds", type: "Variant GID[]", desc: "ALL of these variants must be in the cart for the rule to fire." },
-            { name: "freeVariantIds", type: "Variant GID[]", desc: "Variants that receive the discount when all required variants are present." },
-            { name: "freeQuantityPerLine", type: "integer ≥ 1", desc: "How many units per free variant line are discounted." },
-            { name: "discountPercentage", type: "number 1–100", desc: "Percentage discount on each free variant (100 = free)." },
-            { name: "message", type: "string", desc: "Customer-facing message shown at checkout." },
+        <RuleCard
+          id="planta"
+          variant="planta"
+          icon="🎁"
+          name="Include samples when the full set is there"
+          pitch="All required variants in cart → selected variants become free"
+          description="You define a required set of product variants that must all be in the cart together. Once the full set is there, other variants you specify drop to your chosen price — or all the way to zero. Great for sample packs and bundles where the giveaway is part of the offer."
+          needs={[
+            "Required variants (every one must be in cart)",
+            "Variants to discount",
+            "How many units per line",
+            "Discount % — set 100 to make them fully free",
           ]}
-          example="NAD3 Single + Planta PB sample + Planta Cacao sample in cart → both Planta samples become free."
+          example="NAD3 Single, Planta PB Sample, and Planta Cacao Sample are all in the cart — both Planta samples drop to $0. Any one missing, and nothing fires."
         />
 
-        <DocsCard
-          id="required_product_with_free_variants"
-          title="Required Product + Variants → Discounted Variants"
-          type="required_product_with_free_variants"
-          description="A trigger product AND all required variants must be in the cart. When both conditions are met, applies a discount to each free variant line with an optional quantity cap."
-          fields={[
-            { name: "triggerProductId", type: "Product GID", desc: "Product that must be in cart alongside the required variants." },
-            { name: "requiredVariantIds", type: "Variant GID[]", desc: "ALL of these variants must also be in the cart." },
-            { name: "freeVariantIds", type: "Variant GID[]", desc: "Variants that receive the discount." },
-            { name: "freeQuantityPerLine", type: "integer ≥ 1", desc: "Maximum units discounted per free variant line." },
-            { name: "discountPercentage", type: "number 1–100", desc: "Percentage discount on each free variant (100 = free)." },
-            { name: "message", type: "string", desc: "Customer-facing message shown at checkout." },
+        <RuleCard
+          id="pouches"
+          variant="pouches"
+          icon="📦"
+          name="Unlock free add-ons with a complete bundle"
+          pitch="Specific product + required variants = free extras"
+          description="Similar to the samples rule, but the trigger is a product rather than a variant. A specific product and a set of variants must all be in the cart before the free items unlock. Use this when the giveaway only makes sense alongside a particular product line."
+          needs={[
+            "Trigger product",
+            "Required variants (every one must be in cart)",
+            "Variants to give free",
+            "How many units per line",
           ]}
-          example="NAD3 240 + S9 pouch + N4 pouch in cart → 1 unit of each pouch becomes free."
+          example="NAD3 240, S9 1-Week Pouch, and N4 1-Week Pouch all in the cart — both pouches become free, one unit each."
         />
 
-        <DocsCard
-          id="trigger_product_discounted_targets"
-          title="Trigger Product → Discounted Targets (per-product %)"
-          type="trigger_product_discounted_targets"
-          description="When the trigger product is in the cart, applies an individual discount percentage to each configured target product. Each target can have a different discount. Ideal for landing page bundles."
-          fields={[
-            { name: "triggerProductId", type: "Product GID", desc: "Product that activates the discount for all targets." },
-            { name: "targets", type: "Array<{ productId, discountPercentage }>", desc: "List of target products, each with its own discount percentage." },
-            { name: "message", type: "string", desc: "Customer-facing message shown at checkout (shared by all targets)." },
+        <RuleCard
+          id="landing"
+          variant="landing"
+          icon="🎯"
+          name="One hero product unlocks multiple different offers"
+          pitch="Each target product gets its own discount percentage"
+          description="When a main product lands in the cart, other products you've added each get their own discount — and every target can be a different rate. Built for landing page campaigns where you're bundling several items with a headline product."
+          needs={[
+            "Trigger product",
+            "Target products, each with its own %",
           ]}
-          example="Main product in cart → Gift A at 100% off, Gift B at 50% off, Gift C at 30% off."
+          example="Main supplement in the cart → Gift A drops to free, Gift B goes 50% off, Gift C goes 30% off. Each target tracks its own percentage."
         />
 
-        <DocsCard
-          id="loyalty_tier"
-          title="Loyalty Tier — discount by customer order count"
-          type="loyalty_tier"
-          description="Applies tiered discounts to target products based on how many past orders the logged-in customer has. The highest matching tier wins. Guests are skipped silently."
-          fields={[
-            { name: "targetProductIds", type: "Product GID[]", desc: "Products that receive the loyalty discount." },
-            { name: "tiers", type: "Array<{ minOrders, discountPercentage }>", desc: "Tiers sorted by minOrders descending at runtime. The first tier where customer.numberOfOrders ≥ minOrders is applied." },
-            { name: "message", type: "string", desc: "Customer-facing message shown at checkout." },
+        <RuleCard
+          id="loyalty"
+          variant="loyalty"
+          icon="⭐"
+          name="The more they've ordered, the better the deal"
+          pitch="Tiered rewards based on a customer's order history"
+          description="Returning customers automatically see bigger discounts based on how many times they've bought from you — no code, no coupons. You set the tiers: each one has a minimum order count and a discount percentage. The highest tier they qualify for is what they get. Guests who aren't logged in are quietly skipped."
+          needs={[
+            "Target products",
+            "Tiers — minimum order count + discount % for each",
           ]}
-          example="0 orders → no discount. 1+ orders → 5% off. 5+ orders → 15% off. 10+ orders → 25% off."
+          example="On their 7th order, a customer automatically gets 15% off (your '5+ orders' tier). A first-time visitor sees nothing. A 12-order customer gets your top tier: 25% off."
         />
       </section>
 
-      {/* ------------------------------------------------------------------ */}
-      {/* Global conditions                                                   */}
-      {/* ------------------------------------------------------------------ */}
+      {/* ── Conditions ─────────────────────────────────────────────────── */}
 
       <section className="form-section settings-card">
-        <h2 className="form-section__title">Global Conditions</h2>
-        <p className="page-subtitle">
-          Every rule type supports these optional conditions. If any condition
-          fails, the rule is skipped entirely for that checkout.
+        <h2 className="form-section__title">Limit when a rule applies</h2>
+        <p className="docs-section-intro">
+          Every rule can have optional restrictions added to it. All of them must pass for
+          the discount to fire. Leave them blank to apply the rule to everyone.
         </p>
 
-        <table className="docs-table">
-          <thead>
-            <tr>
-              <th>Field</th>
-              <th>Type</th>
-              <th>Description</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td><code>minimumCartSubtotal</code></td>
-              <td>number (dollars)</td>
-              <td>Rule is skipped if the cart subtotal is below this amount.</td>
-            </tr>
-            <tr>
-              <td><code>requiredCartAttributeKey</code></td>
-              <td>string</td>
-              <td>
-                Rule fires only if the cart has an attribute with this key.
-                Combine with <code>requiredCartAttributeValue</code> to also
-                match the value.
-              </td>
-            </tr>
-            <tr>
-              <td><code>requiredCartAttributeValue</code></td>
-              <td>string (optional)</td>
-              <td>
-                If set, the cart attribute value must exactly match this string.
-              </td>
-            </tr>
-            <tr>
-              <td><code>requiresSubscriptionInCart</code></td>
-              <td>boolean</td>
-              <td>
-                Rule fires only if at least one cart line has a selling plan
-                (subscription).
-              </td>
-            </tr>
-          </tbody>
-        </table>
+        <div className="docs-cond-grid">
+          <div className="docs-cond-card">
+            <span className="docs-cond-icon">💰</span>
+            <h3 className="docs-cond-name">Minimum cart total</h3>
+            <p className="docs-cond-desc">
+              Only apply the discount when the cart total is at or above a dollar amount you set.
+              Good for "spend $X to unlock" promotions.
+            </p>
+          </div>
+
+          <div className="docs-cond-card">
+            <span className="docs-cond-icon">🔖</span>
+            <h3 className="docs-cond-name">Landing page source</h3>
+            <p className="docs-cond-desc">
+              Only apply to customers who arrived through a specific landing page.
+              The page sets a hidden tag on the cart — this condition checks for it.
+            </p>
+          </div>
+
+          <div className="docs-cond-card">
+            <span className="docs-cond-icon">🔁</span>
+            <h3 className="docs-cond-name">Subscription in cart</h3>
+            <p className="docs-cond-desc">
+              Only fire when at least one item in the cart is a subscription.
+              Perfect for "subscribe and save" offers that don't apply to one-time purchases.
+            </p>
+          </div>
+        </div>
       </section>
 
-      {/* ------------------------------------------------------------------ */}
-      {/* Landing page integration                                            */}
-      {/* ------------------------------------------------------------------ */}
+      {/* ── Landing page integration ────────────────────────────────────── */}
 
       <section className="form-section settings-card">
-        <h2 className="form-section__title">Landing Page Integration</h2>
-        <p className="page-subtitle">
-          Use cart attributes to trigger rules only when a customer arrives
-          through a specific landing page.
+        <h2 className="form-section__title">Targeting landing page visitors</h2>
+        <p className="docs-section-intro">
+          You can limit any rule to customers who clicked through a specific landing page.
+          Here's how the three pieces connect.
         </p>
 
         <ol className="docs-steps">
-          <li>
-            <strong>On your landing page</strong>, after the customer adds the
-            main product, call the Storefront API to set a cart attribute:
-            <pre className="alert__pre">{`const mutation = \`
-  mutation cartAttributesUpdate($cartId: ID!, $attributes: [AttributeInput!]!) {
-    cartAttributesUpdate(cartId: $cartId, attributes: $attributes) {
-      cart { id }
-    }
-  }
-\`;
-
-fetch('/api/2024-01/graphql.json', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json', 'X-Shopify-Storefront-Access-Token': TOKEN },
-  body: JSON.stringify({
-    query: mutation,
-    variables: {
-      cartId: cart.id,
-      attributes: [{ key: 'source', value: 'landing-page-supplement-x' }]
-    }
-  })
-});`}</pre>
+          <li className="docs-step">
+            <div className="docs-step-body">
+              <h3>Your landing page tags the cart</h3>
+              <p>
+                When a customer adds a product from a campaign landing page, the page quietly
+                adds a label to their cart — for example, <code>source: supplement-launch</code>.
+                This is a one-time setup per landing page, done by your developer or theme.
+              </p>
+            </div>
           </li>
-          <li>
-            <strong>In this app</strong>, create any rule and set the Additional
-            Conditions:
-            <ul>
-              <li>Required cart attribute key: <code>source</code></li>
-              <li>Required cart attribute value: <code>landing-page-supplement-x</code></li>
-            </ul>
+          <li className="docs-step">
+            <div className="docs-step-body">
+              <h3>You add the condition to a rule</h3>
+              <p>
+                In this app, open any rule and scroll to "Additional conditions."
+                Enter the label key (<code>source</code>) and the value (<code>supplement-launch</code>)
+                to match that audience exactly.
+              </p>
+            </div>
           </li>
-          <li>
-            <strong>At checkout</strong>, Shopify calls the discount function.
-            The function checks the cart attribute and only applies the discount
-            to carts that came through that landing page.
+          <li className="docs-step">
+            <div className="docs-step-body">
+              <h3>Only that audience gets the discount</h3>
+              <p>
+                At checkout, the discount function reads the cart label.
+                Carts from your landing page get the deal — everyone else checks out at full price.
+              </p>
+            </div>
           </li>
         </ol>
       </section>
 
-      {/* ------------------------------------------------------------------ */}
-      {/* Limitations                                                         */}
-      {/* ------------------------------------------------------------------ */}
+      {/* ── Notes ─────────────────────────────────────────────────────── */}
 
       <section className="form-section settings-card">
-        <h2 className="form-section__title">Limitations</h2>
+        <h2 className="form-section__title">Good to know before you start</h2>
 
-        <ul className="docs-steps">
+        <ul className="docs-notes">
           <li>
-            <strong>No time-based discounts inside the function.</strong> The
-            function has no access to the current time. Implement date windows
-            by enabling/disabling rules from this app.
+            <span className="docs-note-icon">📅</span>
+            <span>
+              <strong>Dates aren't automatic.</strong>{" "}
+              Rules don't know what day it is. For a limited-time promotion,
+              enable the rule when it starts and disable it when it ends.
+            </span>
           </li>
           <li>
-            <strong>Cannot add products to the cart.</strong> Discount functions
-            only apply discounts to existing cart lines. Auto-adding products
-            requires a Cart Transform function or storefront JavaScript.
+            <span className="docs-note-icon">🛒</span>
+            <span>
+              <strong>Products won't appear in the cart on their own.</strong>{" "}
+              Discounts only apply to items already there — the system can't add products for the customer.
+              They still need to add everything themselves.
+            </span>
           </li>
           <li>
-            <strong>No inventory access.</strong> The function cannot check
-            stock levels.
+            <span className="docs-note-icon">📦</span>
+            <span>
+              <strong>Stock levels aren't checked.</strong>{" "}
+              A rule doesn't know if something is out of stock — it applies the discount regardless.
+              Watch your inventory on any rule that makes items free.
+            </span>
           </li>
           <li>
-            <strong>Loyalty tier requires login.</strong> Guest customers
-            have no order history — loyalty_tier rules are silently skipped
-            for guests.
+            <span className="docs-note-icon">🔐</span>
+            <span>
+              <strong>Loyalty rules need a logged-in customer.</strong>{" "}
+              Guest shoppers have no order history, so loyalty tier rules are silently skipped for them.
+            </span>
           </li>
           <li>
-            <strong>One discount per cart line.</strong> If multiple rules
-            target the same line, the function applies only the highest
-            percentage (selection strategy: ALL picks the best candidate per
-            line).
+            <span className="docs-note-icon">🏆</span>
+            <span>
+              <strong>If two rules target the same product, the better discount wins.</strong>{" "}
+              The customer always gets the higher percentage — never both at once, never the lower one.
+            </span>
           </li>
         </ul>
       </section>
@@ -235,63 +233,51 @@ fetch('/api/2024-01/graphql.json', {
 }
 
 // ---------------------------------------------------------------------------
-// Sub-components
+// RuleCard
 // ---------------------------------------------------------------------------
 
-interface FieldDoc {
-  name: string;
-  type: string;
-  desc: string;
-}
-
-function DocsCard({
+function RuleCard({
   id,
-  title,
-  type,
+  variant,
+  icon,
+  name,
+  pitch,
   description,
-  fields,
+  needs,
   example,
 }: {
   id: string;
-  title: string;
-  type: string;
+  variant: "pa7" | "planta" | "pouches" | "landing" | "loyalty";
+  icon: string;
+  name: string;
+  pitch: string;
   description: string;
-  fields: FieldDoc[];
+  needs: string[];
   example: string;
 }) {
   return (
-    <div className="docs-rule-card" id={id}>
-      <div className="docs-rule-card__header">
+    <div className={`docs-rule docs-rule--${variant}`} id={id}>
+      <div className="docs-rule-top">
+        <div className="docs-rule-icon" aria-hidden="true">{icon}</div>
         <div>
-          <h3 className="docs-rule-card__title">{title}</h3>
-          <code className="docs-rule-card__type">{type}</code>
+          <h3 className="docs-rule-name">{name}</h3>
+          <p className="docs-rule-pitch">{pitch}</p>
         </div>
       </div>
 
-      <p className="docs-rule-card__desc">{description}</p>
+      <p className="docs-rule-desc">{description}</p>
 
-      <table className="docs-table">
-        <thead>
-          <tr>
-            <th>Field</th>
-            <th>Type</th>
-            <th>Description</th>
-          </tr>
-        </thead>
-        <tbody>
-          {fields.map((f) => (
-            <tr key={f.name}>
-              <td><code>{f.name}</code></td>
-              <td className="cell-muted">{f.type}</td>
-              <td>{f.desc}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <div className="docs-rule-needs">
+        <span className="docs-needs-label">You'll configure:</span>
+        {needs.map((need) => (
+          <span key={need} className="docs-need-chip">{need}</span>
+        ))}
+      </div>
 
-      <p className="docs-rule-card__example">
-        <strong>Example: </strong>{example}
-      </p>
+      <div className="docs-rule-example">
+        <p className="docs-example-eyebrow">In practice</p>
+        <p className="docs-example-text">{example}</p>
+      </div>
     </div>
   );
 }

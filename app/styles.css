@@ -2230,94 +2230,305 @@ input[type="radio"] {
 }
 
 /* ============================================================
-   Docs page
+   Docs page — editorial redesign
    ============================================================ */
 
-.docs-rule-card {
-  padding: 20px 0;
+/* Rule-type accent palette — isolated to docs page */
+:root {
+  --docs-pa7:     #4B6EF5;
+  --docs-planta:  #28B07A;
+  --docs-pouches: #0DA09C;
+  --docs-landing: #F07040;
+  --docs-loyalty: #C48D00;
+}
+
+/* Quick-jump nav ------------------------------------------- */
+
+.docs-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-block-end: 28px;
+}
+
+.docs-nav-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 5px 13px;
+  border-radius: 20px;
+  border: 1.5px solid var(--border);
+  background: var(--surface-raised, #fff);
+  color: var(--text);
+  text-decoration: none;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+}
+
+.docs-nav-chip:hover           { background: var(--surface-hovered); }
+.docs-nav-chip--pa7:hover      { border-color: var(--docs-pa7);     color: var(--docs-pa7); }
+.docs-nav-chip--planta:hover   { border-color: var(--docs-planta);  color: var(--docs-planta); }
+.docs-nav-chip--pouches:hover  { border-color: var(--docs-pouches); color: var(--docs-pouches); }
+.docs-nav-chip--landing:hover  { border-color: var(--docs-landing); color: var(--docs-landing); }
+.docs-nav-chip--loyalty:hover  { border-color: var(--docs-loyalty); color: var(--docs-loyalty); }
+
+/* Section intro -------------------------------------------- */
+
+.docs-section-intro {
+  font-size: 14px;
+  color: var(--text-muted);
+  line-height: 1.65;
+  margin: -4px 0 20px;
+}
+
+/* Rule cards ----------------------------------------------- */
+
+.docs-rule {
+  padding: 24px 0;
   border-block-end: 1px solid var(--border);
+  display: grid;
+  gap: 14px;
 }
 
-.docs-rule-card:last-child {
+.docs-rule:last-child {
   border-block-end: none;
+  padding-block-end: 0;
 }
 
-.docs-rule-card__header {
+.docs-rule-top {
   display: flex;
   align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-  margin-block-end: 8px;
+  gap: 14px;
 }
 
-.docs-rule-card__title {
-  font-size: 15px;
-  font-weight: 600;
-  margin: 0 0 4px;
-}
-
-.docs-rule-card__type {
-  font-size: 11px;
-  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+.docs-rule-icon {
+  font-size: 24px;
+  line-height: 1;
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
   background: var(--surface-subdued);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  padding: 2px 6px;
-  color: var(--text-muted);
+  /* overridden per variant below */
 }
 
-.docs-rule-card__desc {
-  margin: 0 0 14px;
-  color: var(--text-muted);
-  font-size: 13px;
+.docs-rule--pa7    .docs-rule-icon { background: #EEF1FE; }
+.docs-rule--planta .docs-rule-icon { background: #E5F7EE; }
+.docs-rule--pouches .docs-rule-icon { background: #E4F5F5; }
+.docs-rule--landing .docs-rule-icon { background: #FEF0EA; }
+.docs-rule--loyalty .docs-rule-icon { background: #FEF6E4; }
+
+.docs-rule-name {
+  font-size: 16px;
+  font-weight: 700;
+  margin: 0 0 3px;
+  letter-spacing: -0.015em;
+  line-height: 1.3;
 }
 
-.docs-rule-card__example {
-  margin: 12px 0 0;
-  font-size: 13px;
+.docs-rule-pitch {
+  font-size: 12px;
   color: var(--text-muted);
+  margin: 0;
+  font-style: italic;
 }
 
-.docs-table {
-  inline-size: 100%;
-  border-collapse: collapse;
-  font-size: 13px;
+.docs-rule-desc {
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--text);
   margin: 0;
 }
 
-.docs-table th,
-.docs-table td {
-  padding: 8px 10px;
-  text-align: start;
-  border-block-end: 1px solid var(--border);
-  vertical-align: top;
+/* "You'll configure" chip row */
+.docs-rule-needs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
 }
 
-.docs-table th {
+.docs-needs-label {
   font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06em;
   color: var(--text-muted);
+  margin-inline-end: 2px;
+}
+
+.docs-need-chip {
+  font-size: 12px;
+  padding: 3px 10px;
+  border-radius: 4px;
   background: var(--surface-subdued);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
 }
 
-.docs-table tbody tr:hover {
-  background: var(--surface-hovered);
+/* Example callout */
+.docs-rule-example {
+  background: var(--surface-subdued);
+  border-radius: 8px;
+  padding: 14px 18px;
+  border-inline-start: 3px solid var(--border);
 }
 
-.docs-steps {
-  padding-inline-start: 20px;
-  display: grid;
-  gap: 12px;
+.docs-rule--pa7    .docs-rule-example { border-color: var(--docs-pa7); }
+.docs-rule--planta .docs-rule-example { border-color: var(--docs-planta); }
+.docs-rule--pouches .docs-rule-example { border-color: var(--docs-pouches); }
+.docs-rule--landing .docs-rule-example { border-color: var(--docs-landing); }
+.docs-rule--loyalty .docs-rule-example { border-color: var(--docs-loyalty); }
+
+.docs-example-eyebrow {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  margin: 0 0 5px;
+}
+
+.docs-example-text {
   font-size: 13px;
   color: var(--text);
+  margin: 0;
+  line-height: 1.65;
 }
 
-.docs-steps li {
+/* Conditions grid ------------------------------------------ */
+
+.docs-cond-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.docs-cond-card {
+  background: var(--surface-subdued);
+  border-radius: 10px;
+  padding: 16px 18px;
+  border: 1px solid var(--border);
+}
+
+.docs-cond-icon {
+  font-size: 20px;
+  display: block;
+  margin-block-end: 10px;
+  line-height: 1;
+}
+
+.docs-cond-name {
+  font-size: 13px;
+  font-weight: 600;
+  margin: 0 0 5px;
+}
+
+.docs-cond-desc {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin: 0;
   line-height: 1.6;
 }
 
-.docs-steps pre {
-  margin-block-start: 10px;
+/* Steps (landing page section) ----------------------------- */
+
+.docs-steps {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  counter-reset: docs-step;
+  display: grid;
+  gap: 0;
+}
+
+.docs-step {
+  display: flex;
+  gap: 16px;
+  counter-increment: docs-step;
+  padding-block-end: 24px;
+  position: relative;
+}
+
+.docs-step:last-child {
+  padding-block-end: 0;
+}
+
+/* Numbered circle via ::before */
+.docs-step::before {
+  content: counter(docs-step);
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--text, #1a1a1a);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* Vertical connector line */
+.docs-step:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  inline-size: 2px;
+  background: var(--border);
+  inset-inline-start: 14px;
+  inset-block-start: 34px;
+  inset-block-end: 0;
+}
+
+.docs-step-body {
+  padding-block-start: 4px;
+}
+
+.docs-step-body h3 {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0 0 5px;
+}
+
+.docs-step-body p {
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.65;
+  margin: 0;
+}
+
+.docs-step-body code {
+  font-size: 12px;
+  background: var(--surface-subdued);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 1px 5px;
+}
+
+/* Notes list ----------------------------------------------- */
+
+.docs-notes {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 16px;
+}
+
+.docs-notes li {
+  display: flex;
+  gap: 13px;
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.docs-note-icon {
+  font-size: 18px;
+  flex-shrink: 0;
+  margin-block-start: 1px;
 }

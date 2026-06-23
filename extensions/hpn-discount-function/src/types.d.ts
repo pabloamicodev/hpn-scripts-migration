@@ -18,6 +18,9 @@ export type Scalars = {
 export type Cart = {
   __typename?: 'Cart';
   lines: Array<CartLine>;
+  cost: CartCost;
+  attributes: Array<CartAttribute>;
+  buyerIdentity: CartBuyerIdentity;
 };
 
 export type CartLine = {
@@ -25,6 +28,53 @@ export type CartLine = {
   id: Scalars['ID']['output'];
   merchandise: Merchandise;
   quantity: Scalars['Int']['output'];
+  cost: CartLineCost;
+  sellingPlanAllocation?: Maybe<SellingPlanAllocation>;
+};
+
+export type CartCost = {
+  __typename?: 'CartCost';
+  subtotalAmount: MoneyV2;
+};
+
+export type CartLineCost = {
+  __typename?: 'CartLineCost';
+  totalAmount: MoneyV2;
+};
+
+export type MoneyV2 = {
+  __typename?: 'MoneyV2';
+  amount: Scalars['Decimal']['output'];
+  currencyCode: Scalars['String']['output'];
+};
+
+export type CartAttribute = {
+  __typename?: 'CartAttribute';
+  key: Scalars['String']['output'];
+  value?: Maybe<Scalars['String']['output']>;
+};
+
+export type CartBuyerIdentity = {
+  __typename?: 'CartBuyerIdentity';
+  customer?: Maybe<Customer>;
+  email?: Maybe<Scalars['String']['output']>;
+  countryCode?: Maybe<Scalars['String']['output']>;
+};
+
+export type Customer = {
+  __typename?: 'Customer';
+  numberOfOrders: Scalars['Int']['output'];
+  amountSpent: MoneyV2;
+};
+
+export type SellingPlanAllocation = {
+  __typename?: 'SellingPlanAllocation';
+  sellingPlan: SellingPlan;
+};
+
+export type SellingPlan = {
+  __typename?: 'SellingPlan';
+  id: Scalars['ID']['output'];
 };
 
 export type CartLinesDiscountsGenerateRunResult = {
@@ -39,7 +89,6 @@ export type Discount = {
   discountClasses: Array<DiscountClass>;
   metafield?: Maybe<Metafield>;
 };
-
 
 export type DiscountMetafieldArgs = {
   key: Scalars['String']['input'];
@@ -68,6 +117,7 @@ export type Metafield = {
 export type Product = {
   __typename?: 'Product';
   id: Scalars['ID']['output'];
+  tags: Array<Scalars['String']['output']>;
 };
 
 export type ProductDiscountCandidate = {
@@ -127,5 +177,34 @@ export type ProductVariant = {
 
 export type RunInputQueryVariables = Exact<{ [key: string]: never; }>;
 
-
-export type RunInputQuery = { __typename?: 'Input', cart: { __typename?: 'Cart', lines: Array<{ __typename?: 'CartLine', id: string, quantity: number, merchandise: { __typename: 'ProductVariant', id: string, product: { __typename?: 'Product', id: string } } }> }, discount: { __typename?: 'Discount', discountClasses: Array<DiscountClass>, metafield?: { __typename?: 'Metafield', value: string } | null } };
+export type RunInputQuery = {
+  __typename?: 'Input';
+  cart: {
+    __typename?: 'Cart';
+    cost: { __typename?: 'CartCost'; subtotalAmount: { __typename?: 'MoneyV2'; amount: any; currencyCode: string } };
+    attributes: Array<{ __typename?: 'CartAttribute'; key: string; value?: string | null }>;
+    buyerIdentity: {
+      __typename?: 'CartBuyerIdentity';
+      email?: string | null;
+      countryCode?: string | null;
+      customer?: {
+        __typename?: 'Customer';
+        numberOfOrders: number;
+        amountSpent: { __typename?: 'MoneyV2'; amount: any; currencyCode: string };
+      } | null;
+    };
+    lines: Array<{
+      __typename?: 'CartLine';
+      id: string;
+      quantity: number;
+      cost: { __typename?: 'CartLineCost'; totalAmount: { __typename?: 'MoneyV2'; amount: any; currencyCode: string } };
+      sellingPlanAllocation?: { __typename?: 'SellingPlanAllocation'; sellingPlan: { __typename?: 'SellingPlan'; id: string } } | null;
+      merchandise: { __typename: 'ProductVariant'; id: string; product: { __typename?: 'Product'; id: string; tags: Array<string> } };
+    }>;
+  };
+  discount: {
+    __typename?: 'Discount';
+    discountClasses: Array<DiscountClass>;
+    metafield?: { __typename?: 'Metafield'; value: string } | null;
+  };
+};

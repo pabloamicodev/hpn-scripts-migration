@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import {
   evaluateConfig,
   type CartLine,
+  type CartEvalContext,
   type DiscountAction,
 } from "../lib/hpnPromoEvaluator";
 import type { HpnPromoConfig, HpnPromoRule } from "../lib/validations";
@@ -282,6 +283,12 @@ export function CartSimulator({ config, activeRuleId }: CartSimulatorProps) {
     "idle",
   );
 
+  // Simulation context inputs
+  const [simSubtotal, setSimSubtotal] = useState("");
+  const [simOrders, setSimOrders] = useState("");
+  const [simAttributes, setSimAttributes] = useState("");
+  const [simHasSub, setSimHasSub] = useState(false);
+
   const activeRule = useMemo(() => {
     if (!activeRuleId) return null;
     return config.rules.find((rule) => rule.id === activeRuleId) ?? null;
@@ -295,10 +302,30 @@ export function CartSimulator({ config, activeRuleId }: CartSimulatorProps) {
     };
   }, [activeRule, config]);
 
+  const evalContext = useMemo((): CartEvalContext => {
+    const attributes = simAttributes
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .map((s) => {
+        const eq = s.indexOf("=");
+        return eq > -1
+          ? { key: s.slice(0, eq).trim(), value: s.slice(eq + 1).trim() }
+          : { key: s, value: "" };
+      });
+
+    return {
+      subtotalAmount: simSubtotal ? parseFloat(simSubtotal) : undefined,
+      customerNumberOfOrders: simOrders !== "" ? parseInt(simOrders, 10) : undefined,
+      attributes: attributes.length ? attributes : undefined,
+      hasSubscriptionItem: simHasSub || undefined,
+    };
+  }, [simSubtotal, simOrders, simAttributes, simHasSub]);
+
   const results = useMemo(() => {
     if (cartLines.length === 0) return [];
-    return evaluateConfig(testConfig, cartLines);
-  }, [cartLines, testConfig]);
+    return evaluateConfig(testConfig, cartLines, evalContext);
+  }, [cartLines, testConfig, evalContext]);
 
   const totalQuantity = cartLines.reduce((sum, line) => sum + line.quantity, 0);
   const discountedQuantity = results.reduce(
@@ -606,6 +633,75 @@ export function CartSimulator({ config, activeRuleId }: CartSimulatorProps) {
                     </span>
                   </button>
                 ))}
+              </div>
+            </div>
+          </section>
+
+          <section className="card settings-card simulator-panel">
+            <div className="card__header">
+              <div>
+                <h3 className="card__title">Context</h3>
+                <p className="card__subtitle">
+                  Simulate cart conditions for rule evaluation.
+                </p>
+              </div>
+            </div>
+
+            <div className="card__body">
+              <div className="form-group">
+                <label className="form-label" htmlFor="sim-subtotal">
+                  Cart subtotal ($)
+                </label>
+                <input
+                  id="sim-subtotal"
+                  type="number"
+                  min={0}
+                  step={0.01}
+                  value={simSubtotal}
+                  onChange={(e) => setSimSubtotal(e.target.value)}
+                  className="number-field"
+                  placeholder="e.g. 75.00"
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label" htmlFor="sim-orders">
+                  Customer past orders
+                </label>
+                <input
+                  id="sim-orders"
+                  type="number"
+                  min={0}
+                  value={simOrders}
+                  onChange={(e) => setSimOrders(e.target.value)}
+                  className="number-field"
+                  placeholder="e.g. 3 (blank = guest)"
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label" htmlFor="sim-attrs">
+                  Cart attributes
+                </label>
+                <input
+                  id="sim-attrs"
+                  type="text"
+                  value={simAttributes}
+                  onChange={(e) => setSimAttributes(e.target.value)}
+                  placeholder="source=landing-page-x"
+                />
+                <p className="field-hint">Comma-separated key=value pairs</p>
+              </div>
+
+              <div className="form-group">
+                <label className="checkbox-row">
+                  <input
+                    type="checkbox"
+                    checked={simHasSub}
+                    onChange={(e) => setSimHasSub(e.target.checked)}
+                  />
+                  <span>Has subscription item in cart</span>
+                </label>
               </div>
             </div>
           </section>

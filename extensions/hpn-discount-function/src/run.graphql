@@ -1,14 +1,47 @@
 query RunInput {
   cart {
+    cost {
+      subtotalAmount {
+        amount
+        currencyCode
+      }
+    }
+    attributes {
+      key
+      value
+    }
+    buyerIdentity {
+      customer {
+        numberOfOrders
+        amountSpent {
+          amount
+          currencyCode
+        }
+      }
+      email
+      countryCode
+    }
     lines {
       id
       quantity
+      cost {
+        totalAmount {
+          amount
+          currencyCode
+        }
+      }
+      sellingPlanAllocation {
+        sellingPlan {
+          id
+        }
+      }
       merchandise {
         __typename
         ... on ProductVariant {
           id
           product {
             id
+            tags
           }
         }
       }

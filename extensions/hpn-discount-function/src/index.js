@@ -1,16 +1,9 @@
-// @ts-check
-
 const EMPTY_RESULT = {
   operations: [],
 };
 
 const PRODUCT_DISCOUNT_SELECTION_STRATEGY = "ALL";
 
-/**
- * Entry point called by Shopify at checkout with the cart and metafield config.
- * @param {object} input
- * @returns {{ operations: object[] }}
- */
 export function cartLinesDiscountsGenerateRun(input) {
   const discountClasses = input?.discount?.discountClasses ?? [];
   if (!discountClasses.includes("PRODUCT")) return EMPTY_RESULT;
@@ -29,14 +22,15 @@ export function cartLinesDiscountsGenerateRun(input) {
     return EMPTY_RESULT;
   }
 
+  const cart = input.cart ?? {};
+  const buyerIdentity = cart.buyerIdentity ?? {};
+
   // --- Index cart lines by product ID and variant ID ---
-  const lines = (input.cart?.lines ?? []).filter(
+  const lines = (cart.lines ?? []).filter(
     (l) => l.merchandise?.__typename === "ProductVariant"
   );
 
-  /** @type {Map<string, object[]>} */
   const byProduct = new Map();
-  /** @type {Map<string, object[]>} */
   const byVariant = new Map();
 
   for (const line of lines) {
@@ -51,13 +45,15 @@ export function cartLinesDiscountsGenerateRun(input) {
   }
 
   // --- Evaluate each enabled rule ---
-  /** @type {object[]} */
   const candidatesByLine = new Map();
 
   for (const rule of config.rules) {
     // Skip malformed entries (null, non-object, missing type) that could crash downstream.
     if (!rule || typeof rule !== "object" || typeof rule.type !== "string") continue;
     if (!rule.enabled) continue;
+
+    // Check global conditions before dispatching to the specific rule handler.
+    if (!checkGlobalConditions(rule, cart)) continue;
 
     if (rule.type === "pa7_cross_sell") {
       applyPa7Rule(rule, byProduct, candidatesByLine);
@@ -67,6 +63,8 @@ export function cartLinesDiscountsGenerateRun(input) {
       applyPouchesRule(rule, byProduct, byVariant, candidatesByLine);
     } else if (rule.type === "trigger_product_discounted_targets") {
       applyTriggerProductDiscountedTargetsRule(rule, byProduct, candidatesByLine);
+    } else if (rule.type === "loyalty_tier") {
+      applyLoyaltyTierRule(rule, byProduct, candidatesByLine, buyerIdentity);
     }
   }
 
@@ -95,7 +93,7 @@ function addCandidate(candidatesByLine, line, quantity, percentage, message) {
     value: {
       percentage: { value: percentage === 100 ? "100.0" : String(percentage) },
     },
-    message,
+    message: message ?? "",
   };
   const existing = candidatesByLine.get(line.id);
   if (!existing) {
@@ -116,8 +114,51 @@ function addCandidate(candidatesByLine, line, quantity, percentage, message) {
 
 export const run = cartLinesDiscountsGenerateRun;
 
+// ---------------------------------------------------------------------------
+// Global conditions guard
+// ---------------------------------------------------------------------------
+
+function checkGlobalConditions(rule, cart) {
+  const c = rule.conditions;
+  if (!c || typeof c !== "object") return true;
+
+  // Minimum cart subtotal
+  if (typeof c.minimumCartSubtotal === "number") {
+    const subtotal = parseFloat(cart.cost?.subtotalAmount?.amount ?? "0");
+    if (isNaN(subtotal) || subtotal < c.minimumCartSubtotal) return false;
+  }
+
+  // Required cart attribute key/value
+  if (typeof c.requiredCartAttributeKey === "string") {
+    const attrs = Array.isArray(cart.attributes) ? cart.attributes : [];
+    const attr = attrs.find((a) => a.key === c.requiredCartAttributeKey);
+    if (!attr) return false;
+    if (
+      typeof c.requiredCartAttributeValue === "string" &&
+      attr.value !== c.requiredCartAttributeValue
+    ) {
+      return false;
+    }
+  }
+
+  // Requires at least one subscription item
+  if (c.requiresSubscriptionInCart === true) {
+    const hasSub = (cart.lines ?? []).some(
+      (l) => l.sellingPlanAllocation != null
+    );
+    if (!hasSub) return false;
+  }
+
+  return true;
+}
+
+// ---------------------------------------------------------------------------
+// Rule handlers
+// ---------------------------------------------------------------------------
+
 /**
- * PA7 Cross-Sell: when PA7 is in cart, apply X% off to C2/T5 lines with qty === 1.
+ * PA7 Cross-Sell: when trigger product is in cart, apply X% off to target
+ * product lines that have exactly the configured quantity.
  */
 function applyPa7Rule(rule, byProduct, candidates) {
   if (
@@ -131,18 +172,16 @@ function applyPa7Rule(rule, byProduct, candidates) {
 
   for (const targetProductId of rule.targetProductIds) {
     const targetLines = byProduct.get(targetProductId) ?? [];
-
     for (const line of targetLines) {
       if (line.quantity !== rule.targetLineQuantityEquals) continue;
-
       addCandidate(candidates, line, null, rule.discountPercentage, rule.message);
     }
   }
 }
 
 /**
- * NAD3 Single + Planta Samples: all required variants must be present,
- * then exactly one unit of each free variant gets 100% off across the cart.
+ * Required Variants → Discounted Variants: all required variants must be
+ * present in cart; then apply configured % to each free variant line.
  */
 function applyPlantaRule(rule, byVariant, candidates) {
   if (
@@ -151,7 +190,7 @@ function applyPlantaRule(rule, byVariant, candidates) {
     typeof rule.freeQuantityPerLine !== "number" ||
     rule.freeQuantityPerLine < 1
   ) return;
-  // All required variants must be in cart
+
   for (const requiredId of rule.requiredVariantIds) {
     if (!byVariant.get(requiredId)?.length) return;
   }
@@ -159,16 +198,16 @@ function applyPlantaRule(rule, byVariant, candidates) {
   const pct = typeof rule.discountPercentage === "number" ? rule.discountPercentage : 100;
 
   for (const freeId of rule.freeVariantIds) {
-    const freeLines = byVariant.get(freeId) ?? [];
-    const line = freeLines[0];
+    const line = (byVariant.get(freeId) ?? [])[0];
     if (!line) continue;
-    addCandidate(candidates, line, rule.freeQuantityPerLine, pct, rule.message);
+    const qty = Math.min(rule.freeQuantityPerLine, line.quantity);
+    addCandidate(candidates, line, qty, pct, rule.message);
   }
 }
 
 /**
- * NAD3 240 + Pouches: trigger product AND both pouch variants must be present.
- * Only 1 unit per pouch line is free (freeQuantityPerLine = 1).
+ * Required Product + Variants → Discounted Variants: trigger product AND all
+ * required variants must be present; then apply % to each free variant line.
  */
 function applyPouchesRule(rule, byProduct, byVariant, candidates) {
   if (
@@ -178,10 +217,9 @@ function applyPouchesRule(rule, byProduct, byVariant, candidates) {
     typeof rule.freeQuantityPerLine !== "number" ||
     rule.freeQuantityPerLine < 1
   ) return;
-  const triggerLines = byProduct.get(rule.triggerProductId);
-  if (!triggerLines?.length) return;
 
-  // All required variants must be in cart
+  if (!byProduct.get(rule.triggerProductId)?.length) return;
+
   for (const requiredId of rule.requiredVariantIds) {
     if (!byVariant.get(requiredId)?.length) return;
   }
@@ -189,22 +227,15 @@ function applyPouchesRule(rule, byProduct, byVariant, candidates) {
   const pct = typeof rule.discountPercentage === "number" ? rule.discountPercentage : 100;
 
   for (const freeId of rule.freeVariantIds) {
-    const freeLines = byVariant.get(freeId) ?? [];
-
-    for (const line of freeLines) {
-      addCandidate(
-        candidates,
-        line,
-        rule.freeQuantityPerLine,
-        pct,
-        rule.message,
-      );
+    for (const line of (byVariant.get(freeId) ?? [])) {
+      const qty = Math.min(rule.freeQuantityPerLine, line.quantity);
+      addCandidate(candidates, line, qty, pct, rule.message);
     }
   }
 }
 
 /**
- * Trigger Product + Discounted Targets: when trigger product is in cart,
+ * Trigger Product → Discounted Targets: when trigger product is in cart,
  * apply per-target discount % to each configured target product's lines.
  */
 function applyTriggerProductDiscountedTargetsRule(rule, byProduct, candidates) {
@@ -214,8 +245,7 @@ function applyTriggerProductDiscountedTargetsRule(rule, byProduct, candidates) {
     rule.targets.length === 0
   ) return;
 
-  const triggerLines = byProduct.get(rule.triggerProductId);
-  if (!triggerLines?.length) return;
+  if (!byProduct.get(rule.triggerProductId)?.length) return;
 
   for (const target of rule.targets) {
     if (
@@ -224,9 +254,33 @@ function applyTriggerProductDiscountedTargetsRule(rule, byProduct, candidates) {
       target.discountPercentage < 1
     ) continue;
 
-    const targetLines = byProduct.get(target.productId) ?? [];
-    for (const line of targetLines) {
+    for (const line of (byProduct.get(target.productId) ?? [])) {
       addCandidate(candidates, line, null, target.discountPercentage, rule.message);
+    }
+  }
+}
+
+/**
+ * Loyalty Tier: applies the highest matching tier discount to target products
+ * based on the logged-in customer's order count. Skipped for guests.
+ */
+function applyLoyaltyTierRule(rule, byProduct, candidates, buyerIdentity) {
+  if (!Array.isArray(rule.targetProductIds) || !Array.isArray(rule.tiers) || rule.tiers.length === 0) return;
+
+  const numberOfOrders = buyerIdentity?.customer?.numberOfOrders;
+  if (numberOfOrders == null || typeof numberOfOrders !== "number") return;
+
+  // Sort tiers highest-first and pick first where customer qualifies
+  const sorted = [...rule.tiers]
+    .filter((t) => typeof t.minOrders === "number" && typeof t.discountPercentage === "number")
+    .sort((a, b) => b.minOrders - a.minOrders);
+
+  const activeTier = sorted.find((t) => numberOfOrders >= t.minOrders);
+  if (!activeTier) return;
+
+  for (const productId of rule.targetProductIds) {
+    for (const line of (byProduct.get(productId) ?? [])) {
+      addCandidate(candidates, line, null, activeTier.discountPercentage, rule.message);
     }
   }
 }

@@ -41,6 +41,18 @@ interface DiscountTarget {
   discountPercentage: number;
 }
 
+interface LoyaltyTierEntry {
+  minOrders: number;
+  discountPercentage: number;
+}
+
+interface RuleConditionsFormValues {
+  minimumCartSubtotal?: number;
+  requiredCartAttributeKey?: string;
+  requiredCartAttributeValue?: string;
+  requiresSubscriptionInCart?: boolean;
+}
+
 interface PromoRuleFormValues {
   id: string;
   type: PromoRuleType;
@@ -54,9 +66,24 @@ interface PromoRuleFormValues {
   freeVariantIds?: string[];
   freeQuantityPerLine?: number | null;
   targets?: DiscountTarget[];
+  tiers?: LoyaltyTierEntry[];
+  conditions?: RuleConditionsFormValues;
 }
 
 const DEFAULT_RULES: Record<PromoRuleType, PromoRuleFormValues> = {
+  loyalty_tier: {
+    id: "loyalty-discount",
+    type: "loyalty_tier",
+    enabled: true,
+    targetProductIds: [],
+    tiers: [
+      { minOrders: 1, discountPercentage: 5 },
+      { minOrders: 5, discountPercentage: 15 },
+      { minOrders: 10, discountPercentage: 25 },
+    ],
+    message: "Loyalty discount!",
+  },
+
   trigger_product_discounted_targets: {
     id: "trigger-discounted-targets",
     type: "trigger_product_discounted_targets",
@@ -94,6 +121,7 @@ const DEFAULT_RULES: Record<PromoRuleType, PromoRuleFormValues> = {
       HPN_VARIANTS.PLANTA_SAMPLE_VARIANT_ID_2,
     ],
     freeQuantityPerLine: 1,
+    discountPercentage: 100,
     message: HPN_PROMO_MESSAGES.PLANTA_SAMPLES,
   },
 
@@ -111,6 +139,7 @@ const DEFAULT_RULES: Record<PromoRuleType, PromoRuleFormValues> = {
       HPN_VARIANTS.N4_1WK_POUCH_VARIANT_ID,
     ],
     freeQuantityPerLine: 1,
+    discountPercentage: 100,
     message: HPN_PROMO_MESSAGES.FREE_POUCHES,
   },
 };
@@ -131,7 +160,8 @@ function makeRuleId(type: PromoRuleType) {
   if (type === "pa7_cross_sell") return `pa7-cross-sell-${suffix}`;
   if (type === "required_variants_free_variants") return `required-variants-free-variants-${suffix}`;
   if (type === "required_product_with_free_variants") return `required-product-free-variants-${suffix}`;
-  return `trigger-discounted-targets-${suffix}`;
+  if (type === "trigger_product_discounted_targets") return `trigger-discounted-targets-${suffix}`;
+  return `loyalty-tier-${suffix}`;
 }
 
 function makeDefaultRule(type: PromoRuleType): PromoRuleFormValues {
@@ -145,7 +175,25 @@ function getGidTail(gid: string) {
   return gid.split("/").pop() ?? gid;
 }
 
+function buildConditions(
+  c: RuleConditionsFormValues | undefined,
+): Record<string, unknown> | undefined {
+  if (!c) return undefined;
+  const out: Record<string, unknown> = {};
+  if (c.minimumCartSubtotal) out.minimumCartSubtotal = c.minimumCartSubtotal;
+  if (c.requiredCartAttributeKey) {
+    out.requiredCartAttributeKey = c.requiredCartAttributeKey;
+    if (c.requiredCartAttributeValue != null) {
+      out.requiredCartAttributeValue = c.requiredCartAttributeValue;
+    }
+  }
+  if (c.requiresSubscriptionInCart) out.requiresSubscriptionInCart = true;
+  return Object.keys(out).length ? out : undefined;
+}
+
 function buildRulePayload(values: PromoRuleFormValues): unknown {
+  const conditions = buildConditions(values.conditions);
+
   if (values.type === "pa7_cross_sell") {
     return {
       id: values.id,
@@ -156,6 +204,7 @@ function buildRulePayload(values: PromoRuleFormValues): unknown {
       targetLineQuantityEquals: values.targetLineQuantityEquals,
       discountPercentage: values.discountPercentage,
       message: values.message,
+      conditions,
     };
   }
 
@@ -169,6 +218,7 @@ function buildRulePayload(values: PromoRuleFormValues): unknown {
       freeQuantityPerLine: values.freeQuantityPerLine ?? 1,
       discountPercentage: values.discountPercentage ?? 100,
       message: values.message,
+      conditions,
     };
   }
 
@@ -183,16 +233,30 @@ function buildRulePayload(values: PromoRuleFormValues): unknown {
       freeQuantityPerLine: values.freeQuantityPerLine ?? 1,
       discountPercentage: values.discountPercentage ?? 100,
       message: values.message,
+      conditions,
+    };
+  }
+
+  if (values.type === "trigger_product_discounted_targets") {
+    return {
+      id: values.id,
+      type: "trigger_product_discounted_targets",
+      enabled: values.enabled,
+      triggerProductId: values.triggerProductId,
+      targets: values.targets ?? [],
+      message: values.message,
+      conditions,
     };
   }
 
   return {
     id: values.id,
-    type: "trigger_product_discounted_targets",
+    type: "loyalty_tier",
     enabled: values.enabled,
-    triggerProductId: values.triggerProductId,
-    targets: values.targets ?? [],
+    targetProductIds: values.targetProductIds ?? [],
+    tiers: values.tiers ?? [],
     message: values.message,
+    conditions,
   };
 }
 
@@ -257,6 +321,7 @@ export function PromoRuleForm({
   const requiredVariantIds = watch("requiredVariantIds");
   const freeVariantIds = watch("freeVariantIds");
   const targets = watch("targets");
+  const tiers = watch("tiers");
   const selectedIds = useMemo(() => {
     return Array.from(
       new Set(
@@ -529,6 +594,10 @@ export function PromoRuleForm({
 
           <option value="required_product_with_free_variants">
             Required Product + Variants → Discounted Variants
+          </option>
+
+          <option value="loyalty_tier">
+            Loyalty Tier — discount by customer order count
           </option>
         </select>
       </div>
@@ -895,6 +964,159 @@ export function PromoRuleForm({
           </div>
         </section>
       )}
+
+      {ruleType === "loyalty_tier" && (
+        <section className="form-section">
+          <h2 className="form-section__title">Loyalty tiers</h2>
+
+          <div className="form-group">
+            <span className="form-label">Target products</span>
+            <p className="field-hint">
+              Products to discount based on the customer's loyalty tier.
+            </p>
+
+            <ProductIdListSelector
+              productIds={targetProductIds ?? []}
+              metaById={selectionMetaById}
+              emptyText="Choose products that receive the loyalty discount."
+              itemLabel="Product"
+              addLabel="Add target product"
+              onPick={() => setProductPickerMode("crossSellTargetProduct")}
+              onRemove={(id) => removeListValue("targetProductIds", id)}
+            />
+          </div>
+
+          <div className="form-group">
+            <span className="form-label">Discount tiers</span>
+            <p className="field-hint">
+              The highest matching tier is applied. Customer must be logged in
+              — guests are skipped.
+            </p>
+
+            {(tiers ?? []).length > 0 && (
+              <div className="product-id-list">
+                {(tiers ?? []).map((tier, idx) => (
+                  <div key={idx} className="product-id-chip">
+                    <div className="target-discount-row">
+                      <label className="form-label">Min orders</label>
+                      <input
+                        type="number"
+                        min={0}
+                        value={tier.minOrders}
+                        onChange={(e) => {
+                          const next = (tiers ?? []).map((t, i) =>
+                            i === idx
+                              ? { ...t, minOrders: Number(e.target.value) }
+                              : t,
+                          );
+                          setValue("tiers", next, { shouldDirty: true });
+                        }}
+                        className="number-field"
+                      />
+                      <label className="form-label">Discount %</label>
+                      <input
+                        type="number"
+                        min={1}
+                        max={100}
+                        value={tier.discountPercentage}
+                        onChange={(e) => {
+                          const next = (tiers ?? []).map((t, i) =>
+                            i === idx
+                              ? { ...t, discountPercentage: Number(e.target.value) }
+                              : t,
+                          );
+                          setValue("tiers", next, { shouldDirty: true });
+                        }}
+                        className="number-field"
+                      />
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setValue(
+                            "tiers",
+                            (tiers ?? []).filter((_, i) => i !== idx),
+                            { shouldDirty: true },
+                          )
+                        }
+                        className="btn btn--small btn--danger"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={() =>
+                setValue(
+                  "tiers",
+                  [...(tiers ?? []), { minOrders: 0, discountPercentage: 10 }],
+                  { shouldDirty: true },
+                )
+              }
+              className="btn btn--small"
+            >
+              + Add tier
+            </button>
+          </div>
+        </section>
+      )}
+
+      <section className="form-section">
+        <h2 className="form-section__title">Additional conditions (optional)</h2>
+        <p className="field-hint">
+          These conditions are evaluated before applying the rule. Leave blank
+          to apply unconditionally.
+        </p>
+
+        <div className="form-group">
+          <label htmlFor="cond-subtotal" className="form-label">
+            Minimum cart subtotal ($)
+          </label>
+          <input
+            type="number"
+            id="cond-subtotal"
+            min={0}
+            step={0.01}
+            placeholder="e.g. 50.00"
+            {...register("conditions.minimumCartSubtotal", { valueAsNumber: true })}
+            className="number-field"
+          />
+        </div>
+
+        <div className="form-group">
+          <span className="form-label">Required cart attribute</span>
+          <div className="target-discount-row">
+            <input
+              type="text"
+              placeholder="key (e.g. source)"
+              {...register("conditions.requiredCartAttributeKey")}
+            />
+            <input
+              type="text"
+              placeholder="value (e.g. landing-page-x)"
+              {...register("conditions.requiredCartAttributeValue")}
+            />
+          </div>
+          <p className="field-hint">
+            Set from a landing page via the Storefront API:{" "}
+            <code>cart.updateAttributes([&#123; key, value &#125;])</code>
+          </p>
+        </div>
+
+        <div className="form-group">
+          <label className="checkbox-row">
+            <input
+              type="checkbox"
+              {...register("conditions.requiresSubscriptionInCart")}
+            />
+            <span>Requires at least one subscription item in cart</span>
+          </label>
+        </div>
+      </section>
 
       <div className="btn-row">
         <button

@@ -12,12 +12,17 @@ type Input {
 
 type Cart {
   lines: [CartLine!]!
+  cost: CartCost!
+  attributes: [CartAttribute!]!
+  buyerIdentity: CartBuyerIdentity!
 }
 
 type CartLine {
   id: ID!
   quantity: Int!
   merchandise: Merchandise!
+  cost: CartLineCost!
+  sellingPlanAllocation: SellingPlanAllocation
 }
 
 union Merchandise = ProductVariant
@@ -28,6 +33,44 @@ type ProductVariant {
 }
 
 type Product {
+  id: ID!
+  tags: [String!]!
+}
+
+type CartCost {
+  subtotalAmount: MoneyV2!
+}
+
+type CartLineCost {
+  totalAmount: MoneyV2!
+}
+
+type MoneyV2 {
+  amount: Decimal!
+  currencyCode: String!
+}
+
+type CartAttribute {
+  key: String!
+  value: String
+}
+
+type CartBuyerIdentity {
+  customer: Customer
+  email: String
+  countryCode: String
+}
+
+type Customer {
+  numberOfOrders: Int!
+  amountSpent: MoneyV2!
+}
+
+type SellingPlanAllocation {
+  sellingPlan: SellingPlan!
+}
+
+type SellingPlan {
   id: ID!
 }
 

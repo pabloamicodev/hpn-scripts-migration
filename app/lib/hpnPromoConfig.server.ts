@@ -161,6 +161,12 @@ export async function validateRuleReferences(
     }
   }
 
+  if (rule.type === "loyalty_tier") {
+    for (const productId of rule.targetProductIds) {
+      productIds.add(productId);
+    }
+  }
+
   const [productResult, variantResult] = await Promise.all([
     productIds.size > 0
       ? validateProductIds(graphqlProxy, Array.from(productIds))

@@ -2228,3 +2228,96 @@ input[type="radio"] {
     min-block-size: 44px;
   }
 }
+
+/* ============================================================
+   Docs page
+   ============================================================ */
+
+.docs-rule-card {
+  padding: 20px 0;
+  border-block-end: 1px solid var(--border);
+}
+
+.docs-rule-card:last-child {
+  border-block-end: none;
+}
+
+.docs-rule-card__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-block-end: 8px;
+}
+
+.docs-rule-card__title {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0 0 4px;
+}
+
+.docs-rule-card__type {
+  font-size: 11px;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  background: var(--surface-subdued);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 2px 6px;
+  color: var(--text-muted);
+}
+
+.docs-rule-card__desc {
+  margin: 0 0 14px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.docs-rule-card__example {
+  margin: 12px 0 0;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.docs-table {
+  inline-size: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  margin: 0;
+}
+
+.docs-table th,
+.docs-table td {
+  padding: 8px 10px;
+  text-align: start;
+  border-block-end: 1px solid var(--border);
+  vertical-align: top;
+}
+
+.docs-table th {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  background: var(--surface-subdued);
+}
+
+.docs-table tbody tr:hover {
+  background: var(--surface-hovered);
+}
+
+.docs-steps {
+  padding-inline-start: 20px;
+  display: grid;
+  gap: 12px;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.docs-steps li {
+  line-height: 1.6;
+}
+
+.docs-steps pre {
+  margin-block-start: 10px;
+}

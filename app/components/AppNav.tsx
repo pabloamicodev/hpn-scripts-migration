@@ -7,6 +7,7 @@ const links = [
   { href: "/app/discounts-overview", label: "All Discounts" },
   { href: "/app/graphql", label: "GraphQL" },
   { href: "/app/settings", label: "Settings" },
+  { href: "/app/docs", label: "Docs" },
 ];
 
 export function AppNav() {

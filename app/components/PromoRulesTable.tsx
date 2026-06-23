@@ -16,6 +16,7 @@ const typeLabels: Record<HpnPromoRule["type"], string> = {
   required_variants_free_variants: "Bundle Variants",
   required_product_with_free_variants: "Bundle Product + Variants",
   trigger_product_discounted_targets: "Trigger → Discounted Targets",
+  loyalty_tier: "Loyalty Tier",
 };
 
 const pageSizeOptions = [5, 10, 25];
@@ -406,8 +407,12 @@ function getRuleIdentifiers(rule: HpnPromoRule): string {
       ]
         .map(getGidTail)
         .join(" ");
-    default:
-      return "";
+    case "trigger_product_discounted_targets":
+      return [rule.triggerProductId, ...rule.targets.map((t) => t.productId)]
+        .map(getGidTail)
+        .join(" ");
+    case "loyalty_tier":
+      return rule.targetProductIds.map(getGidTail).join(" ");
   }
 }
 
@@ -438,8 +443,10 @@ function getTriggerSummary(rule: HpnPromoRule): string {
       return `Product: ${getGidTail(rule.triggerProductId)} + ${
         rule.requiredVariantIds.length
       } variants`;
-    default:
-      return "Unknown trigger";
+    case "trigger_product_discounted_targets":
+      return `Product: ${getGidTail(rule.triggerProductId)}`;
+    case "loyalty_tier":
+      return `${rule.targetProductIds.length} target product(s)`;
   }
 }
 
@@ -451,8 +458,10 @@ function getTargetsCount(rule: HpnPromoRule): number {
       return rule.freeVariantIds.length;
     case "required_product_with_free_variants":
       return rule.freeVariantIds.length;
-    default:
-      return 0;
+    case "trigger_product_discounted_targets":
+      return rule.targets.length;
+    case "loyalty_tier":
+      return rule.targetProductIds.length;
   }
 }
 
@@ -461,10 +470,12 @@ function getDiscountSummary(rule: HpnPromoRule): string {
     case "pa7_cross_sell":
       return `${rule.discountPercentage}% Off`;
     case "required_variants_free_variants":
-      return "1 free unit per variant";
+      return `${rule.discountPercentage}% off, ${rule.freeQuantityPerLine} unit/variant`;
     case "required_product_with_free_variants":
-      return `Free up to ${rule.freeQuantityPerLine ?? 1} unit`;
-    default:
-      return "Unknown discount";
+      return `${rule.discountPercentage}% off, up to ${rule.freeQuantityPerLine} unit`;
+    case "trigger_product_discounted_targets":
+      return `${rule.targets.length} target(s), per-product %`;
+    case "loyalty_tier":
+      return `${rule.tiers.length} tier(s)`;
   }
 }

@@ -16,6 +16,25 @@ const ruleIdSchema = z
   .min(1)
   .regex(/^[a-z0-9][a-z0-9-]*$/, "Use lowercase letters, numbers, and hyphens.");
 
+// ---------------------------------------------------------------------------
+// Global conditions — optional on every rule type
+// ---------------------------------------------------------------------------
+
+export const ruleConditionsSchema = z
+  .object({
+    minimumCartSubtotal: z.number().positive().optional(),
+    requiredCartAttributeKey: z.string().min(1).optional(),
+    requiredCartAttributeValue: z.string().optional(),
+    requiresSubscriptionInCart: z.boolean().optional(),
+  })
+  .optional();
+
+export type RuleConditions = z.infer<typeof ruleConditionsSchema>;
+
+// ---------------------------------------------------------------------------
+// Rule schemas
+// ---------------------------------------------------------------------------
+
 export const pa7CrossSellRuleSchema = z.object({
   id: ruleIdSchema,
   type: z.literal("pa7_cross_sell"),
@@ -25,6 +44,7 @@ export const pa7CrossSellRuleSchema = z.object({
   targetLineQuantityEquals: z.number().int().positive(),
   discountPercentage: z.number().positive().max(100),
   message: z.string().trim().min(1),
+  conditions: ruleConditionsSchema,
 });
 
 export const requiredVariantsFreeVariantsRuleSchema = z.object({
@@ -40,6 +60,7 @@ export const requiredVariantsFreeVariantsRuleSchema = z.object({
   ),
   discountPercentage: z.number().positive().max(100).default(100),
   message: z.string().trim().min(1),
+  conditions: ruleConditionsSchema,
 });
 
 export const requiredProductWithFreeVariantsRuleSchema = z.object({
@@ -52,6 +73,7 @@ export const requiredProductWithFreeVariantsRuleSchema = z.object({
   freeQuantityPerLine: z.number().int().positive(),
   discountPercentage: z.number().positive().max(100).default(100),
   message: z.string().trim().min(1),
+  conditions: ruleConditionsSchema,
 });
 
 const discountTargetSchema = z.object({
@@ -66,13 +88,38 @@ export const triggerProductDiscountedTargetsRuleSchema = z.object({
   triggerProductId: productGidSchema,
   targets: z.array(discountTargetSchema).min(1),
   message: z.string().trim().min(1),
+  conditions: ruleConditionsSchema,
 });
+
+// ---------------------------------------------------------------------------
+// Loyalty tier
+// ---------------------------------------------------------------------------
+
+export const loyaltyTierEntrySchema = z.object({
+  minOrders: z.number().int().min(0),
+  discountPercentage: z.number().positive().max(100),
+});
+
+export const loyaltyTierRuleSchema = z.object({
+  id: ruleIdSchema,
+  type: z.literal("loyalty_tier"),
+  enabled: z.boolean(),
+  targetProductIds: z.array(productGidSchema).min(1),
+  tiers: z.array(loyaltyTierEntrySchema).min(1),
+  message: z.string().trim().min(1),
+  conditions: ruleConditionsSchema,
+});
+
+// ---------------------------------------------------------------------------
+// Union
+// ---------------------------------------------------------------------------
 
 export const hpnPromoRuleSchema = z.discriminatedUnion("type", [
   pa7CrossSellRuleSchema,
   requiredVariantsFreeVariantsRuleSchema,
   requiredProductWithFreeVariantsRuleSchema,
   triggerProductDiscountedTargetsRuleSchema,
+  loyaltyTierRuleSchema,
 ]);
 
 export const hpnPromoConfigSchema = z.object({
@@ -85,27 +132,24 @@ export const hpnPromoConfigSchema = z.object({
   }),
 });
 
+// ---------------------------------------------------------------------------
+// Derived types
+// ---------------------------------------------------------------------------
+
 export type Pa7CrossSellRule = z.infer<typeof pa7CrossSellRuleSchema>;
-
-export type RequiredVariantsFreeVariantsRule = z.infer<
-  typeof requiredVariantsFreeVariantsRuleSchema
->;
-
-export type RequiredProductWithFreeVariantsRule = z.infer<
-  typeof requiredProductWithFreeVariantsRuleSchema
->;
-
-export type TriggerProductDiscountedTargetsRule = z.infer<
-  typeof triggerProductDiscountedTargetsRuleSchema
->;
-
+export type RequiredVariantsFreeVariantsRule = z.infer<typeof requiredVariantsFreeVariantsRuleSchema>;
+export type RequiredProductWithFreeVariantsRule = z.infer<typeof requiredProductWithFreeVariantsRuleSchema>;
+export type TriggerProductDiscountedTargetsRule = z.infer<typeof triggerProductDiscountedTargetsRuleSchema>;
+export type LoyaltyTierRule = z.infer<typeof loyaltyTierRuleSchema>;
+export type LoyaltyTierEntry = z.infer<typeof loyaltyTierEntrySchema>;
 export type DiscountTarget = z.infer<typeof discountTargetSchema>;
 
 export type HpnPromoRule =
   | Pa7CrossSellRule
   | RequiredVariantsFreeVariantsRule
   | RequiredProductWithFreeVariantsRule
-  | TriggerProductDiscountedTargetsRule;
+  | TriggerProductDiscountedTargetsRule
+  | LoyaltyTierRule;
 
 export type HpnPromoRuleId = HpnPromoRule["id"];
 export type HpnPromoRuleType = HpnPromoRule["type"];

@@ -31,6 +31,7 @@ export const defaultHpnPromoConfig: HpnPromoConfig = {
         HPN_VARIANTS.PLANTA_SAMPLE_VARIANT_ID_2,
       ],
       freeQuantityPerLine: 1,
+      discountPercentage: 100,
       message: HPN_PROMO_MESSAGES.PLANTA_SAMPLES,
     },
     {
@@ -47,6 +48,7 @@ export const defaultHpnPromoConfig: HpnPromoConfig = {
         HPN_VARIANTS.N4_1WK_POUCH_VARIANT_ID,
       ],
       freeQuantityPerLine: 1,
+      discountPercentage: 100,
       message: HPN_PROMO_MESSAGES.FREE_POUCHES,
     },
   ],

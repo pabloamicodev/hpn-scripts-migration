@@ -33,12 +33,12 @@ export const requiredVariantsFreeVariantsRuleSchema = z.object({
   enabled: z.boolean(),
   requiredVariantIds: z.array(variantGidSchema).min(1),
   freeVariantIds: z.array(variantGidSchema).min(1),
-  // Legacy configs used null to mean unlimited. Normalize them to the safe
-  // business rule: exactly one free unit per target variant across the cart.
+  // Legacy configs used null to mean unlimited; normalize to 1.
   freeQuantityPerLine: z.preprocess(
     (value) => (value === null || value === undefined ? 1 : value),
-    z.literal(1),
+    z.number().int().positive(),
   ),
+  discountPercentage: z.number().positive().max(100).default(100),
   message: z.string().trim().min(1),
 });
 
@@ -49,7 +49,22 @@ export const requiredProductWithFreeVariantsRuleSchema = z.object({
   triggerProductId: productGidSchema,
   requiredVariantIds: z.array(variantGidSchema).min(1),
   freeVariantIds: z.array(variantGidSchema).min(1),
-  freeQuantityPerLine: z.literal(1),
+  freeQuantityPerLine: z.number().int().positive(),
+  discountPercentage: z.number().positive().max(100).default(100),
+  message: z.string().trim().min(1),
+});
+
+const discountTargetSchema = z.object({
+  productId: productGidSchema,
+  discountPercentage: z.number().positive().max(100),
+});
+
+export const triggerProductDiscountedTargetsRuleSchema = z.object({
+  id: ruleIdSchema,
+  type: z.literal("trigger_product_discounted_targets"),
+  enabled: z.boolean(),
+  triggerProductId: productGidSchema,
+  targets: z.array(discountTargetSchema).min(1),
   message: z.string().trim().min(1),
 });
 
@@ -57,6 +72,7 @@ export const hpnPromoRuleSchema = z.discriminatedUnion("type", [
   pa7CrossSellRuleSchema,
   requiredVariantsFreeVariantsRuleSchema,
   requiredProductWithFreeVariantsRuleSchema,
+  triggerProductDiscountedTargetsRuleSchema,
 ]);
 
 export const hpnPromoConfigSchema = z.object({
@@ -79,10 +95,17 @@ export type RequiredProductWithFreeVariantsRule = z.infer<
   typeof requiredProductWithFreeVariantsRuleSchema
 >;
 
+export type TriggerProductDiscountedTargetsRule = z.infer<
+  typeof triggerProductDiscountedTargetsRuleSchema
+>;
+
+export type DiscountTarget = z.infer<typeof discountTargetSchema>;
+
 export type HpnPromoRule =
   | Pa7CrossSellRule
   | RequiredVariantsFreeVariantsRule
-  | RequiredProductWithFreeVariantsRule;
+  | RequiredProductWithFreeVariantsRule
+  | TriggerProductDiscountedTargetsRule;
 
 export type HpnPromoRuleId = HpnPromoRule["id"];
 export type HpnPromoRuleType = HpnPromoRule["type"];

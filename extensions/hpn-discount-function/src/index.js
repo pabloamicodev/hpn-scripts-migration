@@ -65,6 +65,8 @@ export function cartLinesDiscountsGenerateRun(input) {
       applyPlantaRule(rule, byVariant, candidatesByLine);
     } else if (rule.type === "required_product_with_free_variants") {
       applyPouchesRule(rule, byProduct, byVariant, candidatesByLine);
+    } else if (rule.type === "trigger_product_discounted_targets") {
+      applyTriggerProductDiscountedTargetsRule(rule, byProduct, candidatesByLine);
     }
   }
 
@@ -146,18 +148,21 @@ function applyPlantaRule(rule, byVariant, candidates) {
   if (
     !Array.isArray(rule.requiredVariantIds) ||
     !Array.isArray(rule.freeVariantIds) ||
-    rule.freeQuantityPerLine !== 1
+    typeof rule.freeQuantityPerLine !== "number" ||
+    rule.freeQuantityPerLine < 1
   ) return;
   // All required variants must be in cart
   for (const requiredId of rule.requiredVariantIds) {
     if (!byVariant.get(requiredId)?.length) return;
   }
 
+  const pct = typeof rule.discountPercentage === "number" ? rule.discountPercentage : 100;
+
   for (const freeId of rule.freeVariantIds) {
     const freeLines = byVariant.get(freeId) ?? [];
     const line = freeLines[0];
     if (!line) continue;
-    addCandidate(candidates, line, 1, 100, rule.message);
+    addCandidate(candidates, line, rule.freeQuantityPerLine, pct, rule.message);
   }
 }
 
@@ -170,7 +175,8 @@ function applyPouchesRule(rule, byProduct, byVariant, candidates) {
     !rule.triggerProductId ||
     !Array.isArray(rule.requiredVariantIds) ||
     !Array.isArray(rule.freeVariantIds) ||
-    rule.freeQuantityPerLine !== 1
+    typeof rule.freeQuantityPerLine !== "number" ||
+    rule.freeQuantityPerLine < 1
   ) return;
   const triggerLines = byProduct.get(rule.triggerProductId);
   if (!triggerLines?.length) return;
@@ -180,6 +186,8 @@ function applyPouchesRule(rule, byProduct, byVariant, candidates) {
     if (!byVariant.get(requiredId)?.length) return;
   }
 
+  const pct = typeof rule.discountPercentage === "number" ? rule.discountPercentage : 100;
+
   for (const freeId of rule.freeVariantIds) {
     const freeLines = byVariant.get(freeId) ?? [];
 
@@ -188,9 +196,37 @@ function applyPouchesRule(rule, byProduct, byVariant, candidates) {
         candidates,
         line,
         rule.freeQuantityPerLine,
-        100,
+        pct,
         rule.message,
       );
+    }
+  }
+}
+
+/**
+ * Trigger Product + Discounted Targets: when trigger product is in cart,
+ * apply per-target discount % to each configured target product's lines.
+ */
+function applyTriggerProductDiscountedTargetsRule(rule, byProduct, candidates) {
+  if (
+    !rule.triggerProductId ||
+    !Array.isArray(rule.targets) ||
+    rule.targets.length === 0
+  ) return;
+
+  const triggerLines = byProduct.get(rule.triggerProductId);
+  if (!triggerLines?.length) return;
+
+  for (const target of rule.targets) {
+    if (
+      typeof target.productId !== "string" ||
+      typeof target.discountPercentage !== "number" ||
+      target.discountPercentage < 1
+    ) continue;
+
+    const targetLines = byProduct.get(target.productId) ?? [];
+    for (const line of targetLines) {
+      addCandidate(candidates, line, null, target.discountPercentage, rule.message);
     }
   }
 }

@@ -154,6 +154,13 @@ export async function validateRuleReferences(
     }
   }
 
+  if (rule.type === "trigger_product_discounted_targets") {
+    productIds.add(rule.triggerProductId);
+    for (const target of rule.targets) {
+      productIds.add(target.productId);
+    }
+  }
+
   const [productResult, variantResult] = await Promise.all([
     productIds.size > 0
       ? validateProductIds(graphqlProxy, Array.from(productIds))

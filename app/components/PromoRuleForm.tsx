@@ -36,6 +36,11 @@ interface PromoRuleFormProps {
   onCancel: () => void;
 }
 
+interface DiscountTarget {
+  productId: string;
+  discountPercentage: number;
+}
+
 interface PromoRuleFormValues {
   id: string;
   type: PromoRuleType;
@@ -48,9 +53,19 @@ interface PromoRuleFormValues {
   requiredVariantIds?: string[];
   freeVariantIds?: string[];
   freeQuantityPerLine?: number | null;
+  targets?: DiscountTarget[];
 }
 
 const DEFAULT_RULES: Record<PromoRuleType, PromoRuleFormValues> = {
+  trigger_product_discounted_targets: {
+    id: "trigger-discounted-targets",
+    type: "trigger_product_discounted_targets",
+    enabled: true,
+    triggerProductId: "",
+    targets: [],
+    message: "",
+  },
+
   pa7_cross_sell: {
     id: "pa7-cross-sell",
     type: "pa7_cross_sell",
@@ -114,10 +129,9 @@ function makeRuleId(type: PromoRuleType) {
   const suffix = Date.now().toString(36);
 
   if (type === "pa7_cross_sell") return `pa7-cross-sell-${suffix}`;
-  if (type === "required_variants_free_variants") {
-    return `required-variants-free-variants-${suffix}`;
-  }
-  return `required-product-free-variants-${suffix}`;
+  if (type === "required_variants_free_variants") return `required-variants-free-variants-${suffix}`;
+  if (type === "required_product_with_free_variants") return `required-product-free-variants-${suffix}`;
+  return `trigger-discounted-targets-${suffix}`;
 }
 
 function makeDefaultRule(type: PromoRuleType): PromoRuleFormValues {
@@ -152,19 +166,32 @@ function buildRulePayload(values: PromoRuleFormValues): unknown {
       enabled: values.enabled,
       requiredVariantIds: values.requiredVariantIds ?? [],
       freeVariantIds: values.freeVariantIds ?? [],
-      freeQuantityPerLine: 1,
+      freeQuantityPerLine: values.freeQuantityPerLine ?? 1,
+      discountPercentage: values.discountPercentage ?? 100,
+      message: values.message,
+    };
+  }
+
+  if (values.type === "required_product_with_free_variants") {
+    return {
+      id: values.id,
+      type: "required_product_with_free_variants",
+      enabled: values.enabled,
+      triggerProductId: values.triggerProductId,
+      requiredVariantIds: values.requiredVariantIds ?? [],
+      freeVariantIds: values.freeVariantIds ?? [],
+      freeQuantityPerLine: values.freeQuantityPerLine ?? 1,
+      discountPercentage: values.discountPercentage ?? 100,
       message: values.message,
     };
   }
 
   return {
     id: values.id,
-    type: "required_product_with_free_variants",
+    type: "trigger_product_discounted_targets",
     enabled: values.enabled,
     triggerProductId: values.triggerProductId,
-    requiredVariantIds: values.requiredVariantIds ?? [],
-    freeVariantIds: values.freeVariantIds ?? [],
-    freeQuantityPerLine: values.freeQuantityPerLine ?? 1,
+    targets: values.targets ?? [],
     message: values.message,
   };
 }
@@ -205,6 +232,8 @@ export function PromoRuleForm({
     | "bundleTriggerProduct"
     | "bundleRequiredVariant"
     | "bundleFreeVariant"
+    | "discountedTriggerProduct"
+    | "discountedTarget"
     | null
   >(null);
   const [selectionMetaById, setSelectionMetaById] = useState<
@@ -227,6 +256,7 @@ export function PromoRuleForm({
   const targetProductIds = watch("targetProductIds");
   const requiredVariantIds = watch("requiredVariantIds");
   const freeVariantIds = watch("freeVariantIds");
+  const targets = watch("targets");
   const selectedIds = useMemo(() => {
     return Array.from(
       new Set(
@@ -235,10 +265,11 @@ export function PromoRuleForm({
           ...(targetProductIds ?? []),
           ...(requiredVariantIds ?? []),
           ...(freeVariantIds ?? []),
+          ...(targets ?? []).map((t) => t.productId),
         ].filter((id): id is string => Boolean(id)),
       ),
     );
-  }, [freeVariantIds, requiredVariantIds, targetProductIds, triggerProductId]);
+  }, [freeVariantIds, requiredVariantIds, targetProductIds, triggerProductId, targets]);
   const selectedIdsKey = selectedIds.join("|");
 
   useEffect(() => {
@@ -328,7 +359,8 @@ export function PromoRuleForm({
 
     if (
       productPickerMode === "crossSellTriggerProduct" ||
-      productPickerMode === "bundleTriggerProduct"
+      productPickerMode === "bundleTriggerProduct" ||
+      productPickerMode === "discountedTriggerProduct"
     ) {
       setSelectionMetaById((current) => ({
         ...current,
@@ -388,6 +420,21 @@ export function PromoRuleForm({
           shouldDirty: true,
           shouldValidate: false,
         });
+      }
+    }
+
+    if (productPickerMode === "discountedTarget") {
+      const currentTargets = targets ?? [];
+      if (!currentTargets.some((t) => t.productId === selection.productId)) {
+        setSelectionMetaById((current) => ({
+          ...current,
+          [selection.productId]: selectedProductMeta,
+        }));
+        setValue(
+          "targets",
+          [...currentTargets, { productId: selection.productId, discountPercentage: 10 }],
+          { shouldDirty: true, shouldValidate: false },
+        );
       }
     }
 
@@ -468,16 +515,20 @@ export function PromoRuleForm({
             handleRuleTypeChange(event.target.value as PromoRuleType)
           }
         >
+          <option value="trigger_product_discounted_targets">
+            Trigger Product → Discounted Targets (per-product %)
+          </option>
+
           <option value="pa7_cross_sell">
-            PA7 Cross-Sell - 10% off target products
+            Trigger Product → Same % off targets (exact qty)
           </option>
 
           <option value="required_variants_free_variants">
-            Required Variants → Free Variants
+            Required Variants → Discounted Variants
           </option>
 
           <option value="required_product_with_free_variants">
-            Required Product + Variants → Free Variants
+            Required Product + Variants → Discounted Variants
           </option>
         </select>
       </div>
@@ -622,10 +673,42 @@ export function PromoRuleForm({
           </div>
 
           <div className="form-group">
-            <span className="form-label">Free quantity</span>
-            <p className="field-hint">
-              Exactly 1 unit of each free variant across the entire cart.
-            </p>
+            <label
+              htmlFor="variantFreeQuantityPerLine"
+              className="form-label"
+            >
+              Free Quantity Per Line
+            </label>
+
+            <input
+              type="number"
+              id="variantFreeQuantityPerLine"
+              min={1}
+              {...register("freeQuantityPerLine", {
+                valueAsNumber: true,
+              })}
+              className="number-field"
+            />
+          </div>
+
+          <div className="form-group">
+            <label
+              htmlFor="variantDiscountPercentage"
+              className="form-label"
+            >
+              Discount Percentage
+            </label>
+
+            <input
+              type="number"
+              id="variantDiscountPercentage"
+              min={1}
+              max={100}
+              {...register("discountPercentage", {
+                valueAsNumber: true,
+              })}
+              className="number-field"
+            />
           </div>
         </section>
       )}
@@ -703,6 +786,112 @@ export function PromoRuleForm({
               })}
               className="number-field"
             />
+          </div>
+
+          <div className="form-group">
+            <label
+              htmlFor="bundleDiscountPercentage"
+              className="form-label"
+            >
+              Discount Percentage
+            </label>
+
+            <input
+              type="number"
+              id="bundleDiscountPercentage"
+              min={1}
+              max={100}
+              {...register("discountPercentage", {
+                valueAsNumber: true,
+              })}
+              className="number-field"
+            />
+          </div>
+        </section>
+      )}
+
+      {ruleType === "trigger_product_discounted_targets" && (
+        <section className="form-section">
+          <h2 className="form-section__title">Trigger + discounted targets</h2>
+
+          <div className="form-group">
+            <span className="form-label">Trigger product</span>
+
+            <ProductIdSelector
+              productId={triggerProductId}
+              meta={triggerProductId ? selectionMetaById[triggerProductId] : undefined}
+              emptyText="When this product is in the cart, targets get discounted."
+              onPick={() => setProductPickerMode("discountedTriggerProduct")}
+              onClear={() =>
+                setValue("triggerProductId", "", { shouldDirty: true, shouldValidate: false })
+              }
+            />
+          </div>
+
+          <div className="form-group">
+            <span className="form-label">Discounted targets</span>
+            <p className="field-hint">
+              Each target product gets its own discount %. Add as many as you need.
+            </p>
+
+            <button
+              type="button"
+              onClick={() => setProductPickerMode("discountedTarget")}
+              className="product-picker-trigger"
+            >
+              <span className="product-picker-trigger__icon">+</span>
+              <span>
+                <strong>Add target product</strong>
+                <span>Choose a product and set its discount percentage.</span>
+              </span>
+            </button>
+
+            {(targets ?? []).length > 0 && (
+              <div className="product-id-list">
+                {(targets ?? []).map((target, idx) => (
+                  <div key={target.productId} className="product-id-chip">
+                    <SelectionSummary
+                      id={target.productId}
+                      itemLabel="Product"
+                      meta={selectionMetaById[target.productId]}
+                    />
+
+                    <div className="target-discount-row">
+                      <label className="form-label">Discount %</label>
+                      <input
+                        type="number"
+                        min={1}
+                        max={100}
+                        value={target.discountPercentage}
+                        onChange={(e) => {
+                          const next = (targets ?? []).map((t, i) =>
+                            i === idx
+                              ? { ...t, discountPercentage: Number(e.target.value) }
+                              : t,
+                          );
+                          setValue("targets", next, { shouldDirty: true });
+                        }}
+                        className="number-field"
+                      />
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setValue(
+                            "targets",
+                            (targets ?? []).filter((_, i) => i !== idx),
+                            { shouldDirty: true },
+                          );
+                        }}
+                        className="btn btn--small btn--danger"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </section>
       )}

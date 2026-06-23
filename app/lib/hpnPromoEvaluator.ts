@@ -110,8 +110,8 @@ export function evaluateRequiredVariantsFreeVariants(
       lineId: line.id,
       variantId: line.merchandise.id,
       productId: line.merchandise.product.id,
-      discountedQuantity: 1,
-      percentageOff: 100,
+      discountedQuantity: rule.freeQuantityPerLine,
+      percentageOff: rule.discountPercentage,
       message: rule.message,
     });
   }
@@ -153,7 +153,37 @@ export function evaluateRequiredProductWithFreeVariants(
         variantId: line.merchandise.id,
         productId: line.merchandise.product.id,
         discountedQuantity: discountedQty,
-        percentageOff: 100,
+        percentageOff: rule.discountPercentage,
+        message: rule.message,
+      });
+    }
+  }
+
+  return actions;
+}
+
+export function evaluateTriggerProductDiscountedTargets(
+  rule: Extract<HpnPromoRule, { type: "trigger_product_discounted_targets" }>,
+  cartIndex: CartIndex
+): DiscountAction[] {
+  const actions: DiscountAction[] = [];
+
+  if (!rule.enabled) return actions;
+
+  const triggerLines = cartIndex.linesByProductId.get(rule.triggerProductId);
+  if (!triggerLines || triggerLines.length === 0) return actions;
+
+  for (const target of rule.targets) {
+    const targetLines = cartIndex.linesByProductId.get(target.productId);
+    if (!targetLines) continue;
+
+    for (const line of targetLines) {
+      actions.push({
+        lineId: line.id,
+        variantId: line.merchandise.id,
+        productId: line.merchandise.product.id,
+        discountedQuantity: line.quantity,
+        percentageOff: target.discountPercentage,
         message: rule.message,
       });
     }
@@ -185,6 +215,9 @@ export function evaluateConfig(
         break;
       case "required_product_with_free_variants":
         ruleActions = evaluateRequiredProductWithFreeVariants(rule, cartIndex);
+        break;
+      case "trigger_product_discounted_targets":
+        ruleActions = evaluateTriggerProductDiscountedTargets(rule, cartIndex);
         break;
     }
 

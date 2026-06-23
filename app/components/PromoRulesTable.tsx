@@ -15,6 +15,7 @@ const typeLabels: Record<HpnPromoRule["type"], string> = {
   pa7_cross_sell: "Cross-Sell",
   required_variants_free_variants: "Bundle Variants",
   required_product_with_free_variants: "Bundle Product + Variants",
+  trigger_product_discounted_targets: "Trigger → Discounted Targets",
 };
 
 const pageSizeOptions = [5, 10, 25];

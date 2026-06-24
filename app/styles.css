@@ -2230,212 +2230,189 @@ input[type="radio"] {
 }
 
 /* ============================================================
-   Docs page — editorial redesign
+   Docs page
    ============================================================ */
 
-/* Rule-type accent palette — isolated to docs page */
-:root {
-  --docs-pa7:     #4B6EF5;
-  --docs-planta:  #28B07A;
-  --docs-pouches: #0DA09C;
-  --docs-landing: #F07040;
-  --docs-loyalty: #C48D00;
-}
-
-/* Quick-jump nav ------------------------------------------- */
-
-.docs-nav {
+/* Jump nav — plain text links, pipe-separated */
+.docs-jump {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
   margin-block-end: 28px;
 }
 
-.docs-nav-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 12px;
-  font-weight: 500;
-  padding: 5px 13px;
-  border-radius: 20px;
-  border: 1.5px solid var(--border);
-  background: var(--surface-raised, #fff);
-  color: var(--text);
+.docs-jump a {
+  font-size: 13px;
+  color: var(--text-muted);
   text-decoration: none;
-  transition: background 0.12s, border-color 0.12s, color 0.12s;
+  padding: 0 12px;
+  border-inline-end: 1px solid var(--border);
+  line-height: 1;
 }
 
-.docs-nav-chip:hover           { background: var(--surface-hovered); }
-.docs-nav-chip--pa7:hover      { border-color: var(--docs-pa7);     color: var(--docs-pa7); }
-.docs-nav-chip--planta:hover   { border-color: var(--docs-planta);  color: var(--docs-planta); }
-.docs-nav-chip--pouches:hover  { border-color: var(--docs-pouches); color: var(--docs-pouches); }
-.docs-nav-chip--landing:hover  { border-color: var(--docs-landing); color: var(--docs-landing); }
-.docs-nav-chip--loyalty:hover  { border-color: var(--docs-loyalty); color: var(--docs-loyalty); }
+.docs-jump a:first-child { padding-inline-start: 0; }
+.docs-jump a:last-child  { border-inline-end: none; }
 
-/* Section intro -------------------------------------------- */
+.docs-jump a:hover { color: var(--text); text-decoration: underline; }
 
-.docs-section-intro {
+.docs-jump a:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* Lede ---------------------------------------------------- */
+
+.docs-lede {
   font-size: 14px;
   color: var(--text-muted);
-  line-height: 1.65;
-  margin: -4px 0 20px;
+  line-height: 1.7;
+  margin: -4px 0 22px;
 }
 
-/* Rule cards ----------------------------------------------- */
+/* Inline icon helper -------------------------------------- */
+
+.docs-icon {
+  display: inline-block;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
+/* Rule entries -------------------------------------------- */
 
 .docs-rule {
   padding: 24px 0;
-  border-block-end: 1px solid var(--border);
-  display: grid;
-  gap: 14px;
+  border-block-start: 1px solid var(--border);
+  scroll-margin-top: 20px;
 }
 
-.docs-rule:last-child {
-  border-block-end: none;
-  padding-block-end: 0;
+.docs-rule:first-of-type {
+  border-block-start: none;
+  padding-block-start: 0;
 }
 
-.docs-rule-top {
+.docs-rule-header {
   display: flex;
   align-items: flex-start;
-  gap: 14px;
+  gap: 10px;
+  margin-block-end: 12px;
 }
 
 .docs-rule-icon {
-  font-size: 24px;
-  line-height: 1;
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  color: var(--text-muted);
   flex-shrink: 0;
-  background: var(--surface-subdued);
-  /* overridden per variant below */
+  margin-block-start: 3px;
 }
-
-.docs-rule--pa7    .docs-rule-icon { background: #EEF1FE; }
-.docs-rule--planta .docs-rule-icon { background: #E5F7EE; }
-.docs-rule--pouches .docs-rule-icon { background: #E4F5F5; }
-.docs-rule--landing .docs-rule-icon { background: #FEF0EA; }
-.docs-rule--loyalty .docs-rule-icon { background: #FEF6E4; }
 
 .docs-rule-name {
-  font-size: 16px;
-  font-weight: 700;
-  margin: 0 0 3px;
-  letter-spacing: -0.015em;
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0 0 5px;
   line-height: 1.3;
+  text-wrap: balance;
 }
 
-.docs-rule-pitch {
-  font-size: 12px;
+.docs-rule-type {
+  font-size: 11px;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
   color: var(--text-muted);
-  margin: 0;
-  font-style: italic;
+  background: var(--surface-subdued);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 1px 6px;
 }
 
 .docs-rule-desc {
   font-size: 14px;
   line-height: 1.7;
   color: var(--text);
-  margin: 0;
+  margin: 0 0 16px;
 }
 
-/* "You'll configure" chip row */
-.docs-rule-needs {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
+/* Config field list */
+.docs-rule-config {
+  margin: 0 0 16px;
 }
 
-.docs-needs-label {
+.docs-config-label {
   font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.07em;
   color: var(--text-muted);
-  margin-inline-end: 2px;
+  margin: 0 0 7px;
 }
 
-.docs-need-chip {
-  font-size: 12px;
-  padding: 3px 10px;
-  border-radius: 4px;
-  background: var(--surface-subdued);
-  color: var(--text-muted);
-  border: 1px solid var(--border);
+.docs-rule-config ul {
+  margin: 0;
+  padding-inline-start: 18px;
+  display: grid;
+  gap: 4px;
 }
 
-/* Example callout */
+.docs-rule-config li {
+  font-size: 13px;
+  color: var(--text);
+  line-height: 1.5;
+}
+
+/* Example — blockquote style, no card */
 .docs-rule-example {
-  background: var(--surface-subdued);
-  border-radius: 8px;
-  padding: 14px 18px;
-  border-inline-start: 3px solid var(--border);
+  margin: 0;
+  padding: 0 0 0 16px;
+  border-inline-start: 2px solid var(--border);
 }
 
-.docs-rule--pa7    .docs-rule-example { border-color: var(--docs-pa7); }
-.docs-rule--planta .docs-rule-example { border-color: var(--docs-planta); }
-.docs-rule--pouches .docs-rule-example { border-color: var(--docs-pouches); }
-.docs-rule--landing .docs-rule-example { border-color: var(--docs-landing); }
-.docs-rule--loyalty .docs-rule-example { border-color: var(--docs-loyalty); }
-
-.docs-example-eyebrow {
-  font-size: 10px;
-  font-weight: 700;
+.docs-example-label {
+  font-size: 11px;
+  font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.07em;
   color: var(--text-muted);
   margin: 0 0 5px;
 }
 
-.docs-example-text {
+.docs-rule-example p:not(.docs-example-label) {
   font-size: 13px;
-  color: var(--text);
+  color: var(--text-muted);
+  margin: 0;
+  line-height: 1.7;
+}
+
+/* Conditions list — definition list, not cards ------------ */
+
+.docs-cond-list {
+  display: grid;
+  gap: 20px;
+}
+
+.docs-cond-item {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.docs-cond-icon {
+  color: var(--text-muted);
+  flex-shrink: 0;
+  margin-block-start: 1px;
+}
+
+.docs-cond-item div { flex: 1; }
+
+.docs-cond-item dt {
+  font-size: 13px;
+  font-weight: 600;
+  margin: 0 0 3px;
+}
+
+.docs-cond-item dd {
+  font-size: 13px;
+  color: var(--text-muted);
   margin: 0;
   line-height: 1.65;
 }
 
-/* Conditions grid ------------------------------------------ */
-
-.docs-cond-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 12px;
-}
-
-.docs-cond-card {
-  background: var(--surface-subdued);
-  border-radius: 10px;
-  padding: 16px 18px;
-  border: 1px solid var(--border);
-}
-
-.docs-cond-icon {
-  font-size: 20px;
-  display: block;
-  margin-block-end: 10px;
-  line-height: 1;
-}
-
-.docs-cond-name {
-  font-size: 13px;
-  font-weight: 600;
-  margin: 0 0 5px;
-}
-
-.docs-cond-desc {
-  font-size: 12px;
-  color: var(--text-muted);
-  margin: 0;
-  line-height: 1.6;
-}
-
-/* Steps (landing page section) ----------------------------- */
+/* Steps — plain ordered list, numbered -------------------- */
 
 .docs-steps {
   list-style: none;
@@ -2443,56 +2420,29 @@ input[type="radio"] {
   margin: 0;
   counter-reset: docs-step;
   display: grid;
-  gap: 0;
+  gap: 20px;
 }
 
-.docs-step {
-  display: flex;
-  gap: 16px;
+.docs-steps li {
   counter-increment: docs-step;
-  padding-block-end: 24px;
-  position: relative;
+  display: grid;
+  grid-template-columns: 20px 1fr;
+  gap: 0 12px;
 }
 
-.docs-step:last-child {
-  padding-block-end: 0;
-}
-
-/* Numbered circle via ::before */
-.docs-step::before {
+.docs-steps li::before {
   content: counter(docs-step);
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  background: var(--text, #1a1a1a);
-  color: #fff;
   font-size: 12px;
   font-weight: 700;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-/* Vertical connector line */
-.docs-step:not(:last-child)::after {
-  content: '';
-  position: absolute;
-  inline-size: 2px;
-  background: var(--border);
-  inset-inline-start: 14px;
-  inset-block-start: 34px;
-  inset-block-end: 0;
-}
-
-.docs-step-body {
-  padding-block-start: 4px;
+  color: var(--text-muted);
+  padding-block-start: 2px;
+  font-variant-numeric: tabular-nums;
 }
 
 .docs-step-body h3 {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
-  margin: 0 0 5px;
+  margin: 0 0 4px;
 }
 
 .docs-step-body p {
@@ -2503,32 +2453,38 @@ input[type="radio"] {
 }
 
 .docs-step-body code {
-  font-size: 12px;
+  font-size: 11px;
   background: var(--surface-subdued);
   border: 1px solid var(--border);
   border-radius: 3px;
   padding: 1px 5px;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
 }
 
-/* Notes list ----------------------------------------------- */
+/* Notes list — icon + text -------------------------------- */
 
 .docs-notes {
   list-style: none;
   padding: 0;
   margin: 0;
   display: grid;
-  gap: 16px;
+  gap: 14px;
 }
 
 .docs-notes li {
   display: flex;
-  gap: 13px;
-  font-size: 14px;
+  gap: 10px;
+  font-size: 13px;
   line-height: 1.65;
+  color: var(--text-muted);
+}
+
+.docs-notes li strong {
+  color: var(--text);
 }
 
 .docs-note-icon {
-  font-size: 18px;
+  color: var(--text-muted);
   flex-shrink: 0;
-  margin-block-start: 1px;
+  margin-block-start: 2px;
 }

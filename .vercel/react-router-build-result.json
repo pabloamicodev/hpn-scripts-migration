@@ -21,6 +21,7 @@
       "routes/app.settings": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/app.api.products": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/app.discounts-overview": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/app.docs": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/auth.login": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/auth.$": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/webhooks": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0"
@@ -134,6 +135,15 @@
         "parentId": "routes/app",
         "file": "app/routes/app.discounts-overview.tsx",
         "path": "discounts-overview",
+        "config": {
+          "runtime": "nodejs"
+        }
+      },
+      "routes/app.docs": {
+        "id": "routes/app.docs",
+        "parentId": "routes/app",
+        "file": "app/routes/app.docs.tsx",
+        "path": "docs",
         "config": {
           "runtime": "nodejs"
         }
@@ -258,6 +268,12 @@
         "file": "routes/app.discounts-overview.tsx",
         "path": "discounts-overview"
       },
+      "routes/app.docs": {
+        "id": "routes/app.docs",
+        "parentId": "routes/app",
+        "file": "routes/app.docs.tsx",
+        "path": "docs"
+      },
       "routes/auth.login": {
         "id": "routes/auth.login",
         "parentId": "root",
@@ -338,6 +354,10 @@
               {
                 "file": "routes/app.discounts-overview.tsx",
                 "path": "discounts-overview"
+              },
+              {
+                "file": "routes/app.docs.tsx",
+                "path": "docs"
               }
             ],
             "path": "app"

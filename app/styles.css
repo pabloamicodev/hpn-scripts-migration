@@ -2233,258 +2233,244 @@ input[type="radio"] {
    Docs page
    ============================================================ */
 
-/* Jump nav — plain text links, pipe-separated */
-.docs-jump {
-  display: flex;
-  flex-wrap: wrap;
-  margin-block-end: 28px;
+/* Tab nav — inside the Rule types card -------------------- */
+
+.docs-section {
+  padding-block-start: 0 !important;
 }
 
-.docs-jump a {
-  font-size: 13px;
+.docs-tabs {
+  display: flex;
+  overflow-x: auto;
+  scrollbar-width: none;
+  border-block-end: 1px solid var(--border);
+  margin-block-end: 24px;
+  /* flush to card edges */
+  margin-inline: -20px;
+  padding-inline: 20px;
+}
+
+.docs-tabs::-webkit-scrollbar { display: none; }
+
+.docs-tab {
+  display: block;
+  flex-shrink: 0;
+  padding: 12px 14px;
+  font-size: 12px;
+  font-weight: 500;
   color: var(--text-muted);
   text-decoration: none;
-  padding: 0 12px;
-  border-inline-end: 1px solid var(--border);
-  line-height: 1;
+  border-block-end: 2px solid transparent;
+  margin-block-end: -1px;
+  white-space: nowrap;
+  transition: color 0.12s;
 }
 
-.docs-jump a:first-child { padding-inline-start: 0; }
-.docs-jump a:last-child  { border-inline-end: none; }
+.docs-tab:hover { color: var(--text); }
 
-.docs-jump a:hover { color: var(--text); text-decoration: underline; }
+.docs-tab.is-active {
+  color: var(--text);
+  border-block-end-color: var(--text);
+  font-weight: 600;
+}
 
-.docs-jump a:focus-visible {
+.docs-tab:focus-visible {
   outline: 2px solid var(--text);
-  outline-offset: 2px;
+  outline-offset: -2px;
   border-radius: 2px;
 }
 
 /* Lede ---------------------------------------------------- */
 
 .docs-lede {
-  font-size: 14px;
+  font-size: 13px;
   color: var(--text-muted);
   line-height: 1.7;
-  margin: -4px 0 22px;
+  margin: -4px 0 20px;
 }
 
-/* Inline icon helper -------------------------------------- */
-
-.docs-icon {
-  display: inline-block;
-  vertical-align: middle;
-  flex-shrink: 0;
-}
-
-/* Rule entries -------------------------------------------- */
+/* ── Rules ─────────────────────────────────────────────── */
 
 .docs-rule {
+  display: grid;
+  grid-template-columns: 28px 1fr;
+  gap: 0 16px;
   padding: 24px 0;
   border-block-start: 1px solid var(--border);
-  scroll-margin-top: 20px;
+  scroll-margin-top: 24px;
 }
 
+/* first rule has no top border — directly below the h2 */
 .docs-rule:first-of-type {
   border-block-start: none;
   padding-block-start: 0;
 }
 
+/* Rule number — left gutter */
+.docs-rule-n {
+  font-size: 10px;
+  font-weight: 600;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  color: var(--text-muted);
+  opacity: 0.55;
+  padding-block-start: 3px;
+  letter-spacing: 0.04em;
+  line-height: 1;
+}
+
+/* Rule body — right column */
 .docs-rule-header {
   display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  margin-block-end: 12px;
+  align-items: center;
+  gap: 8px;
+  margin-block-end: 8px;
 }
 
 .docs-rule-icon {
   color: var(--text-muted);
   flex-shrink: 0;
-  margin-block-start: 3px;
 }
 
 .docs-rule-name {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
-  margin: 0 0 5px;
+  margin: 0;
+  flex: 1;
   line-height: 1.3;
   text-wrap: balance;
 }
 
 .docs-rule-type {
-  font-size: 11px;
+  font-size: 10px;
   font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
   color: var(--text-muted);
-  background: var(--surface-subdued);
-  border: 1px solid var(--border);
-  border-radius: 3px;
-  padding: 1px 6px;
+  flex-shrink: 0;
+  letter-spacing: 0.02em;
 }
 
 .docs-rule-desc {
-  font-size: 14px;
+  font-size: 13px;
   line-height: 1.7;
-  color: var(--text);
-  margin: 0 0 16px;
+  color: var(--text-muted);
+  margin: 0 0 14px;
 }
 
-/* Config field list */
+/* Config */
 .docs-rule-config {
-  margin: 0 0 16px;
+  margin: 0 0 14px;
 }
 
 .docs-config-label {
-  font-size: 11px;
-  font-weight: 600;
+  font-size: 10px;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.07em;
+  letter-spacing: 0.08em;
   color: var(--text-muted);
-  margin: 0 0 7px;
+  margin: 0 0 6px;
 }
 
 .docs-rule-config ul {
   margin: 0;
-  padding-inline-start: 18px;
+  padding-inline-start: 16px;
   display: grid;
-  gap: 4px;
+  gap: 3px;
 }
 
 .docs-rule-config li {
-  font-size: 13px;
+  font-size: 12px;
   color: var(--text);
-  line-height: 1.5;
+  line-height: 1.55;
 }
 
-/* Example — blockquote style, no card */
+/* In practice — flat box, no border-radius */
 .docs-rule-example {
-  margin: 0;
-  padding: 0 0 0 16px;
-  border-inline-start: 2px solid var(--border);
+  background: var(--surface-subdued);
+  border: 1px solid var(--border);
+  border-radius: 0;
+  padding: 11px 14px;
 }
 
 .docs-example-label {
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.07em;
-  color: var(--text-muted);
-  margin: 0 0 5px;
-}
-
-.docs-rule-example p:not(.docs-example-label) {
-  font-size: 13px;
-  color: var(--text-muted);
-  margin: 0;
-  line-height: 1.7;
-}
-
-/* Conditions list — definition list, not cards ------------ */
-
-.docs-cond-list {
-  display: grid;
-  gap: 20px;
-}
-
-.docs-cond-item {
-  display: flex;
-  gap: 12px;
-  align-items: flex-start;
-}
-
-.docs-cond-icon {
-  color: var(--text-muted);
-  flex-shrink: 0;
-  margin-block-start: 1px;
-}
-
-.docs-cond-item div { flex: 1; }
-
-.docs-cond-item dt {
-  font-size: 13px;
-  font-weight: 600;
-  margin: 0 0 3px;
-}
-
-.docs-cond-item dd {
-  font-size: 13px;
-  color: var(--text-muted);
-  margin: 0;
-  line-height: 1.65;
-}
-
-/* Steps — plain ordered list, numbered -------------------- */
-
-.docs-steps {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  counter-reset: docs-step;
-  display: grid;
-  gap: 20px;
-}
-
-.docs-steps li {
-  counter-increment: docs-step;
-  display: grid;
-  grid-template-columns: 20px 1fr;
-  gap: 0 12px;
-}
-
-.docs-steps li::before {
-  content: counter(docs-step);
-  font-size: 12px;
+  font-size: 10px;
   font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
   color: var(--text-muted);
-  padding-block-start: 2px;
-  font-variant-numeric: tabular-nums;
-}
-
-.docs-step-body h3 {
-  font-size: 13px;
-  font-weight: 600;
   margin: 0 0 4px;
 }
 
-.docs-step-body p {
-  font-size: 13px;
-  color: var(--text-muted);
-  line-height: 1.65;
+.docs-rule-example p:not(.docs-example-label) {
+  font-size: 12px;
+  color: var(--text);
   margin: 0;
+  line-height: 1.65;
 }
 
-.docs-step-body code {
+/* ── Unified row list — conditions / steps / notes ─────── */
+/* Same visual grammar for all three secondary sections     */
+
+.docs-row-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* Each row: icon/number gutter (20px) + content */
+.docs-row {
+  display: grid;
+  grid-template-columns: 20px 1fr;
+  gap: 0 12px;
+  padding: 14px 0;
+  border-block-start: 1px solid var(--border);
+  align-items: start;
+}
+
+.docs-row:first-child {
+  border-block-start: none;
+  padding-block-start: 0;
+}
+
+/* Icon gutter (conditions & notes) */
+.docs-row-icon {
+  color: var(--text-muted);
+  padding-block-start: 1px;
+  flex-shrink: 0;
+}
+
+/* Number gutter (steps) */
+.docs-row-n {
+  font-size: 10px;
+  font-weight: 700;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  color: var(--text-muted);
+  opacity: 0.6;
+  padding-block-start: 2px;
+  letter-spacing: 0.04em;
+}
+
+/* Row label (condition name / step title) */
+.docs-row-label {
+  font-size: 13px;
+  font-weight: 600;
+  margin: 0 0 3px;
+  color: var(--text);
+}
+
+/* Row body text */
+.docs-row-body {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin: 0;
+  line-height: 1.65;
+}
+
+.docs-row-body strong { color: var(--text); }
+
+.docs-row-body code {
   font-size: 11px;
   background: var(--surface-subdued);
   border: 1px solid var(--border);
   border-radius: 3px;
   padding: 1px 5px;
   font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
-}
-
-/* Notes list — icon + text -------------------------------- */
-
-.docs-notes {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: grid;
-  gap: 14px;
-}
-
-.docs-notes li {
-  display: flex;
-  gap: 10px;
-  font-size: 13px;
-  line-height: 1.65;
-  color: var(--text-muted);
-}
-
-.docs-notes li strong {
-  color: var(--text);
-}
-
-.docs-note-icon {
-  color: var(--text-muted);
-  flex-shrink: 0;
-  margin-block-start: 2px;
 }

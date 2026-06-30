@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { hpnPromoConfigSchema, type HpnPromoConfig, type HpnPromoRule } from "./validations";
 import { logger } from "./logger";
-import { getStorePreset } from "./hpnPromoDefaults";
+import { getStorePreset, getDiscountTitle } from "./hpnPromoDefaults";
 import { searchDiscounts, updateAutomaticDiscount } from "./shopifyDiscounts.server";
 import { withDatabaseLock } from "./databaseLock.server";
 import {
@@ -9,8 +9,6 @@ import {
   validateVariantIds,
   type GraphQLProxyFn,
 } from "./shopifyProducts.server";
-
-export const DISCOUNT_TITLE = "HPN Scripts Migration Discounts";
 
 export type GraphQLProxy = GraphQLProxyFn;
 
@@ -48,7 +46,7 @@ export async function loadActiveDiscount(
   graphqlProxy: GraphQLProxy,
   shop: string,
 ): Promise<LoadedDiscount> {
-  const nodes = await searchDiscounts(graphqlProxy, DISCOUNT_TITLE);
+  const nodes = await searchDiscounts(graphqlProxy, getDiscountTitle(shop));
 
   const hpnAppDiscounts = nodes.filter(
     (node) => node.type === "DiscountAutomaticApp",

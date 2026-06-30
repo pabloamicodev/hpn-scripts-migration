@@ -18,3 +18,17 @@ const PRESETS: Record<string, HpnPromoConfig> = {
 export function getStorePreset(shop: string): HpnPromoConfig {
   return PRESETS[shop] ?? hpnSupplementsPreset;
 }
+
+const DISCOUNT_TITLES: Record<string, string> = {
+  "hpn-supplements.myshopify.com": "HPN Scripts Migration Discounts",
+  "gettrusupps.myshopify.com":     "GetTru Scripts Migration Discounts",
+  "onesolsupps.myshopify.com":     "One Sol Scripts Migration Discounts",
+};
+
+/**
+ * Returns the automatic app discount title for the given shop domain.
+ * Falls back to the hpn-supplements title if the domain is unrecognized.
+ */
+export function getDiscountTitle(shop: string): string {
+  return DISCOUNT_TITLES[shop] ?? DISCOUNT_TITLES["hpn-supplements.myshopify.com"];
+}

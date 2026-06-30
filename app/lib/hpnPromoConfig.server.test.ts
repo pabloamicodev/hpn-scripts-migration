@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
-  DISCOUNT_TITLE,
   getConfigRevision,
   loadActiveDiscount,
 } from "./hpnPromoConfig.server";
-import { defaultHpnPromoConfig } from "./hpnPromoDefaults";
+import { defaultHpnPromoConfig, getDiscountTitle } from "./hpnPromoDefaults";
 import type { GraphQLProxyFn } from "./shopifyProducts.server";
+
+const DISCOUNT_TITLE = getDiscountTitle("hpn-supplements.myshopify.com");
 
 function proxyFor(nodes: unknown[]): GraphQLProxyFn {
   return async <TData>() => ({

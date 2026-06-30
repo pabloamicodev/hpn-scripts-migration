@@ -2,11 +2,8 @@ import { useState } from "react";
 import { useLoaderData, useFetcher, useNavigate } from "react-router";
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "react-router";
 import { authenticate } from "~/shopify.server";
-import {
-  loadActiveDiscount,
-  DISCOUNT_TITLE,
-} from "~/lib/hpnPromoConfig.server";
-import { getStorePreset } from "~/lib/hpnPromoDefaults";
+import { loadActiveDiscount } from "~/lib/hpnPromoConfig.server";
+import { getStorePreset, getDiscountTitle } from "~/lib/hpnPromoDefaults";
 import {
   createAutomaticDiscount,
   activateDiscount,
@@ -73,7 +70,7 @@ export async function action({ request }: ActionFunctionArgs) {
 
         const result = await createAutomaticDiscount(
           proxy,
-          DISCOUNT_TITLE,
+          getDiscountTitle(session.shop),
           functionId,
           new Date().toISOString(),
           getStorePreset(session.shop),
@@ -100,7 +97,7 @@ export async function action({ request }: ActionFunctionArgs) {
     if (!loaded.discountId) {
       return actionError("No active discount found", {
         operation: intent || "discountAction",
-        details: [`Searched for title: "${DISCOUNT_TITLE}" — no results`],
+        details: [`Searched for title: "${getDiscountTitle(session.shop)}" — no results`],
         hint: "Create the discount first from this page before activating or deleting.",
       });
     }

@@ -4,9 +4,8 @@ import { authenticate } from "~/shopify.server";
 import { findHpnFunctionId, searchDiscounts } from "~/lib/shopifyDiscounts.server";
 import { makeGraphqlProxy } from "~/lib/graphqlProxy.server";
 import { loaderError } from "~/lib/actionError.server";
+import { getDiscountTitle } from "~/lib/hpnPromoDefaults";
 import { StatusBadge } from "~/components/StatusBadge";
-
-const DISCOUNT_TITLE = "HPN Scripts Migration Discounts";
 
 interface HpnPromoRule {
   enabled: boolean;
@@ -22,7 +21,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const graphqlProxy = makeGraphqlProxy(admin);
 
   const [discounts, functionId] = await Promise.all([
-    searchDiscounts(graphqlProxy, DISCOUNT_TITLE),
+    searchDiscounts(graphqlProxy, getDiscountTitle(session.shop)),
     findHpnFunctionId(graphqlProxy, session.shop),
   ]);
 
@@ -50,6 +49,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     pausedRulesCount,
     lastUpdate: activeDiscount?.startsAt ?? null,
     functionId,
+    defaultTitle: getDiscountTitle(session.shop),
   };
   } catch (err) {
     return loaderError("Failed to load dashboard", {
@@ -61,7 +61,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 }
 
 export default function AppIndex() {
-  const { discount, activeRulesCount, pausedRulesCount, lastUpdate, functionId } =
+  const { discount, activeRulesCount, pausedRulesCount, lastUpdate, functionId, defaultTitle } =
     useLoaderData<typeof loader>();
 
   const navigate = useNavigate();
@@ -221,7 +221,7 @@ export default function AppIndex() {
                 <li>
                   <span className="detail-list__label">Title</span>
                   <span className="detail-list__value">
-                    {discount?.title ?? DISCOUNT_TITLE}
+                    {discount?.title ?? defaultTitle}
                   </span>
                 </li>
                 <li>

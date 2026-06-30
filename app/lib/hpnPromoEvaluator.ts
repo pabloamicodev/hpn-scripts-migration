@@ -9,6 +9,7 @@ export interface CartLine {
   quantity: number;
   cost?: { totalAmount?: { amount: string } };
   sellingPlanAllocation?: { sellingPlan: { id: string } } | null;
+  customAttributes?: Array<{ key: string; value: string | null }>;
   merchandise: {
     __typename: "ProductVariant";
     id: string;
@@ -255,6 +256,117 @@ export function evaluateLoyaltyTier(
   return actions;
 }
 
+export function evaluateSubscriptionBundleGroup(
+  rule: Extract<HpnPromoRule, { type: "subscription_bundle_group" }>,
+  lines: CartLine[],
+): DiscountAction[] {
+  const actions: DiscountAction[] = [];
+  const targetProductIds = new Set(rule.targetProductIds);
+  let unitsDiscounted = 0;
+
+  for (const line of lines) {
+    if (unitsDiscounted >= rule.maxUnitsTotal) break;
+    if (line.merchandise.__typename !== "ProductVariant") continue;
+
+    const productId = line.merchandise.product.id;
+    if (!targetProductIds.has(productId)) continue;
+
+    if (!line.sellingPlanAllocation?.sellingPlan?.id) continue;
+
+    if (rule.requiredLineAttributeKey) {
+      const attrs = line.customAttributes ?? [];
+      const attr = attrs.find((a) => a.key === rule.requiredLineAttributeKey);
+      if (!attr) continue;
+      if (rule.requiredLineAttributeValue != null && attr.value !== rule.requiredLineAttributeValue) continue;
+    }
+
+    const qtyToDiscount = Math.min(rule.maxUnitsTotal - unitsDiscounted, line.quantity);
+    unitsDiscounted += qtyToDiscount;
+    actions.push({
+      lineId: line.id,
+      variantId: line.merchandise.id,
+      productId,
+      discountedQuantity: qtyToDiscount,
+      percentageOff: rule.discountPercentage,
+      message: rule.message,
+    });
+  }
+
+  return actions;
+}
+
+export function evaluateSwellFreeProduct(
+  rule: Extract<HpnPromoRule, { type: "swell_free_product" }>,
+  lines: CartLine[],
+): DiscountAction[] {
+  const actions: DiscountAction[] = [];
+  for (const line of lines) {
+    if (line.merchandise.__typename !== "ProductVariant") continue;
+    const attrs = line.customAttributes ?? [];
+    const discountType = attrs.find((a) => a.key === "_swell_discount_type")?.value;
+    if (discountType !== "product") continue;
+    actions.push({
+      lineId: line.id,
+      variantId: line.merchandise.id,
+      productId: line.merchandise.product.id,
+      discountedQuantity: 1,
+      percentageOff: 100,
+      message: rule.message,
+    });
+  }
+  return actions;
+}
+
+export function evaluateSwellCartFixedAmount(
+  rule: Extract<HpnPromoRule, { type: "swell_cart_fixed_amount" }>,
+  lines: CartLine[],
+): DiscountAction[] {
+  const actions: DiscountAction[] = [];
+
+  const freeProductLineIds = new Set<string>();
+  let totalDiscountCents = 0;
+
+  for (const line of lines) {
+    const attrs = line.customAttributes ?? [];
+    const discountType = attrs.find((a) => a.key === "_swell_discount_type")?.value;
+    if (discountType === "product") freeProductLineIds.add(line.id);
+    if (discountType === "cart_fixed_amount") {
+      const amountStr = attrs.find((a) => a.key === "_swell_discount_amount_cents")?.value;
+      const amount = parseInt(amountStr ?? "0", 10);
+      if (!isNaN(amount) && amount > 0) totalDiscountCents += amount;
+    }
+  }
+
+  if (totalDiscountCents <= 0) return actions;
+
+  const eligibleLines = lines.filter(
+    (l) => l.merchandise.__typename === "ProductVariant" && !freeProductLineIds.has(l.id),
+  );
+  if (eligibleLines.length === 0) return actions;
+
+  const eligibleCartCents = eligibleLines.reduce((sum, line) => {
+    return sum + Math.round(parseFloat(line.cost?.totalAmount?.amount ?? "0") * 100);
+  }, 0);
+  if (eligibleCartCents <= 0) return actions;
+
+  for (const line of eligibleLines) {
+    const lineCents = Math.round(parseFloat(line.cost?.totalAmount?.amount ?? "0") * 100);
+    if (lineCents <= 0) continue;
+    const lineDiscountCents = Math.floor((lineCents * totalDiscountCents) / eligibleCartCents);
+    if (lineDiscountCents <= 0) continue;
+    const percentageOff = Math.min((lineDiscountCents / lineCents) * 100, 100);
+    actions.push({
+      lineId: line.id,
+      variantId: line.merchandise.id,
+      productId: line.merchandise.product.id,
+      discountedQuantity: line.quantity,
+      percentageOff,
+      message: rule.message,
+    });
+  }
+  return actions;
+}
+
 // ---------------------------------------------------------------------------
 // Exhaustiveness guard — TypeScript will error here if a new rule type is
 // added to HpnPromoRule but not handled in evaluateConfig's switch.
@@ -299,6 +411,15 @@ export function evaluateConfig(
         break;
       case "loyalty_tier":
         ruleActions = evaluateLoyaltyTier(rule, cartIndex, context);
+        break;
+      case "subscription_bundle_group":
+        ruleActions = evaluateSubscriptionBundleGroup(rule, lines);
+        break;
+      case "swell_free_product":
+        ruleActions = evaluateSwellFreeProduct(rule, lines);
+        break;
+      case "swell_cart_fixed_amount":
+        ruleActions = evaluateSwellCartFixedAmount(rule, lines);
         break;
       default:
         assertNever(rule);

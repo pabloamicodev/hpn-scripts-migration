@@ -6,7 +6,7 @@ import {
   loadActiveDiscount,
   DISCOUNT_TITLE,
 } from "~/lib/hpnPromoConfig.server";
-import { defaultHpnPromoConfig } from "~/lib/hpnPromoDefaults";
+import { getStorePreset } from "~/lib/hpnPromoDefaults";
 import {
   createAutomaticDiscount,
   activateDiscount,
@@ -29,10 +29,10 @@ import { withDatabaseLock } from "~/lib/databaseLock.server";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   try {
-    const { admin } = await authenticate.admin(request);
+    const { admin, session } = await authenticate.admin(request);
     const proxy = makeGraphqlProxy(admin);
     const [loaded, functionId] = await Promise.all([
-      loadActiveDiscount(proxy),
+      loadActiveDiscount(proxy, session.shop),
       findHpnFunctionId(proxy),
     ]);
     return { ...loaded, functionId };
@@ -47,14 +47,14 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
 export async function action({ request }: ActionFunctionArgs) {
   try {
-    const { admin } = await authenticate.admin(request);
+    const { admin, session } = await authenticate.admin(request);
     const proxy = makeGraphqlProxy(admin);
     const formData = await request.formData();
     const intent = String(formData.get("intent") ?? "");
 
     if (intent === "create") {
       return withDatabaseLock("hpn-discount-create", async () => {
-        const existing = await loadActiveDiscount(proxy);
+        const existing = await loadActiveDiscount(proxy, session.shop);
         if (existing.discountId) {
           return {
             ok: true,
@@ -76,8 +76,8 @@ export async function action({ request }: ActionFunctionArgs) {
           DISCOUNT_TITLE,
           functionId,
           new Date().toISOString(),
-          defaultHpnPromoConfig,
-          defaultHpnPromoConfig.combinesWith,
+          getStorePreset(session.shop),
+          getStorePreset(session.shop).combinesWith,
         );
 
         if (result?.userErrors?.length) {
@@ -95,7 +95,7 @@ export async function action({ request }: ActionFunctionArgs) {
       });
     }
 
-    const loaded = await loadActiveDiscount(proxy);
+    const loaded = await loadActiveDiscount(proxy, session.shop);
 
     if (!loaded.discountId) {
       return actionError("No active discount found", {
@@ -109,7 +109,7 @@ export async function action({ request }: ActionFunctionArgs) {
       return withDatabaseLock(
         `hpn-discount-config:${loaded.discountId}`,
         async () => {
-          const latest = await loadActiveDiscount(proxy);
+          const latest = await loadActiveDiscount(proxy, session.shop);
           if (!latest.discountId) {
             return actionError("Discount disappeared before repair", {
               operation: "repairConfig",
@@ -121,8 +121,8 @@ export async function action({ request }: ActionFunctionArgs) {
             proxy,
             latest.discountId,
             {
-              config: defaultHpnPromoConfig,
-              combinesWith: defaultHpnPromoConfig.combinesWith,
+              config: getStorePreset(session.shop),
+              combinesWith: getStorePreset(session.shop).combinesWith,
             },
           );
           if (result?.userErrors?.length) {

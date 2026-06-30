@@ -24,6 +24,10 @@ query RunInput {
     lines {
       id
       quantity
+      customAttributes {
+        key
+        value
+      }
       cost {
         totalAmount {
           amount

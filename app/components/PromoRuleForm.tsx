@@ -67,6 +67,9 @@ interface PromoRuleFormValues {
   freeQuantityPerLine?: number | null;
   targets?: DiscountTarget[];
   tiers?: LoyaltyTierEntry[];
+  maxUnitsTotal?: number;
+  requiredLineAttributeKey?: string;
+  requiredLineAttributeValue?: string;
   conditions?: RuleConditionsFormValues;
 }
 
@@ -142,6 +145,33 @@ const DEFAULT_RULES: Record<PromoRuleType, PromoRuleFormValues> = {
     discountPercentage: 100,
     message: HPN_PROMO_MESSAGES.FREE_POUCHES,
   },
+
+  subscription_bundle_group: {
+    id: "subscription-bundle",
+    type: "subscription_bundle_group",
+    enabled: true,
+    targetProductIds: [],
+    discountPercentage: 10,
+    maxUnitsTotal: 2,
+    requiredLineAttributeKey: "",
+    requiredLineAttributeValue: "",
+    message: "",
+    conditions: { requiresSubscriptionInCart: true },
+  },
+
+  swell_free_product: {
+    id: "swell-free-product",
+    type: "swell_free_product",
+    enabled: true,
+    message: "Rewards",
+  },
+
+  swell_cart_fixed_amount: {
+    id: "swell-cart-fixed-amount",
+    type: "swell_cart_fixed_amount",
+    enabled: true,
+    message: "Rewards",
+  },
 };
 
 function normalizeDefaultValues(defaultValues?: HpnPromoRule): PromoRuleFormValues {
@@ -161,6 +191,9 @@ function makeRuleId(type: PromoRuleType) {
   if (type === "required_variants_free_variants") return `required-variants-free-variants-${suffix}`;
   if (type === "required_product_with_free_variants") return `required-product-free-variants-${suffix}`;
   if (type === "trigger_product_discounted_targets") return `trigger-discounted-targets-${suffix}`;
+  if (type === "subscription_bundle_group") return `subscription-bundle-${suffix}`;
+  if (type === "swell_free_product") return `swell-free-product-${suffix}`;
+  if (type === "swell_cart_fixed_amount") return `swell-cart-fixed-amount-${suffix}`;
   return `loyalty-tier-${suffix}`;
 }
 
@@ -244,6 +277,41 @@ function buildRulePayload(values: PromoRuleFormValues): unknown {
       enabled: values.enabled,
       triggerProductId: values.triggerProductId,
       targets: values.targets ?? [],
+      message: values.message,
+      conditions,
+    };
+  }
+
+  if (values.type === "swell_free_product") {
+    return {
+      id: values.id,
+      type: "swell_free_product",
+      enabled: values.enabled,
+      message: values.message,
+      conditions,
+    };
+  }
+
+  if (values.type === "swell_cart_fixed_amount") {
+    return {
+      id: values.id,
+      type: "swell_cart_fixed_amount",
+      enabled: values.enabled,
+      message: values.message,
+      conditions,
+    };
+  }
+
+  if (values.type === "subscription_bundle_group") {
+    return {
+      id: values.id,
+      type: "subscription_bundle_group",
+      enabled: values.enabled,
+      targetProductIds: values.targetProductIds ?? [],
+      discountPercentage: values.discountPercentage ?? 10,
+      maxUnitsTotal: values.maxUnitsTotal ?? 2,
+      requiredLineAttributeKey: values.requiredLineAttributeKey || undefined,
+      requiredLineAttributeValue: values.requiredLineAttributeValue || undefined,
       message: values.message,
       conditions,
     };

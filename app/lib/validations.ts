@@ -92,6 +92,46 @@ export const triggerProductDiscountedTargetsRuleSchema = z.object({
 });
 
 // ---------------------------------------------------------------------------
+// Subscription bundle group (e.g. One Sol Bundle-Two)
+// ---------------------------------------------------------------------------
+
+export const subscriptionBundleGroupRuleSchema = z.object({
+  id: ruleIdSchema,
+  type: z.literal("subscription_bundle_group"),
+  enabled: z.boolean(),
+  targetProductIds: z.array(productGidSchema).min(1),
+  discountPercentage: z.number().positive().max(100),
+  // Cart-wide cap: only this many units across ALL matching lines get discounted.
+  maxUnitsTotal: z.number().int().positive(),
+  // Optional: require a specific line-level custom attribute (e.g. __bundle_type = two).
+  requiredLineAttributeKey: z.string().min(1).optional(),
+  requiredLineAttributeValue: z.string().optional(),
+  message: z.string().trim().min(1),
+  conditions: ruleConditionsSchema,
+});
+
+// ---------------------------------------------------------------------------
+// Swell loyalty rewards (gettrusupps) — triggered by hidden line properties,
+// no product IDs required.
+// ---------------------------------------------------------------------------
+
+export const swellFreeProductRuleSchema = z.object({
+  id: ruleIdSchema,
+  type: z.literal("swell_free_product"),
+  enabled: z.boolean(),
+  message: z.string().trim().min(1),
+  conditions: ruleConditionsSchema,
+});
+
+export const swellCartFixedAmountRuleSchema = z.object({
+  id: ruleIdSchema,
+  type: z.literal("swell_cart_fixed_amount"),
+  enabled: z.boolean(),
+  message: z.string().trim().min(1),
+  conditions: ruleConditionsSchema,
+});
+
+// ---------------------------------------------------------------------------
 // Loyalty tier
 // ---------------------------------------------------------------------------
 
@@ -120,6 +160,9 @@ export const hpnPromoRuleSchema = z.discriminatedUnion("type", [
   requiredProductWithFreeVariantsRuleSchema,
   triggerProductDiscountedTargetsRuleSchema,
   loyaltyTierRuleSchema,
+  subscriptionBundleGroupRuleSchema,
+  swellFreeProductRuleSchema,
+  swellCartFixedAmountRuleSchema,
 ]);
 
 export const hpnPromoConfigSchema = z.object({
@@ -143,13 +186,19 @@ export type TriggerProductDiscountedTargetsRule = z.infer<typeof triggerProductD
 export type LoyaltyTierRule = z.infer<typeof loyaltyTierRuleSchema>;
 export type LoyaltyTierEntry = z.infer<typeof loyaltyTierEntrySchema>;
 export type DiscountTarget = z.infer<typeof discountTargetSchema>;
+export type SubscriptionBundleGroupRule = z.infer<typeof subscriptionBundleGroupRuleSchema>;
+export type SwellFreeProductRule = z.infer<typeof swellFreeProductRuleSchema>;
+export type SwellCartFixedAmountRule = z.infer<typeof swellCartFixedAmountRuleSchema>;
 
 export type HpnPromoRule =
   | Pa7CrossSellRule
   | RequiredVariantsFreeVariantsRule
   | RequiredProductWithFreeVariantsRule
   | TriggerProductDiscountedTargetsRule
-  | LoyaltyTierRule;
+  | LoyaltyTierRule
+  | SubscriptionBundleGroupRule
+  | SwellFreeProductRule
+  | SwellCartFixedAmountRule;
 
 export type HpnPromoRuleId = HpnPromoRule["id"];
 export type HpnPromoRuleType = HpnPromoRule["type"];

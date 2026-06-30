@@ -20,10 +20,10 @@ import { PromoRuleForm } from "~/components/PromoRuleForm";
 
 export async function action({ request }: ActionFunctionArgs) {
   try {
-    const { admin } = await authenticate.admin(request);
+    const { admin, session } = await authenticate.admin(request);
     const proxy = makeGraphqlProxy(admin);
 
-    const loaded = await loadActiveDiscount(proxy);
+    const loaded = await loadActiveDiscount(proxy, session.shop);
 
     if (!loaded.discountId) {
       return actionError("No active discount found", {
@@ -73,6 +73,7 @@ export async function action({ request }: ActionFunctionArgs) {
 
     const result = await saveConfig(
       proxy,
+      session.shop,
       loaded.discountId,
       loaded.config,
       loaded.configRevision,

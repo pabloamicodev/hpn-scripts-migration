@@ -1,6 +1,13 @@
-# hpn-supplements — default config (shopify app dev)
-# For other stores: shopify app dev --config=gettrusupps | one-sol
-name = "hpn-supplements"
+# gettrusupps — dev config for gettrusupps.myshopify.com
+# Usage: shopify app dev --config=gettrusupps
+#
+# Before first use:
+#   1. Create a new app in partners.shopify.com for this store
+#   2. Replace client_id below with the new app's Client ID
+#   3. Update application_url if deploying to a separate URL
+#   4. Set STORE_PROFILE=gettrusupps in the deployment env vars
+
+name = "gettrusupps"
 client_id = "819b1c9f7db3b989c8138940a6078afd"
 handle = "hpn-scripts-migration"
 application_url = "https://hpn-scripts-migration.vercel.app"

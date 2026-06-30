@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { hpnPromoConfigSchema, type HpnPromoConfig, type HpnPromoRule } from "./validations";
 import { logger } from "./logger";
-import { defaultHpnPromoConfig } from "./hpnPromoDefaults";
+import { getStorePreset } from "./hpnPromoDefaults";
 import { searchDiscounts, updateAutomaticDiscount } from "./shopifyDiscounts.server";
 import { withDatabaseLock } from "./databaseLock.server";
 import {
@@ -45,7 +45,8 @@ export function getConfigRevision(config: HpnPromoConfig): string {
 }
 
 export async function loadActiveDiscount(
-  graphqlProxy: GraphQLProxy
+  graphqlProxy: GraphQLProxy,
+  shop: string,
 ): Promise<LoadedDiscount> {
   const nodes = await searchDiscounts(graphqlProxy, DISCOUNT_TITLE);
 
@@ -59,18 +60,18 @@ export async function loadActiveDiscount(
   if (!active) {
     return {
       discountId: null,
-      config: defaultHpnPromoConfig,
+      config: getStorePreset(shop),
       status: null,
       title: null,
       startsAt: null,
       functionId: null,
       configValid: true,
       configError: null,
-      configRevision: getConfigRevision(defaultHpnPromoConfig),
+      configRevision: getConfigRevision(getStorePreset(shop)),
     };
   }
 
-  let config = defaultHpnPromoConfig;
+  let config = getStorePreset(shop);
   let configValid = true;
   let configError: string | null = null;
 
@@ -167,6 +168,12 @@ export async function validateRuleReferences(
     }
   }
 
+  if (rule.type === "subscription_bundle_group") {
+    for (const productId of rule.targetProductIds) {
+      productIds.add(productId);
+    }
+  }
+
   const [productResult, variantResult] = await Promise.all([
     productIds.size > 0
       ? validateProductIds(graphqlProxy, Array.from(productIds))
@@ -184,13 +191,14 @@ export async function validateRuleReferences(
 
 export async function saveConfig(
   graphqlProxy: GraphQLProxy,
+  shop: string,
   discountId: string,
   currentConfig: HpnPromoConfig,
   expectedRevision: string,
   updater: (current: HpnPromoConfig) => HpnPromoConfig,
 ): Promise<{ userErrors: { field: string[] | null; message: string }[] }> {
   return withDatabaseLock(`hpn-discount-config:${discountId}`, async () => {
-    const latest = await loadActiveDiscount(graphqlProxy);
+    const latest = await loadActiveDiscount(graphqlProxy, shop);
     if (!latest.configValid) {
       throw new InvalidStoredConfigError(
         latest.configError ?? "The stored configuration is invalid.",

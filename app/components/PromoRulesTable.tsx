@@ -17,6 +17,9 @@ const typeLabels: Record<HpnPromoRule["type"], string> = {
   required_product_with_free_variants: "Bundle Product + Variants",
   trigger_product_discounted_targets: "Trigger → Discounted Targets",
   loyalty_tier: "Loyalty Tier",
+  subscription_bundle_group: "Subscription Bundle",
+  swell_free_product: "Swell Free Product",
+  swell_cart_fixed_amount: "Swell Fixed-Amount Reward",
 };
 
 const pageSizeOptions = [5, 10, 25];
@@ -413,6 +416,11 @@ function getRuleIdentifiers(rule: HpnPromoRule): string {
         .join(" ");
     case "loyalty_tier":
       return rule.targetProductIds.map(getGidTail).join(" ");
+    case "subscription_bundle_group":
+      return rule.targetProductIds.map(getGidTail).join(" ");
+    case "swell_free_product":
+    case "swell_cart_fixed_amount":
+      return "";
   }
 }
 
@@ -447,6 +455,12 @@ function getTriggerSummary(rule: HpnPromoRule): string {
       return `Product: ${getGidTail(rule.triggerProductId)}`;
     case "loyalty_tier":
       return `${rule.targetProductIds.length} target product(s)`;
+    case "subscription_bundle_group":
+      return `${rule.targetProductIds.length} product(s), max ${rule.maxUnitsTotal} units`;
+    case "swell_free_product":
+      return "Line property: _swell_discount_type = product";
+    case "swell_cart_fixed_amount":
+      return "Line property: _swell_discount_type = cart_fixed_amount";
   }
 }
 
@@ -462,6 +476,11 @@ function getTargetsCount(rule: HpnPromoRule): number {
       return rule.targets.length;
     case "loyalty_tier":
       return rule.targetProductIds.length;
+    case "subscription_bundle_group":
+      return rule.targetProductIds.length;
+    case "swell_free_product":
+    case "swell_cart_fixed_amount":
+      return 0;
   }
 }
 
@@ -477,5 +496,11 @@ function getDiscountSummary(rule: HpnPromoRule): string {
       return `${rule.targets.length} target(s), per-product %`;
     case "loyalty_tier":
       return `${rule.tiers.length} tier(s)`;
+    case "subscription_bundle_group":
+      return `${rule.discountPercentage}% off, max ${rule.maxUnitsTotal} units`;
+    case "swell_free_product":
+      return "1 unit free";
+    case "swell_cart_fixed_amount":
+      return "Proportional fixed-amount";
   }
 }

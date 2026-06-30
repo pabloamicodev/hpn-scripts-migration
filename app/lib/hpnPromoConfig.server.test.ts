@@ -38,6 +38,7 @@ describe("loadActiveDiscount", () => {
   it("marks malformed stored JSON invalid instead of treating defaults as published", async () => {
     const loaded = await loadActiveDiscount(
       proxyFor([automaticDiscount("{not-json")]),
+      "hpn-supplements.myshopify.com",
     );
 
     expect(loaded.discountId).toBeTruthy();
@@ -59,6 +60,7 @@ describe("loadActiveDiscount", () => {
           },
         },
       ]),
+      "hpn-supplements.myshopify.com",
     );
 
     expect(loaded.discountId).toBeNull();
@@ -91,6 +93,7 @@ describe("loadActiveDiscount", () => {
           }),
         ),
       ]),
+      "hpn-supplements.myshopify.com",
     );
 
     expect(loaded.configValid).toBe(true);

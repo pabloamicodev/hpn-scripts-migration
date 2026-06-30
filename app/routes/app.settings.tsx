@@ -21,10 +21,10 @@ import { defaultHpnPromoConfig } from "~/lib/hpnPromoDefaults";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   try {
-    const { admin } = await authenticate.admin(request);
+    const { admin, session } = await authenticate.admin(request);
     const proxy = makeGraphqlProxy(admin);
     const [loaded, functionId] = await Promise.all([
-      loadActiveDiscount(proxy),
+      loadActiveDiscount(proxy, session.shop),
       findHpnFunctionId(proxy),
     ]);
     return {
@@ -43,13 +43,13 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
 export async function action({ request }: ActionFunctionArgs) {
   try {
-    const { admin } = await authenticate.admin(request);
+    const { admin, session } = await authenticate.admin(request);
     const proxy = makeGraphqlProxy(admin);
 
     const formData = await request.formData();
     const intent = String(formData.get("intent") ?? "");
 
-    const loaded = await loadActiveDiscount(proxy);
+    const loaded = await loadActiveDiscount(proxy, session.shop);
     if (!loaded.discountId) {
       return actionError("No active discount to update", {
         operation: "updateSettings",
@@ -68,6 +68,7 @@ export async function action({ request }: ActionFunctionArgs) {
       const expectedRevision = String(formData.get("configRevision") ?? "");
       const result = await saveConfig(
         proxy,
+        session.shop,
         loaded.discountId,
         loaded.config,
         expectedRevision,

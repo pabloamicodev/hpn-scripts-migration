@@ -27,9 +27,9 @@ type PendingRuleAction = {
 
 export async function loader({ request }: LoaderFunctionArgs) {
   try {
-    const { admin } = await authenticate.admin(request);
+    const { admin, session } = await authenticate.admin(request);
     const proxy = makeGraphqlProxy(admin);
-    const loaded = await loadActiveDiscount(proxy);
+    const loaded = await loadActiveDiscount(proxy, session.shop);
     return { ...loaded };
   } catch (err) {
     return loaderError("Failed to load promo rules", {
@@ -42,13 +42,13 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
 export async function action({ request }: ActionFunctionArgs) {
   try {
-    const { admin } = await authenticate.admin(request);
+    const { admin, session } = await authenticate.admin(request);
     const proxy = makeGraphqlProxy(admin);
 
     const formData = await request.formData();
     const intent = String(formData.get("intent") ?? "");
     const ruleId = String(formData.get("ruleId") ?? "");
-    const loaded = await loadActiveDiscount(proxy);
+    const loaded = await loadActiveDiscount(proxy, session.shop);
 
     if (!loaded.discountId) {
       return actionError("No active discount found", {
@@ -69,6 +69,7 @@ export async function action({ request }: ActionFunctionArgs) {
     if (intent === "pause") {
       const result = await saveConfig(
         proxy,
+        session.shop,
         loaded.discountId,
         loaded.config,
         loaded.configRevision,
@@ -84,6 +85,7 @@ export async function action({ request }: ActionFunctionArgs) {
     } else if (intent === "resume") {
       const result = await saveConfig(
         proxy,
+        session.shop,
         loaded.discountId,
         loaded.config,
         loaded.configRevision,
@@ -99,6 +101,7 @@ export async function action({ request }: ActionFunctionArgs) {
     } else if (intent === "delete") {
       const result = await saveConfig(
         proxy,
+        session.shop,
         loaded.discountId,
         loaded.config,
         loaded.configRevision,

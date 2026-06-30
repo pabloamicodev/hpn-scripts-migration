@@ -9,7 +9,7 @@ export interface CartLine {
   quantity: number;
   cost?: { totalAmount?: { amount: string } };
   sellingPlanAllocation?: { sellingPlan: { id: string } } | null;
-  customAttributes?: Array<{ key: string; value: string | null }>;
+  attributes?: Array<{ key: string; value: string | null }>;
   merchandise: {
     __typename: "ProductVariant";
     id: string;
@@ -274,7 +274,7 @@ export function evaluateSubscriptionBundleGroup(
     if (!line.sellingPlanAllocation?.sellingPlan?.id) continue;
 
     if (rule.requiredLineAttributeKey) {
-      const attrs = line.customAttributes ?? [];
+      const attrs = line.attributes ?? [];
       const attr = attrs.find((a) => a.key === rule.requiredLineAttributeKey);
       if (!attr) continue;
       if (rule.requiredLineAttributeValue != null && attr.value !== rule.requiredLineAttributeValue) continue;
@@ -302,7 +302,7 @@ export function evaluateSwellFreeProduct(
   const actions: DiscountAction[] = [];
   for (const line of lines) {
     if (line.merchandise.__typename !== "ProductVariant") continue;
-    const attrs = line.customAttributes ?? [];
+    const attrs = line.attributes ?? [];
     const discountType = attrs.find((a) => a.key === "_swell_discount_type")?.value;
     if (discountType !== "product") continue;
     actions.push({
@@ -327,7 +327,7 @@ export function evaluateSwellCartFixedAmount(
   let totalDiscountCents = 0;
 
   for (const line of lines) {
-    const attrs = line.customAttributes ?? [];
+    const attrs = line.attributes ?? [];
     const discountType = attrs.find((a) => a.key === "_swell_discount_type")?.value;
     if (discountType === "product") freeProductLineIds.add(line.id);
     if (discountType === "cart_fixed_amount") {

@@ -6,10 +6,6 @@ query RunInput {
         currencyCode
       }
     }
-    attributes {
-      key
-      value
-    }
     buyerIdentity {
       customer {
         numberOfOrders
@@ -19,15 +15,10 @@ query RunInput {
         }
       }
       email
-      countryCode
     }
     lines {
       id
       quantity
-      customAttributes {
-        key
-        value
-      }
       cost {
         totalAmount {
           amount
@@ -45,7 +36,6 @@ query RunInput {
           id
           product {
             id
-            tags
           }
         }
       }

@@ -134,19 +134,6 @@ function checkGlobalConditions(rule, cart) {
     if (isNaN(subtotal) || subtotal < c.minimumCartSubtotal) return false;
   }
 
-  // Required cart attribute key/value
-  if (typeof c.requiredCartAttributeKey === "string") {
-    const attrs = Array.isArray(cart.attributes) ? cart.attributes : [];
-    const attr = attrs.find((a) => a.key === c.requiredCartAttributeKey);
-    if (!attr) return false;
-    if (
-      typeof c.requiredCartAttributeValue === "string" &&
-      attr.value !== c.requiredCartAttributeValue
-    ) {
-      return false;
-    }
-  }
-
   // Requires at least one subscription item
   if (c.requiresSubscriptionInCart === true) {
     const hasSub = (cart.lines ?? []).some(
@@ -268,8 +255,11 @@ function applyTriggerProductDiscountedTargetsRule(rule, byProduct, candidates) {
 
 /**
  * Subscription Bundle Group: discounts up to maxUnitsTotal units (cart-wide)
- * across a group of target products, but only for subscription lines that
- * optionally carry a required line-level custom attribute.
+ * across a group of target products, for subscription lines only.
+ *
+ * Note: requiredLineAttributeKey/Value config is stored but cannot be checked
+ * here — the Discount Function API does not expose CartLine attributes.
+ * The subscription check (sellingPlanAllocation) is the effective gate.
  */
 function applySubscriptionBundleGroupRule(rule, lines, candidates) {
   if (
@@ -288,19 +278,7 @@ function applySubscriptionBundleGroupRule(rule, lines, candidates) {
     const productId = line.merchandise?.product?.id;
     if (!targetProductIds.has(productId)) continue;
 
-    // Must be a subscription line
     if (!line.sellingPlanAllocation?.sellingPlan?.id) continue;
-
-    // Check required line attribute (e.g. __bundle_type = two)
-    if (typeof rule.requiredLineAttributeKey === "string") {
-      const attrs = Array.isArray(line.customAttributes) ? line.customAttributes : [];
-      const attr = attrs.find((a) => a.key === rule.requiredLineAttributeKey);
-      if (!attr) continue;
-      if (
-        typeof rule.requiredLineAttributeValue === "string" &&
-        attr.value !== rule.requiredLineAttributeValue
-      ) continue;
-    }
 
     const qtyToDiscount = Math.min(rule.maxUnitsTotal - unitsDiscounted, line.quantity);
     unitsDiscounted += qtyToDiscount;
@@ -309,70 +287,17 @@ function applySubscriptionBundleGroupRule(rule, lines, candidates) {
 }
 
 /**
- * Swell Free Product Reward: when a line carries _swell_discount_type = product,
- * make exactly one unit of that line free (100% off).
- * Token validation is intentionally skipped here — Swell validates server-side
- * before injecting the properties; the checkout function is a second layer.
- */
-function applySwellFreeProductRule(rule, lines, candidates) {
-  for (const line of lines) {
-    const attrs = Array.isArray(line.customAttributes) ? line.customAttributes : [];
-    const discountType = attrs.find((a) => a.key === "_swell_discount_type")?.value;
-    if (discountType !== "product") continue;
-    addCandidate(candidates, line, 1, 100, rule.message);
-  }
-}
-
-/**
- * Swell Fixed-Amount Cart Reward: when a line carries _swell_discount_type = cart_fixed_amount,
- * sum all reward amounts in cents and distribute proportionally across eligible lines
- * (excluding any line already marked as a free-product reward).
+ * Swell Free Product / Fixed-Amount Reward rules are stored in the config
+ * but cannot be applied here: the Discount Function API does not expose
+ * CartLine attributes, so we cannot identify which lines carry Swell reward
+ * properties (_swell_discount_type, _swell_discount_amount_cents, etc.).
  *
- * Uses the corrected formula: discount_cents = (line_cents * total_cents) / eligible_cart_cents
- * to avoid the integer-division bug present in the original Liquid script.
+ * Swell (Yotpo) handles reward discounts through its own Shopify integration
+ * (discount codes or its own Function). These rule entries are kept in the
+ * config so the admin UI can track which stores use Swell rewards.
  */
-function applySwellCartFixedAmountRule(rule, lines, candidates) {
-  // Identify free-product lines so they are excluded from the eligible subtotal.
-  const freeProductLineIds = new Set();
-  let totalDiscountCents = 0;
-
-  for (const line of lines) {
-    const attrs = Array.isArray(line.customAttributes) ? line.customAttributes : [];
-    const discountType = attrs.find((a) => a.key === "_swell_discount_type")?.value;
-    if (discountType === "product") {
-      freeProductLineIds.add(line.id);
-    }
-    if (discountType === "cart_fixed_amount") {
-      const amountStr = attrs.find((a) => a.key === "_swell_discount_amount_cents")?.value;
-      const amount = parseInt(amountStr ?? "0", 10);
-      // Sum all valid fixed rewards (fixes the multiple-reward replacement bug).
-      if (!isNaN(amount) && amount > 0) totalDiscountCents += amount;
-    }
-  }
-
-  if (totalDiscountCents <= 0) return;
-
-  const eligibleLines = lines.filter((l) => !freeProductLineIds.has(l.id));
-  if (eligibleLines.length === 0) return;
-
-  // Only count a single unit when the line is partially free, not the full line total.
-  const eligibleCartCents = eligibleLines.reduce((sum, line) => {
-    return sum + Math.round(parseFloat(line.cost?.totalAmount?.amount ?? "0") * 100);
-  }, 0);
-
-  if (eligibleCartCents <= 0) return;
-
-  for (const line of eligibleLines) {
-    const lineCents = Math.round(parseFloat(line.cost?.totalAmount?.amount ?? "0") * 100);
-    if (lineCents <= 0) continue;
-    // Corrected proportional formula: multiply before dividing to avoid integer truncation.
-    const lineDiscountCents = Math.floor((lineCents * totalDiscountCents) / eligibleCartCents);
-    if (lineDiscountCents <= 0) continue;
-    // Convert to percentage for the candidate; capped at 100 to prevent over-discount.
-    const percentage = Math.min((lineDiscountCents / lineCents) * 100, 100);
-    addCandidate(candidates, line, null, percentage, rule.message);
-  }
-}
+function applySwellFreeProductRule(_rule, _lines, _candidates) { /* no-op */ }
+function applySwellCartFixedAmountRule(_rule, _lines, _candidates) { /* no-op */ }
 
 /**
  * Loyalty Tier: applies the highest matching tier discount to target products

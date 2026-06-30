@@ -18,12 +18,12 @@ interface HpnPromoConfig {
 
 export async function loader({ request }: LoaderFunctionArgs) {
   try {
-  const { admin } = await authenticate.admin(request);
+  const { admin, session } = await authenticate.admin(request);
   const graphqlProxy = makeGraphqlProxy(admin);
 
   const [discounts, functionId] = await Promise.all([
     searchDiscounts(graphqlProxy, DISCOUNT_TITLE),
-    findHpnFunctionId(graphqlProxy),
+    findHpnFunctionId(graphqlProxy, session.shop),
   ]);
 
   const activeDiscount =

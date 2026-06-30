@@ -25,7 +25,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     const proxy = makeGraphqlProxy(admin);
     const [loaded, functionId] = await Promise.all([
       loadActiveDiscount(proxy, session.shop),
-      findHpnFunctionId(proxy),
+      findHpnFunctionId(proxy, session.shop),
     ]);
     return {
       ...loaded,

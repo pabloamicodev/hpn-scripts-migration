@@ -33,7 +33,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     const proxy = makeGraphqlProxy(admin);
     const [loaded, functionId] = await Promise.all([
       loadActiveDiscount(proxy, session.shop),
-      findHpnFunctionId(proxy),
+      findHpnFunctionId(proxy, session.shop),
     ]);
     return { ...loaded, functionId };
   } catch (err) {
@@ -62,7 +62,7 @@ export async function action({ request }: ActionFunctionArgs) {
           };
         }
 
-        const functionId = await findHpnFunctionId(proxy);
+        const functionId = await findHpnFunctionId(proxy, session.shop);
         if (!functionId) {
           return actionError("Shopify Function not found on this store", {
             operation: "createDiscount",

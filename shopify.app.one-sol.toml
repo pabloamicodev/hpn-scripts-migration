@@ -1,6 +1,6 @@
 name = "Script Migration App"
 client_id = "a8f527b89d02594a34d35f1af4493dc7"
-handle = "hpn-scripts-migration"
+handle = "script-migration-one-sol"
 application_url = "https://hpn-scripts-migration.vercel.app"
 embedded = true
 

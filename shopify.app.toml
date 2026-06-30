@@ -1,6 +1,6 @@
 # hpn-supplements — default config (shopify app dev)
 # For other stores: shopify app dev --config=gettrusupps | one-sol
-name = "hpn-supplements"
+name = "Script Migration App"
 client_id = "819b1c9f7db3b989c8138940a6078afd"
 handle = "hpn-scripts-migration"
 application_url = "https://hpn-scripts-migration.vercel.app"

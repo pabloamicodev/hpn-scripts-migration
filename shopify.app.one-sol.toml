@@ -1,14 +1,5 @@
-# one-sol — dev config for one-sol.myshopify.com
-# Usage: shopify app dev --config=one-sol
-#
-# Before first use:
-#   1. Create a new app in partners.shopify.com for this store
-#   2. Replace client_id below with the new app's Client ID
-#   3. Update application_url if deploying to a separate URL
-#   4. Set STORE_PROFILE=one-sol in the deployment env vars
-
-name = "one-sol"
-client_id = "TODO_REPLACE_WITH_ONE_SOL_CLIENT_ID"
+name = "Script Migration App"
+client_id = "a8f527b89d02594a34d35f1af4493dc7"
 handle = "hpn-scripts-migration"
 application_url = "https://hpn-scripts-migration.vercel.app"
 embedded = true

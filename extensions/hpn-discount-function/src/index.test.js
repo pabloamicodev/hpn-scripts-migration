@@ -1058,3 +1058,143 @@ describe("global conditions", () => {
     expect(result).toEqual({ operations: [] });
   });
 });
+
+// ---------------------------------------------------------------------------
+// subscription_bundle_group (One Sol Bundle-Two Subscription Discount)
+// ---------------------------------------------------------------------------
+
+describe("subscription_bundle_group", () => {
+  const ACAI = "gid://shopify/Product/7193611337967";
+  const CHURRO = "gid://shopify/Product/9000958230767";
+  const SELLING_PLAN = { sellingPlan: { id: "gid://shopify/SellingPlan/1" } };
+
+  function bundleConfig(overrides = {}) {
+    return {
+      version: 1,
+      combinesWith: { orderDiscounts: true, productDiscounts: true, shippingDiscounts: true },
+      rules: [
+        {
+          id: "bundle-two-subscription",
+          type: "subscription_bundle_group",
+          enabled: true,
+          targetProductIds: [ACAI, CHURRO],
+          discountPercentage: 10,
+          maxUnitsTotal: 2,
+          requiredLineAttributeKey: "__bundle_type",
+          requiredLineAttributeValue: "two",
+          message: "10% off first two subscription units",
+          ...overrides,
+        },
+      ],
+    };
+  }
+
+  // sellingPlanAllocation: undefined → not a subscription line.
+  // attributeValue: null → no __bundle_type attribute on the line.
+  function bundleLine(id, productId, quantity, { subscription = true, attributeValue = "two" } = {}) {
+    return {
+      ...productLine(id, productId, VARIANT_IDS.unrelated, quantity),
+      sellingPlanAllocation: subscription ? SELLING_PLAN : undefined,
+      attribute: attributeValue === null ? null : { value: attributeValue },
+    };
+  }
+
+  it("discounts a single qualifying subscription unit", () => {
+    const result = runWithLines(
+      [bundleLine("line1", ACAI, 1)],
+      bundleConfig(),
+    );
+    expect(candidates(result)).toEqual([
+      {
+        targets: [{ cartLine: { id: "line1", quantity: 1 } }],
+        value: { percentage: { value: "10" } },
+        message: "10% off first two subscription units",
+      },
+    ]);
+  });
+
+  it("discounts both units when exactly 2 qualifying units are in one line", () => {
+    const result = runWithLines(
+      [bundleLine("line1", ACAI, 2)],
+      bundleConfig(),
+    );
+    expect(candidates(result)).toEqual([
+      {
+        targets: [{ cartLine: { id: "line1", quantity: 2 } }],
+        value: { percentage: { value: "10" } },
+        message: "10% off first two subscription units",
+      },
+    ]);
+  });
+
+  it("caps the discount at 2 units when a single line has 3 qualifying units", () => {
+    const result = runWithLines(
+      [bundleLine("line1", ACAI, 3)],
+      bundleConfig(),
+    );
+    expect(candidates(result)).toEqual([
+      {
+        targets: [{ cartLine: { id: "line1", quantity: 2 } }],
+        value: { percentage: { value: "10" } },
+        message: "10% off first two subscription units",
+      },
+    ]);
+  });
+
+  it("caps the discount at 2 total units cart-wide across two different qualifying products", () => {
+    const result = runWithLines(
+      [bundleLine("acai", ACAI, 1), bundleLine("churro", CHURRO, 1)],
+      bundleConfig(),
+    );
+    expect(candidates(result)).toEqual([
+      {
+        targets: [{ cartLine: { id: "acai", quantity: 1 } }],
+        value: { percentage: { value: "10" } },
+        message: "10% off first two subscription units",
+      },
+      {
+        targets: [{ cartLine: { id: "churro", quantity: 1 } }],
+        value: { percentage: { value: "10" } },
+        message: "10% off first two subscription units",
+      },
+    ]);
+  });
+
+  it("does not discount when the line has no __bundle_type attribute", () => {
+    const result = runWithLines(
+      [bundleLine("line1", ACAI, 1, { attributeValue: null })],
+      bundleConfig(),
+    );
+    expect(result).toEqual({ operations: [] });
+  });
+
+  it("does not discount when __bundle_type has the wrong value", () => {
+    const result = runWithLines(
+      [bundleLine("line1", ACAI, 1, { attributeValue: "one" })],
+      bundleConfig(),
+    );
+    expect(result).toEqual({ operations: [] });
+  });
+
+  it("does not discount a non-subscription line even with __bundle_type=two", () => {
+    const result = runWithLines(
+      [bundleLine("line1", ACAI, 1, { subscription: false })],
+      bundleConfig(),
+    );
+    expect(result).toEqual({ operations: [] });
+  });
+
+  it("skips the attribute check when requiredLineAttributeKey is not configured", () => {
+    const result = runWithLines(
+      [bundleLine("line1", ACAI, 1, { attributeValue: null })],
+      bundleConfig({ requiredLineAttributeKey: undefined, requiredLineAttributeValue: undefined }),
+    );
+    expect(candidates(result)).toEqual([
+      {
+        targets: [{ cartLine: { id: "line1", quantity: 1 } }],
+        value: { percentage: { value: "10" } },
+        message: "10% off first two subscription units",
+      },
+    ]);
+  });
+});

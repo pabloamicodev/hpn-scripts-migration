@@ -253,13 +253,17 @@ function applyTriggerProductDiscountedTargetsRule(rule, byProduct, candidates) {
   }
 }
 
+// The only line attribute key fetched in run.graphql — CartLine.attribute(key)
+// requires a static key per query, so requiredLineAttributeKey is only
+// enforceable when it matches this exact key.
+const BUNDLE_LINE_ATTRIBUTE_KEY = "__bundle_type";
+
 /**
  * Subscription Bundle Group: discounts up to maxUnitsTotal units (cart-wide)
  * across a group of target products, for subscription lines only.
  *
- * Note: requiredLineAttributeKey/Value config is stored but cannot be checked
- * here — the Discount Function API does not expose CartLine attributes.
- * The subscription check (sellingPlanAllocation) is the effective gate.
+ * requiredLineAttributeKey/Value (e.g. __bundle_type = two) is enforced when
+ * the configured key matches BUNDLE_LINE_ATTRIBUTE_KEY.
  */
 function applySubscriptionBundleGroupRule(rule, lines, candidates) {
   if (
@@ -280,6 +284,11 @@ function applySubscriptionBundleGroupRule(rule, lines, candidates) {
 
     if (!line.sellingPlanAllocation?.sellingPlan?.id) continue;
 
+    if (
+      rule.requiredLineAttributeKey === BUNDLE_LINE_ATTRIBUTE_KEY &&
+      line.attribute?.value !== rule.requiredLineAttributeValue
+    ) continue;
+
     const qtyToDiscount = Math.min(rule.maxUnitsTotal - unitsDiscounted, line.quantity);
     unitsDiscounted += qtyToDiscount;
     addCandidate(candidates, line, qtyToDiscount, rule.discountPercentage, rule.message);
@@ -288,13 +297,14 @@ function applySubscriptionBundleGroupRule(rule, lines, candidates) {
 
 /**
  * Swell Free Product / Fixed-Amount Reward rules are stored in the config
- * but cannot be applied here: the Discount Function API does not expose
- * CartLine attributes, so we cannot identify which lines carry Swell reward
- * properties (_swell_discount_type, _swell_discount_amount_cents, etc.).
+ * but intentionally left as no-ops. Applying them safely requires validating
+ * _swell_redemption_token via Swell's calculate_token secret (see TRU Shopify
+ * Scripts Discounts Guide), which isn't available in this codebase — without
+ * it, anyone could fake a reward by adding the cart line properties manually.
  *
- * Swell (Yotpo) handles reward discounts through its own Shopify integration
- * (discount codes or its own Function). These rule entries are kept in the
- * config so the admin UI can track which stores use Swell rewards.
+ * Swell (Yotpo) may already apply its own discount through its native
+ * Shopify integration. These rule entries are kept in the config so the
+ * admin UI can track which stores use Swell rewards.
  */
 function applySwellFreeProductRule(_rule, _lines, _candidates) { /* no-op */ }
 function applySwellCartFixedAmountRule(_rule, _lines, _candidates) { /* no-op */ }

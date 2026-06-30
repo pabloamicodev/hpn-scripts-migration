@@ -30,6 +30,9 @@ query RunInput {
           id
         }
       }
+      attribute(key: "__bundle_type") {
+        value
+      }
       merchandise {
         __typename
         ... on ProductVariant {

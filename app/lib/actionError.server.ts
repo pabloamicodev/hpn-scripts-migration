@@ -48,6 +48,8 @@ export function actionError(
     cause?: unknown;
   }
 ): { error: ActionError } {
+  // Shopify auth throws a Response (redirect) — must propagate, not wrap.
+  if (opts.cause instanceof Response) throw opts.cause;
   const isDev = process.env.NODE_ENV !== "production";
 
   const error: ActionError = {
@@ -88,6 +90,8 @@ export function loaderError(
     status?: number;
   }
 ): never {
+  // Shopify auth throws a Response (redirect) — must propagate, not wrap.
+  if (opts.cause instanceof Response) throw opts.cause;
   const isDev = process.env.NODE_ENV !== "production";
 
   const error: ActionError = {

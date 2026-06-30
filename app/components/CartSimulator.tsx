@@ -11,7 +11,6 @@ import {
   ProductPicker,
   type ProductPickerSelection,
 } from "./ProductPicker";
-import { HPN_PRODUCTS, HPN_VARIANTS } from "../lib/hpnPromoConstants";
 
 interface CartSimulatorProps {
   config: HpnPromoConfig;
@@ -33,24 +32,12 @@ interface Fixture {
   name: string;
   description: string;
   lines: SimulatorCartLine[];
+  context?: {
+    hasSubscription?: boolean;
+    customerOrders?: number;
+    subtotal?: number;
+  };
 }
-
-const PA7_PRODUCT_ID = HPN_PRODUCTS.PA7_PRODUCT_ID;
-const C2_PRODUCT_ID = HPN_PRODUCTS.C2_PRODUCT_ID;
-const T5_PRODUCT_ID = HPN_PRODUCTS.T5_PRODUCT_ID;
-
-const NAD3_SINGLE_VARIANT_ID = HPN_VARIANTS.NAD3_SINGLE_VARIANT_ID;
-const PLANTA_PB_SAMPLE_VARIANT_ID = HPN_VARIANTS.PLANTA_SAMPLE_VARIANT_ID_1;
-const PLANTA_CACAO_SAMPLE_VARIANT_ID = HPN_VARIANTS.PLANTA_SAMPLE_VARIANT_ID_2;
-
-const NAD3_240_PRODUCT_ID = HPN_PRODUCTS.NAD3_240_PRODUCT_ID;
-const S9_1WK_POUCH_VARIANT_ID = HPN_VARIANTS.S9_1WK_POUCH_VARIANT_ID;
-const N4_1WK_POUCH_VARIANT_ID = HPN_VARIANTS.N4_1WK_POUCH_VARIANT_ID;
-
-// Placeholder variant used only for simulator trigger lines when the real variant
-// ID is not important for local rule evaluation.
-const NAD3_240_PLACEHOLDER_VARIANT_ID =
-  "gid://shopify/ProductVariant/6784435060873";
 
 function getGidTail(gid: string) {
   return gid.split("/").pop() ?? gid;
@@ -77,200 +64,151 @@ function createCartLine(
   };
 }
 
-const fixtures: Fixture[] = [
-  {
-    id: "pa7-c2-qty-1",
-    name: "PA7 + C2 qty 1",
-    description: "Should apply the 10% cross-sell discount.",
-    lines: [
-      createCartLine(
-        "line-pa7",
-        PA7_PRODUCT_ID,
-        "gid://shopify/ProductVariant/1313973239892",
-        1,
-        {
-          productTitle: "PA7 Mediator mTOR Elevation",
-          variantTitle: "Trigger product",
-        },
-      ),
-      createCartLine(
-        "line-c2",
-        C2_PRODUCT_ID,
-        "gid://shopify/ProductVariant/1319321763924",
-        1,
-        {
-          productTitle: "C2 Ultrapure Premium Creapure",
-          variantTitle: "Target product",
-        },
-      ),
-    ],
-  },
-  {
-    id: "pa7-t5-qty-1",
-    name: "PA7 + T5 qty 1",
-    description: "Should apply the 10% cross-sell discount to T5.",
-    lines: [
-      createCartLine(
-        "line-pa7",
-        PA7_PRODUCT_ID,
-        "gid://shopify/ProductVariant/1313973239892",
-        1,
-        {
-          productTitle: "PA7 Mediator mTOR Elevation",
-          variantTitle: "Trigger product",
-        },
-      ),
-      createCartLine(
-        "line-t5",
-        T5_PRODUCT_ID,
-        "gid://shopify/ProductVariant/1313557741652",
-        1,
-        {
-          productTitle: "T5",
-          variantTitle: "Target product",
-        },
-      ),
-    ],
-  },
-  {
-    id: "pa7-c2-qty-2",
-    name: "PA7 + C2 qty 2",
-    description: "Should not discount because the target quantity is 2.",
-    lines: [
-      createCartLine(
-        "line-pa7",
-        PA7_PRODUCT_ID,
-        "gid://shopify/ProductVariant/1313973239892",
-        1,
-        {
-          productTitle: "PA7 Mediator mTOR Elevation",
-          variantTitle: "Trigger product",
-        },
-      ),
-      createCartLine(
-        "line-c2",
-        C2_PRODUCT_ID,
-        "gid://shopify/ProductVariant/1319321763924",
-        2,
-        {
-          productTitle: "C2 Ultrapure Premium Creapure",
-          variantTitle: "Target quantity 2",
-        },
-      ),
-    ],
-  },
-  {
-    id: "planta-all-present",
-    name: "NAD3 + Planta samples",
-    description: "Should make both Planta sample variants free.",
-    lines: [
-      createCartLine(
-        "line-nad3-single",
-        "gid://shopify/Product/21174522675284",
-        NAD3_SINGLE_VARIANT_ID,
-        1,
-        {
-          productTitle: "NAD3 Single Bottle",
-          variantTitle: "Required variant",
-        },
-      ),
-      createCartLine(
-        "line-planta-pb",
-        "gid://shopify/Product/40608348438665",
-        PLANTA_PB_SAMPLE_VARIANT_ID,
-        1,
-        {
-          productTitle: "Planta PB Sample",
-          variantTitle: "Free sample",
-        },
-      ),
-      createCartLine(
-        "line-planta-cacao",
-        "gid://shopify/Product/40608348373129",
-        PLANTA_CACAO_SAMPLE_VARIANT_ID,
-        1,
-        {
-          productTitle: "Planta Cacao Sample",
-          variantTitle: "Free sample",
-        },
-      ),
-    ],
-  },
-  {
-    id: "pouches-all-present",
-    name: "NAD3 240 + pouches",
-    description: "Should make both pouch variants free.",
-    lines: [
-      createCartLine(
-        "line-nad3-240",
-        NAD3_240_PRODUCT_ID,
-        NAD3_240_PLACEHOLDER_VARIANT_ID,
-        1,
-        {
-          productTitle: "NAD3 240",
-          variantTitle: "Trigger product",
-        },
-      ),
-      createCartLine(
-        "line-s9-pouch",
-        "gid://shopify/Product/44633124995209",
-        S9_1WK_POUCH_VARIANT_ID,
-        1,
-        {
-          productTitle: "S9 1-Week Pouch",
-          variantTitle: "Free pouch",
-        },
-      ),
-      createCartLine(
-        "line-n4-pouch",
-        "gid://shopify/Product/44633124864137",
-        N4_1WK_POUCH_VARIANT_ID,
-        1,
-        {
-          productTitle: "N4 1-Week Pouch",
-          variantTitle: "Free pouch",
-        },
-      ),
-    ],
-  },
-  {
-    id: "pouches-qty-2-and-3",
-    name: "Pouches qty 2 and 3",
-    description: "Should discount only one unit per pouch line.",
-    lines: [
-      createCartLine(
-        "line-nad3-240",
-        NAD3_240_PRODUCT_ID,
-        NAD3_240_PLACEHOLDER_VARIANT_ID,
-        1,
-        {
-          productTitle: "NAD3 240",
-          variantTitle: "Trigger product",
-        },
-      ),
-      createCartLine(
-        "line-s9-pouch",
-        "gid://shopify/Product/44633124995209",
-        S9_1WK_POUCH_VARIANT_ID,
-        2,
-        {
-          productTitle: "S9 1-Week Pouch",
-          variantTitle: "Quantity 2",
-        },
-      ),
-      createCartLine(
-        "line-n4-pouch",
-        "gid://shopify/Product/44633124864137",
-        N4_1WK_POUCH_VARIANT_ID,
-        3,
-        {
-          productTitle: "N4 1-Week Pouch",
-          variantTitle: "Quantity 3",
-        },
-      ),
-    ],
-  },
-];
+function simVariant(productId: string, index = 0) {
+  return `${productId}-sim-v${index}`;
+}
+
+function simProduct(variantId: string, index = 0) {
+  return `${variantId}-sim-p${index}`;
+}
+
+function getFixturesFromConfig(config: HpnPromoConfig): Fixture[] {
+  const result: Fixture[] = [];
+
+  for (const rule of config.rules) {
+    if (!rule.enabled) continue;
+
+    if (rule.type === "pa7_cross_sell") {
+      rule.targetProductIds.forEach((targetId, i) => {
+        result.push({
+          id: `${rule.id}-target${i}-match`,
+          name: `${rule.id} — target ${i + 1} match`,
+          description: `Should apply ${rule.discountPercentage}% off`,
+          lines: [
+            createCartLine("sim-trigger", rule.triggerProductId, simVariant(rule.triggerProductId), 1, { productTitle: "Trigger product" }),
+            createCartLine("sim-target", targetId, simVariant(targetId), rule.targetLineQuantityEquals, { productTitle: `Target product ${i + 1}` }),
+          ],
+        });
+        result.push({
+          id: `${rule.id}-target${i}-no-match`,
+          name: `${rule.id} — target ${i + 1} qty mismatch`,
+          description: `Qty ${rule.targetLineQuantityEquals + 1} should NOT discount`,
+          lines: [
+            createCartLine("sim-trigger", rule.triggerProductId, simVariant(rule.triggerProductId), 1, { productTitle: "Trigger product" }),
+            createCartLine("sim-target", targetId, simVariant(targetId), rule.targetLineQuantityEquals + 1, { productTitle: `Target product ${i + 1}` }),
+          ],
+        });
+      });
+    }
+
+    else if (rule.type === "required_variants_free_variants") {
+      result.push({
+        id: `${rule.id}-all-present`,
+        name: `${rule.id} — all present`,
+        description: `${rule.discountPercentage}% off free variants should apply`,
+        lines: [
+          ...rule.requiredVariantIds.map((vid, i) =>
+            createCartLine(`sim-req-${i}`, simProduct(vid, i), vid, 1, { productTitle: `Required variant ${i + 1}` })
+          ),
+          ...rule.freeVariantIds.map((vid, i) =>
+            createCartLine(`sim-free-${i}`, simProduct(vid, i + 100), vid, 1, { productTitle: `Free variant ${i + 1}` })
+          ),
+        ],
+      });
+      result.push({
+        id: `${rule.id}-missing-required`,
+        name: `${rule.id} — missing required`,
+        description: "Should NOT discount (one required variant absent)",
+        lines: [
+          ...rule.freeVariantIds.map((vid, i) =>
+            createCartLine(`sim-free-${i}`, simProduct(vid, i + 100), vid, 1, { productTitle: `Free variant ${i + 1}` })
+          ),
+        ],
+      });
+    }
+
+    else if (rule.type === "required_product_with_free_variants") {
+      result.push({
+        id: `${rule.id}-all-present`,
+        name: `${rule.id} — all present`,
+        description: `${rule.discountPercentage}% off free variants should apply`,
+        lines: [
+          createCartLine("sim-trigger", rule.triggerProductId, simVariant(rule.triggerProductId), 1, { productTitle: "Trigger product" }),
+          ...rule.requiredVariantIds.map((vid, i) =>
+            createCartLine(`sim-req-${i}`, simProduct(vid, i), vid, 1, { productTitle: `Required variant ${i + 1}` })
+          ),
+          ...rule.freeVariantIds.map((vid, i) =>
+            createCartLine(`sim-free-${i}`, simProduct(vid, i + 100), vid, 1, { productTitle: `Free variant ${i + 1}` })
+          ),
+        ],
+      });
+    }
+
+    else if (rule.type === "trigger_product_discounted_targets") {
+      result.push({
+        id: `${rule.id}-all-present`,
+        name: `${rule.id} — trigger + targets`,
+        description: "Should discount each target at its configured %",
+        lines: [
+          createCartLine("sim-trigger", rule.triggerProductId, simVariant(rule.triggerProductId), 1, { productTitle: "Trigger product" }),
+          ...rule.targets.map((t, i) =>
+            createCartLine(`sim-target-${i}`, t.productId, simVariant(t.productId, i), 1, { productTitle: `Target ${i + 1} (${t.discountPercentage}% off)` })
+          ),
+        ],
+      });
+    }
+
+    else if (rule.type === "loyalty_tier") {
+      const targetId = rule.targetProductIds[0];
+      if (targetId) {
+        const sorted = [...rule.tiers].sort((a, b) => a.minOrders - b.minOrders);
+        for (const tier of sorted) {
+          result.push({
+            id: `${rule.id}-tier-${tier.minOrders}`,
+            name: `${rule.id} — ${tier.minOrders}+ orders`,
+            description: `${tier.discountPercentage}% off should apply`,
+            lines: [
+              createCartLine("sim-target", targetId, simVariant(targetId), 1, { productTitle: "Target product" }),
+            ],
+            context: { customerOrders: tier.minOrders },
+          });
+        }
+      }
+    }
+
+    else if (rule.type === "subscription_bundle_group") {
+      const targetId = rule.targetProductIds[0];
+      if (targetId) {
+        result.push({
+          id: `${rule.id}-subscription`,
+          name: `${rule.id} — subscription`,
+          description: `${rule.discountPercentage}% off up to ${rule.maxUnitsTotal} units`,
+          lines: [
+            createCartLine("sim-sub", targetId, simVariant(targetId), Math.min(rule.maxUnitsTotal, 2), {
+              productTitle: "Target product (subscription)",
+              sellingPlanAllocation: { sellingPlan: { id: "gid://shopify/SellingPlan/sim-1" } },
+            }),
+          ],
+          context: { hasSubscription: true },
+        });
+        result.push({
+          id: `${rule.id}-one-time`,
+          name: `${rule.id} — one-time (no discount)`,
+          description: "Should NOT discount (no selling plan)",
+          lines: [
+            createCartLine("sim-one-time", targetId, simVariant(targetId, 1), 1, { productTitle: "Target product (one-time)" }),
+          ],
+          context: { hasSubscription: false },
+        });
+      }
+    }
+
+    // swell_free_product / swell_cart_fixed_amount: no-op in the Function,
+    // nothing meaningful to simulate locally.
+  }
+
+  return result;
+}
 
 export function CartSimulator({ config, activeRuleId }: CartSimulatorProps) {
   const [cartLines, setCartLines] = useState<SimulatorCartLine[]>([]);
@@ -288,6 +226,8 @@ export function CartSimulator({ config, activeRuleId }: CartSimulatorProps) {
   const [simOrders, setSimOrders] = useState("");
   const [simAttributes, setSimAttributes] = useState("");
   const [simHasSub, setSimHasSub] = useState(false);
+
+  const fixtures = useMemo(() => getFixturesFromConfig(config), [config]);
 
   const activeRule = useMemo(() => {
     if (!activeRuleId) return null;
@@ -377,6 +317,9 @@ export function CartSimulator({ config, activeRuleId }: CartSimulatorProps) {
     setLastFixtureId(fixture.id);
     setSelectedItem(null);
     setCopyStatus("idle");
+    if (fixture.context?.hasSubscription != null) setSimHasSub(fixture.context.hasSubscription);
+    if (fixture.context?.customerOrders != null) setSimOrders(String(fixture.context.customerOrders));
+    if (fixture.context?.subtotal != null) setSimSubtotal(String(fixture.context.subtotal));
   }
 
   async function copyFixtureJson() {
@@ -610,13 +553,18 @@ export function CartSimulator({ config, activeRuleId }: CartSimulatorProps) {
               <div>
                 <h3 className="card__title">Fixtures</h3>
                 <p className="card__subtitle">
-                  Load known HPN cart scenarios.
+                  Load preset cart scenarios for the active rules.
                 </p>
               </div>
             </div>
 
             <div className="card__body">
               <div className="fixture-grid">
+                {fixtures.length === 0 && (
+                  <p className="cell-muted">
+                    No fixtures available for the active rule types.
+                  </p>
+                )}
                 {fixtures.map((fixture) => (
                   <button
                     key={fixture.id}
@@ -829,16 +777,7 @@ function getLineProductTitle(line: SimulatorCartLine) {
 }
 
 function getRuleName(rule: HpnPromoRule) {
-  switch (rule.id) {
-    case "pa7-cross-sell":
-      return "PA7 Cross-Sell";
-    case "nad3-single-planta-samples":
-      return "NAD3 Single + Planta Samples";
-    case "nad3-240-pouches":
-      return "NAD3 240 + Pouches";
-    default:
-      return rule.id;
-  }
+  return rule.id;
 }
 
 function formatDiscountAction(action: DiscountAction) {

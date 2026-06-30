@@ -24,6 +24,7 @@ export function cartLinesDiscountsGenerateRun(input) {
 
   const cart = input.cart ?? {};
   const buyerIdentity = cart.buyerIdentity ?? {};
+  const cartAttributes = deriveCartAttributes(cart);
 
   // --- Index cart lines by product ID and variant ID ---
   const lines = (cart.lines ?? []).filter(
@@ -53,7 +54,7 @@ export function cartLinesDiscountsGenerateRun(input) {
     if (!rule.enabled) continue;
 
     // Check global conditions before dispatching to the specific rule handler.
-    if (!checkGlobalConditions(rule, cart)) continue;
+    if (!checkGlobalConditions(rule, cart, cartAttributes)) continue;
 
     if (rule.type === "pa7_cross_sell") {
       applyPa7Rule(rule, byProduct, candidatesByLine);
@@ -124,7 +125,27 @@ export const run = cartLinesDiscountsGenerateRun;
 // Global conditions guard
 // ---------------------------------------------------------------------------
 
-function checkGlobalConditions(rule, cart) {
+// Cart-level attribute keys that conditions.requiredCartAttributeKey can
+// check in production. Cart.attribute(key) takes a static key per query, so
+// each supported key needs its own aliased field in run.graphql below.
+const CART_ATTRIBUTE_ALIASES = {
+  source: "sourceAttribute",
+};
+
+// Test fixtures pass cart.attributes directly; the real Function input never
+// has that field — it only has the aliased singular lookups above, which we
+// fold into the same { key, value } shape here.
+function deriveCartAttributes(cart) {
+  if (Array.isArray(cart.attributes)) return cart.attributes;
+  const attrs = [];
+  for (const [key, alias] of Object.entries(CART_ATTRIBUTE_ALIASES)) {
+    const attribute = cart[alias];
+    if (attribute) attrs.push({ key, value: attribute.value });
+  }
+  return attrs;
+}
+
+function checkGlobalConditions(rule, cart, cartAttributes) {
   const c = rule.conditions;
   if (!c || typeof c !== "object") return true;
 
@@ -132,6 +153,15 @@ function checkGlobalConditions(rule, cart) {
   if (typeof c.minimumCartSubtotal === "number") {
     const subtotal = parseFloat(cart.cost?.subtotalAmount?.amount ?? "0");
     if (isNaN(subtotal) || subtotal < c.minimumCartSubtotal) return false;
+  }
+
+  // Required cart attribute (e.g. landing-page source set via Storefront API)
+  if (typeof c.requiredCartAttributeKey === "string" && c.requiredCartAttributeKey) {
+    const attr = cartAttributes.find((a) => a.key === c.requiredCartAttributeKey);
+    if (!attr) return false;
+    if (c.requiredCartAttributeValue != null && attr.value !== c.requiredCartAttributeValue) {
+      return false;
+    }
   }
 
   // Requires at least one subscription item

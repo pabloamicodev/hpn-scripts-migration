@@ -1171,7 +1171,10 @@ export function PromoRuleForm({
           </div>
           <p className="field-hint">
             Set from a landing page via the Storefront API:{" "}
-            <code>cart.updateAttributes([&#123; key, value &#125;])</code>
+            <code>cart.updateAttributes([&#123; key, value &#125;])</code>.
+            Only <code>source</code> is currently wired into the discount
+            function — other keys are saved but never evaluated until a
+            developer adds them to the function&apos;s query.
           </p>
         </div>
 

@@ -6,6 +6,9 @@ query RunInput {
         currencyCode
       }
     }
+    sourceAttribute: attribute(key: "source") {
+      value
+    }
     buyerIdentity {
       customer {
         numberOfOrders

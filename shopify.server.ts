@@ -50,26 +50,103 @@ const pgSessionStorage = (() => {
   if (!url.searchParams.has("sslmode")) {
     url.searchParams.append("sslmode", "require");
   }
-  // Give Neon's compute time to wake up from auto-suspend before TCP times out.
-  // Without this, cold starts get ECONNRESET during the TLS handshake.
   if (!url.searchParams.has("connect_timeout")) {
     url.searchParams.append("connect_timeout", "15");
   }
   return new PostgreSQLSessionStorage(url);
 })();
 
-const shopify = shopifyApp({
-  apiKey: process.env.SHOPIFY_API_KEY!,
-  apiSecretKey: process.env.SHOPIFY_API_SECRET!,
-  appUrl: process.env.SHOPIFY_APP_URL || "https://localhost:8081",
-  scopes: ["write_discounts", "read_products"],
-  apiVersion: ApiVersion.April26,
-  distribution: AppDistribution.SingleMerchant,
-  sessionStorage: pgSessionStorage,
-});
+function makeShopifyInstance(apiKey: string, apiSecretKey: string) {
+  return shopifyApp({
+    apiKey,
+    apiSecretKey,
+    appUrl: process.env.SHOPIFY_APP_URL || "https://localhost:8081",
+    scopes: ["write_discounts", "read_products"],
+    apiVersion: ApiVersion.April26,
+    distribution: AppDistribution.SingleMerchant,
+    sessionStorage: pgSessionStorage,
+  });
+}
+
+// Primary instance — HPN LLC (hpn-supplements + gettrusupps)
+const shopify = makeShopifyInstance(
+  process.env.SHOPIFY_API_KEY!,
+  process.env.SHOPIFY_API_SECRET!,
+);
+
+// Secondary instance — ONE SOL SUPPLEMENTS LLC (onesolsupps)
+// Only created when One Sol credentials are provided.
+const shopifyOneSol =
+  process.env.SHOPIFY_API_KEY_ONE_SOL && process.env.SHOPIFY_API_SECRET_ONE_SOL
+    ? makeShopifyInstance(
+        process.env.SHOPIFY_API_KEY_ONE_SOL,
+        process.env.SHOPIFY_API_SECRET_ONE_SOL,
+      )
+    : null;
+
+const ONE_SOL_SHOP = "onesolsupps.myshopify.com";
+
+// Detect which shop is making the request so we can pick the right credentials.
+function detectShop(request: Request): string | null {
+  const url = new URL(request.url);
+
+  // Direct shop param (OAuth flow, session-token exchange)
+  const shopParam = url.searchParams.get("shop");
+  if (shopParam) return shopParam;
+
+  // host param is base64(admin.shopify.com/store/<shop_name>)
+  const host = url.searchParams.get("host");
+  if (host) {
+    try {
+      const decoded = Buffer.from(host, "base64url").toString("utf-8");
+      const m = decoded.match(/\/store\/([^/]+)/);
+      if (m) return `${m[1]}.myshopify.com`;
+    } catch { /* ignore */ }
+  }
+
+  // Bearer JWT — decode payload (no verify) to get the dest claim
+  const auth = request.headers.get("Authorization");
+  if (auth?.startsWith("Bearer ")) {
+    try {
+      const payload = auth.slice(7).split(".")[1];
+      const decoded = JSON.parse(Buffer.from(payload, "base64url").toString("utf-8")) as { dest?: string };
+      if (decoded.dest) {
+        const m = decoded.dest.match(/https?:\/\/([^/]+)/);
+        if (m) return m[1];
+      }
+    } catch { /* ignore */ }
+  }
+
+  return null;
+}
+
+function pickInstance(request: Request) {
+  if (shopifyOneSol && detectShop(request) === ONE_SOL_SHOP) {
+    return shopifyOneSol;
+  }
+  return shopify;
+}
+
+// Proxy authenticate — routes to the correct shopify instance
+export const authenticate: typeof shopify.authenticate = new Proxy(
+  shopify.authenticate,
+  {
+    get(_, prop) {
+      return (...args: unknown[]) => {
+        const request = args[0] as Request;
+        const instance = pickInstance(request);
+        const auth = instance.authenticate as unknown as Record<string, unknown>;
+        const method = auth[prop as string];
+        if (typeof method === "function") {
+          return (method as (...a: unknown[]) => unknown).apply(instance.authenticate, args);
+        }
+        return (shopify.authenticate as unknown as Record<string, unknown>)[prop as string];
+      };
+    },
+  },
+) as typeof shopify.authenticate;
 
 export default shopify;
-export const authenticate = shopify.authenticate;
 export const unauthenticated = shopify.unauthenticated;
 export const login = shopify.login;
 export const registerWebhooks = shopify.registerWebhooks;

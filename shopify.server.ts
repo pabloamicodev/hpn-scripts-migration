@@ -15,6 +15,7 @@ if (!globalWithRejectionHandler.hpnUnhandledRejectionHandlerInstalled) {
 import {
   ApiVersion,
   AppDistribution,
+  LogSeverity,
   shopifyApp,
 } from "@shopify/shopify-app-react-router/server";
 import { PostgreSQLSessionStorage } from "@shopify/shopify-app-session-storage-postgresql";
@@ -65,6 +66,10 @@ function makeShopifyInstance(apiKey: string, apiSecretKey: string) {
     apiVersion: ApiVersion.April26,
     distribution: AppDistribution.SingleMerchant,
     sessionStorage: pgSessionStorage,
+    logger: {
+      level: LogSeverity.Debug,
+      httpRequests: true,
+    },
   });
 }
 

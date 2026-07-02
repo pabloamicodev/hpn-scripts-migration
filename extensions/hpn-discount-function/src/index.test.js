@@ -1198,3 +1198,95 @@ describe("subscription_bundle_group", () => {
     ]);
   });
 });
+
+// ---------------------------------------------------------------------------
+// one_time_purchase_discount (One Sol Acai/Unicorn Milkshake 25% off)
+// ---------------------------------------------------------------------------
+
+describe("one_time_purchase_discount", () => {
+  // Acai Berry Blast and Unicorn Milkshake are each sold as a variant under
+  // two different products — 4 eligible variants total.
+  const PRODUCT_ONE_ACAI = "gid://shopify/ProductVariant/42477833322735";
+  const PRODUCT_ONE_UNICORN = "gid://shopify/ProductVariant/44045687324911";
+  const PRODUCT_TWO_ACAI = "gid://shopify/ProductVariant/46171937145071";
+  const PRODUCT_TWO_UNICORN = "gid://shopify/ProductVariant/46171936981231";
+
+  function config(overrides = {}) {
+    return {
+      version: 1,
+      combinesWith: { orderDiscounts: true, productDiscounts: true, shippingDiscounts: true },
+      rules: [
+        {
+          id: "acai-unicorn-onetime-25-off",
+          type: "one_time_purchase_discount",
+          enabled: true,
+          targetVariantIds: [PRODUCT_ONE_ACAI, PRODUCT_ONE_UNICORN, PRODUCT_TWO_ACAI, PRODUCT_TWO_UNICORN],
+          discountPercentage: 25,
+          message: "25% off Acai Berry Blast / Unicorn Milkshake",
+          ...overrides,
+        },
+      ],
+    };
+  }
+
+  function flavorLine(id, variantId, quantity, { subscription = false } = {}) {
+    return {
+      ...productLine(id, PRODUCT_IDS.unrelated, variantId, quantity),
+      sellingPlanAllocation: subscription ? { sellingPlan: { id: "gid://shopify/SellingPlan/1" } } : undefined,
+    };
+  }
+
+  it("discounts a one-time-purchase eligible variant at 25%, whole line", () => {
+    const result = runWithLines([flavorLine("line1", PRODUCT_ONE_ACAI, 1)], config());
+    expect(candidates(result)).toEqual([
+      {
+        targets: [{ cartLine: { id: "line1" } }],
+        value: { percentage: { value: "25" } },
+        message: "25% off Acai Berry Blast / Unicorn Milkshake",
+      },
+    ]);
+  });
+
+  it("discounts every unit on the line, no matter the quantity", () => {
+    const result = runWithLines([flavorLine("line1", PRODUCT_ONE_ACAI, 10)], config());
+    expect(candidates(result)).toEqual([
+      {
+        targets: [{ cartLine: { id: "line1" } }],
+        value: { percentage: { value: "25" } },
+        message: "25% off Acai Berry Blast / Unicorn Milkshake",
+      },
+    ]);
+  });
+
+  it("does not discount a subscription line, even for an eligible variant", () => {
+    const result = runWithLines(
+      [flavorLine("line1", PRODUCT_ONE_ACAI, 1, { subscription: true })],
+      config(),
+    );
+    expect(result).toEqual({ operations: [] });
+  });
+
+  it("discounts both flavors independently when both are in the cart as one-time", () => {
+    const result = runWithLines(
+      [flavorLine("acai", PRODUCT_ONE_ACAI, 2), flavorLine("unicorn", PRODUCT_ONE_UNICORN, 3)],
+      config(),
+    );
+    const list = candidates(result);
+    expect(list).toHaveLength(2);
+    expect(list.some((c) => c.targets[0].cartLine.id === "acai")).toBe(true);
+    expect(list.some((c) => c.targets[0].cartLine.id === "unicorn")).toBe(true);
+  });
+
+  it("discounts the same flavor across both products, only one needs to be present", () => {
+    const result = runWithLines([flavorLine("line1", PRODUCT_TWO_UNICORN, 1)], config());
+    expect(candidates(result)).toHaveLength(1);
+  });
+
+  it("does not discount a variant outside the eligible list", () => {
+    const result = runWithLines(
+      [flavorLine("line1", VARIANT_IDS.unrelated, 1)],
+      config(),
+    );
+    expect(result).toEqual({ operations: [] });
+  });
+});

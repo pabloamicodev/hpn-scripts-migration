@@ -68,6 +68,8 @@ export function cartLinesDiscountsGenerateRun(input) {
       applyLoyaltyTierRule(rule, byProduct, candidatesByLine, buyerIdentity);
     } else if (rule.type === "subscription_bundle_group") {
       applySubscriptionBundleGroupRule(rule, lines, candidatesByLine);
+    } else if (rule.type === "one_time_purchase_discount") {
+      applyOneTimePurchaseDiscountRule(rule, byVariant, candidatesByLine);
     } else if (rule.type === "swell_free_product") {
       applySwellFreeProductRule(rule, lines, candidatesByLine);
     } else if (rule.type === "swell_cart_fixed_amount") {
@@ -322,6 +324,27 @@ function applySubscriptionBundleGroupRule(rule, lines, candidates) {
     const qtyToDiscount = Math.min(rule.maxUnitsTotal - unitsDiscounted, line.quantity);
     unitsDiscounted += qtyToDiscount;
     addCandidate(candidates, line, qtyToDiscount, rule.discountPercentage, rule.message);
+  }
+}
+
+/**
+ * One-Time Purchase Discount: applies a flat % off every unit of the target
+ * variants' lines (e.g. specific flavors, which may exist under more than
+ * one product), but only when the line is a one-time purchase (no
+ * sellingPlanAllocation). Subscription lines for the same variants are
+ * skipped entirely.
+ */
+function applyOneTimePurchaseDiscountRule(rule, byVariant, candidates) {
+  if (
+    !Array.isArray(rule.targetVariantIds) ||
+    typeof rule.discountPercentage !== "number"
+  ) return;
+
+  for (const variantId of rule.targetVariantIds) {
+    for (const line of (byVariant.get(variantId) ?? [])) {
+      if (line.sellingPlanAllocation?.sellingPlan?.id) continue;
+      addCandidate(candidates, line, null, rule.discountPercentage, rule.message);
+    }
   }
 }
 

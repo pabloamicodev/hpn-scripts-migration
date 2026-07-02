@@ -295,6 +295,32 @@ export function evaluateSubscriptionBundleGroup(
   return actions;
 }
 
+export function evaluateOneTimePurchaseDiscount(
+  rule: Extract<HpnPromoRule, { type: "one_time_purchase_discount" }>,
+  cartIndex: CartIndex,
+): DiscountAction[] {
+  const actions: DiscountAction[] = [];
+
+  for (const variantId of rule.targetVariantIds) {
+    const lines = cartIndex.linesByVariantId.get(variantId);
+    if (!lines) continue;
+
+    for (const line of lines) {
+      if (line.sellingPlanAllocation?.sellingPlan?.id) continue;
+      actions.push({
+        lineId: line.id,
+        variantId: line.merchandise.id,
+        productId: line.merchandise.product.id,
+        discountedQuantity: line.quantity,
+        percentageOff: rule.discountPercentage,
+        message: rule.message,
+      });
+    }
+  }
+
+  return actions;
+}
+
 export function evaluateSwellFreeProduct(
   rule: Extract<HpnPromoRule, { type: "swell_free_product" }>,
   lines: CartLine[],
@@ -414,6 +440,9 @@ export function evaluateConfig(
         break;
       case "subscription_bundle_group":
         ruleActions = evaluateSubscriptionBundleGroup(rule, lines);
+        break;
+      case "one_time_purchase_discount":
+        ruleActions = evaluateOneTimePurchaseDiscount(rule, cartIndex);
         break;
       case "swell_free_product":
         ruleActions = evaluateSwellFreeProduct(rule, lines);

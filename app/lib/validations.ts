@@ -111,6 +111,20 @@ export const subscriptionBundleGroupRuleSchema = z.object({
 });
 
 // ---------------------------------------------------------------------------
+// One-time purchase discount (e.g. One Sol Acai/Unicorn Milkshake 25% off)
+// ---------------------------------------------------------------------------
+
+export const oneTimePurchaseDiscountRuleSchema = z.object({
+  id: ruleIdSchema,
+  type: z.literal("one_time_purchase_discount"),
+  enabled: z.boolean(),
+  targetVariantIds: z.array(variantGidSchema).min(1),
+  discountPercentage: z.number().positive().max(100),
+  message: z.string().trim().min(1),
+  conditions: ruleConditionsSchema,
+});
+
+// ---------------------------------------------------------------------------
 // Swell loyalty rewards (gettrusupps) — triggered by hidden line properties,
 // no product IDs required.
 // ---------------------------------------------------------------------------
@@ -161,6 +175,7 @@ export const hpnPromoRuleSchema = z.discriminatedUnion("type", [
   triggerProductDiscountedTargetsRuleSchema,
   loyaltyTierRuleSchema,
   subscriptionBundleGroupRuleSchema,
+  oneTimePurchaseDiscountRuleSchema,
   swellFreeProductRuleSchema,
   swellCartFixedAmountRuleSchema,
 ]);
@@ -187,6 +202,7 @@ export type LoyaltyTierRule = z.infer<typeof loyaltyTierRuleSchema>;
 export type LoyaltyTierEntry = z.infer<typeof loyaltyTierEntrySchema>;
 export type DiscountTarget = z.infer<typeof discountTargetSchema>;
 export type SubscriptionBundleGroupRule = z.infer<typeof subscriptionBundleGroupRuleSchema>;
+export type OneTimePurchaseDiscountRule = z.infer<typeof oneTimePurchaseDiscountRuleSchema>;
 export type SwellFreeProductRule = z.infer<typeof swellFreeProductRuleSchema>;
 export type SwellCartFixedAmountRule = z.infer<typeof swellCartFixedAmountRuleSchema>;
 
@@ -197,6 +213,7 @@ export type HpnPromoRule =
   | TriggerProductDiscountedTargetsRule
   | LoyaltyTierRule
   | SubscriptionBundleGroupRule
+  | OneTimePurchaseDiscountRule
   | SwellFreeProductRule
   | SwellCartFixedAmountRule;
 

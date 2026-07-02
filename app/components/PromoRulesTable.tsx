@@ -18,6 +18,7 @@ const typeLabels: Record<HpnPromoRule["type"], string> = {
   trigger_product_discounted_targets: "Trigger → Discounted Targets",
   loyalty_tier: "Loyalty Tier",
   subscription_bundle_group: "Subscription Bundle",
+  one_time_purchase_discount: "One-Time Purchase Discount",
   swell_free_product: "Swell Free Product",
   swell_cart_fixed_amount: "Swell Fixed-Amount Reward",
 };
@@ -418,6 +419,8 @@ function getRuleIdentifiers(rule: HpnPromoRule): string {
       return rule.targetProductIds.map(getGidTail).join(" ");
     case "subscription_bundle_group":
       return rule.targetProductIds.map(getGidTail).join(" ");
+    case "one_time_purchase_discount":
+      return rule.targetVariantIds.map(getGidTail).join(" ");
     case "swell_free_product":
     case "swell_cart_fixed_amount":
       return "";
@@ -457,6 +460,8 @@ function getTriggerSummary(rule: HpnPromoRule): string {
       return `${rule.targetProductIds.length} target product(s)`;
     case "subscription_bundle_group":
       return `${rule.targetProductIds.length} product(s), max ${rule.maxUnitsTotal} units`;
+    case "one_time_purchase_discount":
+      return `${rule.targetVariantIds.length} variant(s), one-time purchase only`;
     case "swell_free_product":
       return "Line property: _swell_discount_type = product";
     case "swell_cart_fixed_amount":
@@ -478,6 +483,8 @@ function getTargetsCount(rule: HpnPromoRule): number {
       return rule.targetProductIds.length;
     case "subscription_bundle_group":
       return rule.targetProductIds.length;
+    case "one_time_purchase_discount":
+      return rule.targetVariantIds.length;
     case "swell_free_product":
     case "swell_cart_fixed_amount":
       return 0;
@@ -498,6 +505,8 @@ function getDiscountSummary(rule: HpnPromoRule): string {
       return `${rule.tiers.length} tier(s)`;
     case "subscription_bundle_group":
       return `${rule.discountPercentage}% off, max ${rule.maxUnitsTotal} units`;
+    case "one_time_purchase_discount":
+      return `${rule.discountPercentage}% off`;
     case "swell_free_product":
       return "1 unit free";
     case "swell_cart_fixed_amount":

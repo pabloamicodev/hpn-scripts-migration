@@ -1,39 +1,30 @@
 import type { HpnPromoConfig } from "../validations";
 
-// ── Lean Plant Protein product GIDs ───────────────────────────────────
-const P = {
-  LEAN_PROTEIN_ACAI_BERRY_BLAST:        "gid://shopify/Product/7193611337967",
-  LEAN_PROTEIN_CHURRO:                  "gid://shopify/Product/9000958230767",
-  LEAN_PROTEIN_FRESAS_CON_CREMA:        "gid://shopify/Product/8860777447663",
-  LEAN_PROTEIN_UNICORN_MILKSHAKE:       "gid://shopify/Product/8102235832559",
-  LEAN_PROTEIN_VANILLA_CARAMEL_CUPCAKE: "gid://shopify/Product/7814816268527",
-  LEAN_PROTEIN_CHOCOLATE_SEA_SALT:      "gid://shopify/Product/7814817153263",
-  LEAN_PROTEIN_CAFE_LATTE:              "gid://shopify/Product/7814817710319",
-  LEAN_PROTEIN_HORCHATA:                "gid://shopify/Product/7936022773999",
+// ── Lean Plant Protein variant GIDs ───────────────────────────────────
+// Acai Berry Blast and Unicorn Milkshake are each sold as a variant under
+// BOTH of these two "Lean Plant Protein" products — 4 eligible variants total.
+const V = {
+  PROTEIN_7193611337967_ACAI_BERRY_BLAST:  "gid://shopify/ProductVariant/42477833322735",
+  PROTEIN_7193611337967_UNICORN_MILKSHAKE: "gid://shopify/ProductVariant/44045687324911",
+  PROTEIN_8860777447663_ACAI_BERRY_BLAST:  "gid://shopify/ProductVariant/46171937145071",
+  PROTEIN_8860777447663_UNICORN_MILKSHAKE: "gid://shopify/ProductVariant/46171936981231",
 } as const;
 
-const LEAN_PROTEIN_PRODUCTS = Object.values(P);
+const ONE_TIME_DISCOUNT_VARIANTS = Object.values(V);
 
 export const oneSolPreset: HpnPromoConfig = {
   version: 1,
   rules: [
     {
-      // Bundle-Two Subscription Discount
-      // First 2 qualifying Lean Plant Protein units get 10% off when:
-      //   - purchased as a subscription
-      //   - line has __bundle_type = two
-      id: "bundle-two-subscription",
-      type: "subscription_bundle_group",
+      // Acai Berry Blast / Unicorn Milkshake — 25% off one-time purchases only.
+      // Each qualifying line discounts fully (all units), independently of
+      // whether the other flavor/product is also in the cart.
+      id: "acai-unicorn-onetime-25-off",
+      type: "one_time_purchase_discount",
       enabled: true,
-      targetProductIds: LEAN_PROTEIN_PRODUCTS,
-      discountPercentage: 10,
-      maxUnitsTotal: 2,
-      requiredLineAttributeKey: "__bundle_type",
-      requiredLineAttributeValue: "two",
-      message: "10% off first two subscription units",
-      conditions: {
-        requiresSubscriptionInCart: true,
-      },
+      targetVariantIds: ONE_TIME_DISCOUNT_VARIANTS,
+      discountPercentage: 25,
+      message: "25% off Acai Berry Blast / Unicorn Milkshake",
     },
   ],
   combinesWith: {

@@ -70,6 +70,7 @@ interface PromoRuleFormValues {
   maxUnitsTotal?: number;
   requiredLineAttributeKey?: string;
   requiredLineAttributeValue?: string;
+  targetVariantIds?: string[];
   conditions?: RuleConditionsFormValues;
 }
 
@@ -159,6 +160,15 @@ const DEFAULT_RULES: Record<PromoRuleType, PromoRuleFormValues> = {
     conditions: { requiresSubscriptionInCart: true },
   },
 
+  one_time_purchase_discount: {
+    id: "one-time-purchase-discount",
+    type: "one_time_purchase_discount",
+    enabled: true,
+    targetVariantIds: [],
+    discountPercentage: 25,
+    message: "",
+  },
+
   swell_free_product: {
     id: "swell-free-product",
     type: "swell_free_product",
@@ -192,6 +202,7 @@ function makeRuleId(type: PromoRuleType) {
   if (type === "required_product_with_free_variants") return `required-product-free-variants-${suffix}`;
   if (type === "trigger_product_discounted_targets") return `trigger-discounted-targets-${suffix}`;
   if (type === "subscription_bundle_group") return `subscription-bundle-${suffix}`;
+  if (type === "one_time_purchase_discount") return `one-time-purchase-discount-${suffix}`;
   if (type === "swell_free_product") return `swell-free-product-${suffix}`;
   if (type === "swell_cart_fixed_amount") return `swell-cart-fixed-amount-${suffix}`;
   return `loyalty-tier-${suffix}`;
@@ -317,6 +328,18 @@ function buildRulePayload(values: PromoRuleFormValues): unknown {
     };
   }
 
+  if (values.type === "one_time_purchase_discount") {
+    return {
+      id: values.id,
+      type: "one_time_purchase_discount",
+      enabled: values.enabled,
+      targetVariantIds: values.targetVariantIds ?? [],
+      discountPercentage: values.discountPercentage ?? 25,
+      message: values.message,
+      conditions,
+    };
+  }
+
   return {
     id: values.id,
     type: "loyalty_tier",
@@ -366,6 +389,7 @@ export function PromoRuleForm({
     | "bundleFreeVariant"
     | "discountedTriggerProduct"
     | "discountedTarget"
+    | "oneTimeVariant"
     | null
   >(null);
   const [selectionMetaById, setSelectionMetaById] = useState<
@@ -388,6 +412,7 @@ export function PromoRuleForm({
   const targetProductIds = watch("targetProductIds");
   const requiredVariantIds = watch("requiredVariantIds");
   const freeVariantIds = watch("freeVariantIds");
+  const targetVariantIds = watch("targetVariantIds");
   const targets = watch("targets");
   const tiers = watch("tiers");
   const selectedIds = useMemo(() => {
@@ -398,11 +423,12 @@ export function PromoRuleForm({
           ...(targetProductIds ?? []),
           ...(requiredVariantIds ?? []),
           ...(freeVariantIds ?? []),
+          ...(targetVariantIds ?? []),
           ...(targets ?? []).map((t) => t.productId),
         ].filter((id): id is string => Boolean(id)),
       ),
     );
-  }, [freeVariantIds, requiredVariantIds, targetProductIds, triggerProductId, targets]);
+  }, [freeVariantIds, requiredVariantIds, targetProductIds, targetVariantIds, triggerProductId, targets]);
   const selectedIdsKey = selectedIds.join("|");
 
   useEffect(() => {
@@ -556,6 +582,21 @@ export function PromoRuleForm({
       }
     }
 
+    if (productPickerMode === "oneTimeVariant") {
+      const currentIds = targetVariantIds ?? [];
+
+      if (!currentIds.includes(selection.variantId)) {
+        setSelectionMetaById((current) => ({
+          ...current,
+          [selection.variantId]: selectedProductMeta,
+        }));
+        setValue("targetVariantIds", [...currentIds, selection.variantId], {
+          shouldDirty: true,
+          shouldValidate: false,
+        });
+      }
+    }
+
     if (productPickerMode === "discountedTarget") {
       const currentTargets = targets ?? [];
       if (!currentTargets.some((t) => t.productId === selection.productId)) {
@@ -575,7 +616,7 @@ export function PromoRuleForm({
   }
 
   function removeListValue(
-    fieldName: "targetProductIds" | "requiredVariantIds" | "freeVariantIds",
+    fieldName: "targetProductIds" | "requiredVariantIds" | "freeVariantIds" | "targetVariantIds",
     value: string,
   ) {
     const values = watch(fieldName) ?? [];
@@ -666,6 +707,10 @@ export function PromoRuleForm({
 
           <option value="loyalty_tier">
             Loyalty Tier — discount by customer order count
+          </option>
+
+          <option value="one_time_purchase_discount">
+            One-Time Purchase Discount (% off, non-subscription only)
           </option>
         </select>
       </div>
@@ -1129,6 +1174,51 @@ export function PromoRuleForm({
             >
               + Add tier
             </button>
+          </div>
+        </section>
+      )}
+
+      {ruleType === "one_time_purchase_discount" && (
+        <section className="form-section">
+          <h2 className="form-section__title">One-time purchase discount configuration</h2>
+
+          <div className="form-group">
+            <span className="form-label">Target variants</span>
+            <p className="field-hint">
+              Each variant discounts independently — no other variant needs to
+              be in the cart, and the whole line quantity gets the discount.
+              Subscription lines for these variants are skipped.
+            </p>
+
+            <ProductIdListSelector
+              productIds={targetVariantIds ?? []}
+              metaById={selectionMetaById}
+              emptyText="Choose the variants eligible for the one-time discount."
+              itemLabel="Variant"
+              addLabel="Add eligible variant"
+              onPick={() => setProductPickerMode("oneTimeVariant")}
+              onRemove={(variantId) => removeListValue("targetVariantIds", variantId)}
+            />
+          </div>
+
+          <div className="form-group">
+            <label
+              htmlFor="oneTimeDiscountPercentage"
+              className="form-label"
+            >
+              Discount Percentage
+            </label>
+
+            <input
+              type="number"
+              id="oneTimeDiscountPercentage"
+              min={1}
+              max={100}
+              {...register("discountPercentage", {
+                valueAsNumber: true,
+              })}
+              className="number-field"
+            />
           </div>
         </section>
       )}

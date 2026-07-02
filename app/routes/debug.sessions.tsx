@@ -12,6 +12,12 @@ export async function loader({ request }: LoaderFunctionArgs) {
     return new Response("Not found", { status: 404 });
   }
 
+  if (url.searchParams.get("action") === "delete") {
+    const toDelete = await shopifySessionStorage.findSessionsByShop(shop);
+    const deleted = await shopifySessionStorage.deleteSessions(toDelete.map((s) => s.id));
+    return { deleted, ids: toDelete.map((s) => s.id) };
+  }
+
   const sessions = await shopifySessionStorage.findSessionsByShop(shop);
 
   const liveChecks = await Promise.all(

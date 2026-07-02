@@ -123,7 +123,10 @@ function detectShop(request: Request): string | null {
 function pickInstance(request: Request) {
   const shop = detectShop(request);
   const url = new URL(request.url);
-  console.warn(`[shopify-proxy] shop=${shop} path=${url.pathname} oneSolAvail=${!!shopifyOneSol}`);
+  console.warn(
+    `[shopify-proxy] shop=${shop} path=${url.pathname} search=${url.search} ` +
+    `hasAuthHeader=${request.headers.has("authorization")} oneSolAvail=${!!shopifyOneSol}`,
+  );
   if (shopifyOneSol && shop === ONE_SOL_SHOP) {
     console.warn(`[shopify-proxy] → routing to ONE SOL instance`);
     return shopifyOneSol;

@@ -1236,22 +1236,22 @@ describe("one_time_purchase_discount", () => {
     };
   }
 
-  it("discounts a one-time-purchase eligible variant at 25%, whole line", () => {
+  it("discounts a one-time-purchase eligible variant at 25%, single unit", () => {
     const result = runWithLines([flavorLine("line1", PRODUCT_ONE_ACAI, 1)], config());
     expect(candidates(result)).toEqual([
       {
-        targets: [{ cartLine: { id: "line1" } }],
+        targets: [{ cartLine: { id: "line1", quantity: 1 } }],
         value: { percentage: { value: "25" } },
         message: "25% off Acai Berry Blast / Unicorn Milkshake",
       },
     ]);
   });
 
-  it("discounts every unit on the line, no matter the quantity", () => {
+  it("discounts only 1 unit on the line, regardless of quantity", () => {
     const result = runWithLines([flavorLine("line1", PRODUCT_ONE_ACAI, 10)], config());
     expect(candidates(result)).toEqual([
       {
-        targets: [{ cartLine: { id: "line1" } }],
+        targets: [{ cartLine: { id: "line1", quantity: 1 } }],
         value: { percentage: { value: "25" } },
         message: "25% off Acai Berry Blast / Unicorn Milkshake",
       },
@@ -1288,5 +1288,33 @@ describe("one_time_purchase_discount", () => {
       config(),
     );
     expect(result).toEqual({ operations: [] });
+  });
+
+  it("discounts 1 unit per eligible variant when all 4 are in the cart at quantity 1", () => {
+    const result = runWithLines(
+      [
+        flavorLine("l1", PRODUCT_ONE_ACAI, 1),
+        flavorLine("l2", PRODUCT_ONE_UNICORN, 1),
+        flavorLine("l3", PRODUCT_TWO_ACAI, 1),
+        flavorLine("l4", PRODUCT_TWO_UNICORN, 1),
+      ],
+      config(),
+    );
+    const list = candidates(result);
+    expect(list).toHaveLength(4);
+    for (const id of ["l1", "l2", "l3", "l4"]) {
+      expect(list.find((c) => c.targets[0].cartLine.id === id)?.targets[0].cartLine.quantity).toBe(1);
+    }
+  });
+
+  it("discounts only 1 of 3 units when one eligible variant has quantity 3, leaving 2 at full price", () => {
+    const result = runWithLines([flavorLine("line1", PRODUCT_ONE_ACAI, 3)], config());
+    expect(candidates(result)).toEqual([
+      {
+        targets: [{ cartLine: { id: "line1", quantity: 1 } }],
+        value: { percentage: { value: "25" } },
+        message: "25% off Acai Berry Blast / Unicorn Milkshake",
+      },
+    ]);
   });
 });

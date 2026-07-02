@@ -311,7 +311,7 @@ export function evaluateOneTimePurchaseDiscount(
         lineId: line.id,
         variantId: line.merchandise.id,
         productId: line.merchandise.product.id,
-        discountedQuantity: line.quantity,
+        discountedQuantity: 1,
         percentageOff: rule.discountPercentage,
         message: rule.message,
       });

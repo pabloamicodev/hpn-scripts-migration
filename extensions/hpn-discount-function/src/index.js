@@ -328,11 +328,11 @@ function applySubscriptionBundleGroupRule(rule, lines, candidates) {
 }
 
 /**
- * One-Time Purchase Discount: applies a flat % off every unit of the target
- * variants' lines (e.g. specific flavors, which may exist under more than
+ * One-Time Purchase Discount: applies a flat % off exactly ONE unit per
+ * qualifying line (e.g. specific flavors, which may exist under more than
  * one product), but only when the line is a one-time purchase (no
- * sellingPlanAllocation). Subscription lines for the same variants are
- * skipped entirely.
+ * sellingPlanAllocation). Extra units on the same line stay full price.
+ * Subscription lines for the same variants are skipped entirely.
  */
 function applyOneTimePurchaseDiscountRule(rule, byVariant, candidates) {
   if (
@@ -343,7 +343,7 @@ function applyOneTimePurchaseDiscountRule(rule, byVariant, candidates) {
   for (const variantId of rule.targetVariantIds) {
     for (const line of (byVariant.get(variantId) ?? [])) {
       if (line.sellingPlanAllocation?.sellingPlan?.id) continue;
-      addCandidate(candidates, line, null, rule.discountPercentage, rule.message);
+      addCandidate(candidates, line, 1, rule.discountPercentage, rule.message);
     }
   }
 }

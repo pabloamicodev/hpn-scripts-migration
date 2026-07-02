@@ -124,7 +124,7 @@ function pickInstance(request: Request) {
   const shop = detectShop(request);
   const url = new URL(request.url);
   console.warn(
-    `[shopify-proxy] shop=${shop} path=${url.pathname} search=${url.search} ` +
+    `[shopify-proxy] shop=${shop} path=${url.pathname} ` +
     `hasAuthHeader=${request.headers.has("authorization")} oneSolAvail=${!!shopifyOneSol}`,
   );
   if (shopifyOneSol && shop === ONE_SOL_SHOP) {

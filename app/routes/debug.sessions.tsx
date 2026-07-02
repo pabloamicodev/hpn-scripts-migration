@@ -14,6 +14,31 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
   const sessions = await shopifySessionStorage.findSessionsByShop(shop);
 
+  const liveChecks = await Promise.all(
+    sessions.map(async (s) => {
+      if (!s.accessToken) return { id: s.id, liveCheck: "no-token" };
+      try {
+        const res = await fetch(`https://${shop}/admin/api/2026-04/graphql.json`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Shopify-Access-Token": s.accessToken,
+          },
+          body: JSON.stringify({ query: "{ shop { name myshopifyDomain } }" }),
+        });
+        const bodyText = await res.text();
+        return {
+          id: s.id,
+          liveCheckStatus: res.status,
+          liveCheckStatusText: res.statusText,
+          liveCheckBody: bodyText.slice(0, 500),
+        };
+      } catch (err) {
+        return { id: s.id, liveCheckError: err instanceof Error ? err.message : String(err) };
+      }
+    }),
+  );
+
   return {
     shop,
     count: sessions.length,
@@ -27,5 +52,6 @@ export async function loader({ request }: LoaderFunctionArgs) {
       accessTokenPrefix: s.accessToken?.slice(0, 8) ?? null,
       onlineAccessInfo: s.onlineAccessInfo ?? null,
     })),
+    liveChecks,
   };
 }

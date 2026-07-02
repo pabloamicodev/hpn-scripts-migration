@@ -155,7 +155,12 @@ export const authenticate: typeof shopify.authenticate = new Proxy(
 
 export default shopify;
 export const unauthenticated = shopify.unauthenticated;
-export const login = shopify.login;
+// Proxied — the login (OAuth begin) redirect must be built with the
+// credentials of the app the shop is actually installing, not always the
+// primary HPN instance. Using the wrong client_id here issues an OAuth grant
+// that authenticate.admin's callback can never validate for that shop.
+export const login: typeof shopify.login = (request: Request) =>
+  pickInstance(request).login(request);
 export const registerWebhooks = shopify.registerWebhooks;
 export const shopifySessionStorage = shopify.sessionStorage;
 export const addDocumentResponseHeaders = shopify.addDocumentResponseHeaders;

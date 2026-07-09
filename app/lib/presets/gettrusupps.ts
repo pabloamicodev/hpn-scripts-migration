@@ -85,8 +85,12 @@ export const gettruSuppsPreset: HpnPromoConfig = {
       type: "landing_scoped_product_discount",
       enabled: true,
       targetProductIds: [
-        "gid://shopify/Product/15030069100912",
-        "gid://shopify/Product/15092501152112",
+        "gid://shopify/Product/15030069100912", // TRU Sport Shaker - Clear & Black
+        // The BOGOS.io "_sca_clone_freegift" clone (15092501152112) doesn't
+        // work here — BOGOS actively manages/removes its own clone gift line
+        // items from the cart when they weren't added through its own gift
+        // flow. Use the real product instead, same as the shaker above.
+        "gid://shopify/Product/15083050828144", // Lifestyle Nutrition Guide (real product)
       ],
       requiredLineAttributeKey: "__landing_source",
       requiredLineAttributeValue: PROTEIN_LANDING_SOURCE_VALUE,

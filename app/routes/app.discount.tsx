@@ -2,7 +2,11 @@ import { useState } from "react";
 import { useLoaderData, useFetcher, useNavigate } from "react-router";
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "react-router";
 import { authenticate } from "~/shopify.server";
-import { loadActiveDiscount } from "~/lib/hpnPromoConfig.server";
+import {
+  loadActiveDiscount,
+  getMissingPresetRules,
+  syncNewRulesFromPreset,
+} from "~/lib/hpnPromoConfig.server";
 import { getStorePreset, getDiscountTitle } from "~/lib/hpnPromoDefaults";
 import {
   createAutomaticDiscount,
@@ -32,7 +36,11 @@ export async function loader({ request }: LoaderFunctionArgs) {
       loadActiveDiscount(proxy, session.shop),
       findHpnFunctionId(proxy, session.shop),
     ]);
-    return { ...loaded, functionId };
+    const missingRuleIds =
+      loaded.discountId && loaded.configValid
+        ? getMissingPresetRules(loaded.config, getStorePreset(session.shop)).map((r) => r.id)
+        : [];
+    return { ...loaded, functionId, missingRuleIds };
   } catch (err) {
     return loaderError("Failed to load discount management page", {
       operation: "loadDiscountPage",
@@ -137,6 +145,51 @@ export async function action({ request }: ActionFunctionArgs) {
       );
     }
 
+    if (intent === "sync-new-rules") {
+      return withDatabaseLock(
+        `hpn-discount-config:${loaded.discountId}`,
+        async () => {
+          const latest = await loadActiveDiscount(proxy, session.shop);
+          if (!latest.discountId) {
+            return actionError("Discount disappeared before sync", {
+              operation: "syncNewRules",
+              details: ["No automatic app discount was found under the lock."],
+              hint: "Reload the page and try again.",
+            });
+          }
+          if (!latest.configValid) {
+            return actionError("Cannot sync — current configuration is invalid", {
+              operation: "syncNewRules",
+              details: [latest.configError ?? "Unknown validation error."],
+              hint: "Use \"Restore validated defaults\" first, then retry the sync.",
+            });
+          }
+
+          const preset = getStorePreset(session.shop);
+          const missing = getMissingPresetRules(latest.config, preset);
+          if (missing.length === 0) {
+            return { ok: true, message: "No new rules to sync — already up to date." };
+          }
+
+          const nextConfig = syncNewRulesFromPreset(latest.config, preset);
+          const result = await updateAutomaticDiscount(proxy, latest.discountId, {
+            config: nextConfig,
+          });
+          if (result?.userErrors?.length) {
+            return actionError("Shopify rejected the rule sync", {
+              operation: "syncNewRules",
+              details: shopifyUserErrors(result.userErrors),
+              hint: `Discount ID: ${latest.discountId}`,
+            });
+          }
+          return {
+            ok: true,
+            message: `Synced ${missing.length} new rule(s) from preset: ${missing.map((r) => r.id).join(", ")}.`,
+          };
+        },
+      );
+    }
+
     if (intent === "activate") {
       const result = await activateDiscount(proxy, loaded.discountId);
       if (result?.userErrors?.length) {
@@ -176,7 +229,7 @@ export async function action({ request }: ActionFunctionArgs) {
     return actionError("Unrecognized intent", {
       operation: "discountAction",
       details: [`Received intent: "${intent}"`],
-      hint: "Expected one of: create | activate | deactivate | delete — this is likely a UI bug.",
+      hint: "Expected one of: create | repair-config | sync-new-rules | activate | deactivate | delete — this is likely a UI bug.",
     });
   } catch (err) {
     return actionError("Unexpected server error in discount action", {
@@ -197,6 +250,7 @@ export default function DiscountPage() {
     config,
     configValid,
     configError,
+    missingRuleIds,
   } =
     useLoaderData<typeof loader>();
   const fetcher = useFetcher();
@@ -322,6 +376,24 @@ export default function DiscountPage() {
                       className="btn btn--warning"
                     >
                       {isPending ? "Repairing…" : "Restore validated defaults"}
+                    </button>
+                  </fetcher.Form>
+                </div>
+              )}
+              {configValid && discountId && missingRuleIds.length > 0 && (
+                <div className="alert alert--info" role="status">
+                  <p>
+                    {missingRuleIds.length} new rule(s) in this store's preset
+                    aren't published yet: <code>{missingRuleIds.join(", ")}</code>
+                  </p>
+                  <fetcher.Form method="post">
+                    <input type="hidden" name="intent" value="sync-new-rules" />
+                    <button
+                      type="submit"
+                      disabled={isPending}
+                      className="btn btn--primary"
+                    >
+                      {isPending ? "Syncing…" : "Sync new rules from preset"}
                     </button>
                   </fetcher.Form>
                 </div>

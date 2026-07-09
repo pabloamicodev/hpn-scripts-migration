@@ -243,6 +243,38 @@ export function deleteRule(config: HpnPromoConfig, ruleId: string): HpnPromoConf
   };
 }
 
+/**
+ * Preset rules whose id isn't present in the live config yet — e.g. after a
+ * code change adds new rule instances to a store's preset file. Never
+ * touches existing rules (even if their fields have since diverged from the
+ * preset), so it's safe to run against a live, hand-edited config.
+ */
+export function getMissingPresetRules(
+  config: HpnPromoConfig,
+  preset: HpnPromoConfig,
+): HpnPromoRule[] {
+  const existingIds = new Set(config.rules.map((r) => r.id));
+  return preset.rules.filter((rule) => !existingIds.has(rule.id));
+}
+
+/**
+ * Appends any preset rules missing from the live config. Leaves every
+ * existing rule and `combinesWith` untouched — this only ever adds, never
+ * overwrites or removes.
+ */
+export function syncNewRulesFromPreset(
+  config: HpnPromoConfig,
+  preset: HpnPromoConfig,
+): HpnPromoConfig {
+  const missing = getMissingPresetRules(config, preset);
+  if (missing.length === 0) return config;
+
+  return {
+    ...config,
+    rules: [...config.rules, ...missing] as HpnPromoConfig["rules"],
+  };
+}
+
 export function upsertRule(
   config: HpnPromoConfig,
   rule: HpnPromoRule

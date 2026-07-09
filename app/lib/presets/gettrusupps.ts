@@ -57,7 +57,7 @@ export const gettruSuppsPreset: HpnPromoConfig = {
         { quantity: 3, targetPricePerUnit: 36.0 },
         { quantity: 4, targetPricePerUnit: 33.75 },
       ],
-      message: "Protein Complete — Subscribe & Save",
+      message: "Protein Complete Bundle",
     },
     {
       // Buy-it-once tiers — same bulk % break as the subscription tiers
@@ -76,7 +76,7 @@ export const gettruSuppsPreset: HpnPromoConfig = {
         { quantity: 3, targetPricePerUnit: 39.99 },
         { quantity: 4, targetPricePerUnit: 37.49 },
       ],
-      message: "Protein Complete — One-Time Purchase",
+      message: "Protein Complete Bundle",
     },
     {
       // Free gift products (shaker + ebook) — only free when added by this
@@ -95,7 +95,7 @@ export const gettruSuppsPreset: HpnPromoConfig = {
       requiredLineAttributeKey: "__landing_source",
       requiredLineAttributeValue: PROTEIN_LANDING_SOURCE_VALUE,
       discountPercentage: 100,
-      message: "Free gift — Protein Complete bundle",
+      message: "Protein Complete Bundle",
     },
     {
       // Free shipping for the whole order whenever any line came from this landing.
@@ -104,7 +104,7 @@ export const gettruSuppsPreset: HpnPromoConfig = {
       enabled: true,
       requiredLineAttributeKey: "__landing_source",
       requiredLineAttributeValue: PROTEIN_LANDING_SOURCE_VALUE,
-      message: "Free shipping — Protein Complete bundle",
+      message: "Protein Complete Bundle",
     },
   ],
   combinesWith: {

@@ -76,7 +76,7 @@ interface PromoRuleFormValues {
   maxUnitsTotal?: number;
   requiredLineAttributeKey?: string;
   requiredLineAttributeValue?: string;
-  requiresSubscription?: boolean;
+  requiresSubscriptionOption?: "any" | "true" | "false";
   targetVariantIds?: string[];
   conditions?: RuleConditionsFormValues;
 }
@@ -190,8 +190,6 @@ const DEFAULT_RULES: Record<PromoRuleType, PromoRuleFormValues> = {
     message: "Rewards",
   },
 
-  // Structural fields (variants, tiers, line attribute) are configured via
-  // the preset file, not this form — same treatment as the Swell rules above.
   landing_quantity_tier_fixed_price: {
     id: "landing-quantity-tier-fixed-price",
     type: "landing_quantity_tier_fixed_price",
@@ -199,6 +197,7 @@ const DEFAULT_RULES: Record<PromoRuleType, PromoRuleFormValues> = {
     targetVariantIds: [],
     requiredLineAttributeKey: "__landing_source",
     requiredLineAttributeValue: "",
+    requiresSubscriptionOption: "any",
     quantityTiers: [],
     message: "",
   },
@@ -230,8 +229,13 @@ function normalizeDefaultValues(defaultValues?: HpnPromoRule): PromoRuleFormValu
   }
 
   if (defaultValues.type === "landing_quantity_tier_fixed_price") {
-    const { tiers, ...rest } = defaultValues;
-    return { ...rest, quantityTiers: tiers };
+    const { tiers, requiresSubscription, ...rest } = defaultValues;
+    return {
+      ...rest,
+      quantityTiers: tiers,
+      requiresSubscriptionOption:
+        requiresSubscription === true ? "true" : requiresSubscription === false ? "false" : "any",
+    };
   }
 
   return {
@@ -396,7 +400,12 @@ function buildRulePayload(values: PromoRuleFormValues): unknown {
       targetVariantIds: values.targetVariantIds ?? [],
       requiredLineAttributeKey: values.requiredLineAttributeKey ?? "",
       requiredLineAttributeValue: values.requiredLineAttributeValue ?? "",
-      requiresSubscription: values.requiresSubscription,
+      requiresSubscription:
+        values.requiresSubscriptionOption === "true"
+          ? true
+          : values.requiresSubscriptionOption === "false"
+            ? false
+            : undefined,
       tiers: values.quantityTiers ?? [],
       message: values.message,
       conditions,
@@ -479,6 +488,8 @@ export function PromoRuleForm({
     | "discountedTriggerProduct"
     | "discountedTarget"
     | "oneTimeVariant"
+    | "landingTierVariant"
+    | "landingScopedProduct"
     | null
   >(null);
   const [selectionMetaById, setSelectionMetaById] = useState<
@@ -504,6 +515,7 @@ export function PromoRuleForm({
   const targetVariantIds = watch("targetVariantIds");
   const targets = watch("targets");
   const tiers = watch("tiers");
+  const quantityTiers = watch("quantityTiers");
   const selectedIds = useMemo(() => {
     return Array.from(
       new Set(
@@ -620,7 +632,10 @@ export function PromoRuleForm({
       });
     }
 
-    if (productPickerMode === "crossSellTargetProduct") {
+    if (
+      productPickerMode === "crossSellTargetProduct" ||
+      productPickerMode === "landingScopedProduct"
+    ) {
       const currentIds = targetProductIds ?? [];
 
       if (!currentIds.includes(selection.productId)) {
@@ -671,7 +686,10 @@ export function PromoRuleForm({
       }
     }
 
-    if (productPickerMode === "oneTimeVariant") {
+    if (
+      productPickerMode === "oneTimeVariant" ||
+      productPickerMode === "landingTierVariant"
+    ) {
       const currentIds = targetVariantIds ?? [];
 
       if (!currentIds.includes(selection.variantId)) {
@@ -800,6 +818,18 @@ export function PromoRuleForm({
 
           <option value="one_time_purchase_discount">
             One-Time Purchase Discount (% off, non-subscription only)
+          </option>
+
+          <option value="landing_quantity_tier_fixed_price">
+            Landing Page → Quantity-Tier Fixed Price
+          </option>
+
+          <option value="landing_scoped_product_discount">
+            Landing Page → Scoped Product Discount (e.g. free gift)
+          </option>
+
+          <option value="landing_free_shipping">
+            Landing Page → Free Shipping
           </option>
         </select>
       </div>
@@ -1308,6 +1338,227 @@ export function PromoRuleForm({
               })}
               className="number-field"
             />
+          </div>
+        </section>
+      )}
+
+      {ruleType === "landing_quantity_tier_fixed_price" && (
+        <section className="form-section">
+          <h2 className="form-section__title">Landing page quantity-tier pricing</h2>
+          <p className="field-hint">
+            Only applies to cart lines carrying the required line item
+            property below — the same variant added from its own PDP is
+            unaffected.
+          </p>
+
+          <div className="form-group">
+            <span className="form-label">Target variants</span>
+            <ProductIdListSelector
+              productIds={targetVariantIds ?? []}
+              metaById={selectionMetaById}
+              emptyText="Choose the variants sold on this landing page."
+              itemLabel="Variant"
+              addLabel="Add variant"
+              onPick={() => setProductPickerMode("landingTierVariant")}
+              onRemove={(variantId) => removeListValue("targetVariantIds", variantId)}
+            />
+          </div>
+
+          <div className="form-group">
+            <span className="form-label">Required line item property</span>
+            <div className="target-discount-row">
+              <input
+                type="text"
+                placeholder="key (e.g. __landing_source)"
+                {...register("requiredLineAttributeKey")}
+              />
+              <input
+                type="text"
+                placeholder="value (e.g. protein-complete-lp)"
+                {...register("requiredLineAttributeValue")}
+              />
+            </div>
+            <p className="field-hint">
+              The landing page's add-to-cart form must set this exact
+              property on every line it adds.
+            </p>
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="requiresSubscriptionOption" className="form-label">
+              Applies to
+            </label>
+            <select
+              id="requiresSubscriptionOption"
+              {...register("requiresSubscriptionOption")}
+            >
+              <option value="any">Any (subscription or one-time)</option>
+              <option value="true">Subscription lines only</option>
+              <option value="false">One-time purchase lines only</option>
+            </select>
+          </div>
+
+          <div className="form-group">
+            <span className="form-label">Quantity tiers (fixed price per unit)</span>
+            <p className="field-hint">
+              The combined quantity across all matching lines must exactly
+              match a tier's quantity — no partial matches.
+            </p>
+
+            {(quantityTiers ?? []).length > 0 && (
+              <div className="product-id-list">
+                {(quantityTiers ?? []).map((tier, idx) => (
+                  <div key={idx} className="product-id-chip">
+                    <div className="target-discount-row">
+                      <label className="form-label">Quantity</label>
+                      <input
+                        type="number"
+                        min={1}
+                        value={tier.quantity}
+                        onChange={(e) => {
+                          const next = (quantityTiers ?? []).map((t, i) =>
+                            i === idx
+                              ? { ...t, quantity: Number(e.target.value) }
+                              : t,
+                          );
+                          setValue("quantityTiers", next, { shouldDirty: true });
+                        }}
+                        className="number-field"
+                      />
+                      <label className="form-label">Price per unit ($)</label>
+                      <input
+                        type="number"
+                        min={0}
+                        step={0.01}
+                        value={tier.targetPricePerUnit}
+                        onChange={(e) => {
+                          const next = (quantityTiers ?? []).map((t, i) =>
+                            i === idx
+                              ? { ...t, targetPricePerUnit: Number(e.target.value) }
+                              : t,
+                          );
+                          setValue("quantityTiers", next, { shouldDirty: true });
+                        }}
+                        className="number-field"
+                      />
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setValue(
+                            "quantityTiers",
+                            (quantityTiers ?? []).filter((_, i) => i !== idx),
+                            { shouldDirty: true },
+                          )
+                        }
+                        className="btn btn--small btn--danger"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={() =>
+                setValue(
+                  "quantityTiers",
+                  [...(quantityTiers ?? []), { quantity: 1, targetPricePerUnit: 0 }],
+                  { shouldDirty: true },
+                )
+              }
+              className="btn btn--small"
+            >
+              + Add tier
+            </button>
+          </div>
+        </section>
+      )}
+
+      {ruleType === "landing_scoped_product_discount" && (
+        <section className="form-section">
+          <h2 className="form-section__title">Landing page scoped product discount</h2>
+          <p className="field-hint">
+            Discounts these products only on lines carrying the required line
+            item property below — e.g. a free gift bundled with a specific
+            landing page.
+          </p>
+
+          <div className="form-group">
+            <span className="form-label">Target products</span>
+            <ProductIdListSelector
+              productIds={targetProductIds ?? []}
+              metaById={selectionMetaById}
+              emptyText="Choose the products to discount on this landing."
+              itemLabel="Product"
+              addLabel="Add product"
+              onPick={() => setProductPickerMode("landingScopedProduct")}
+              onRemove={(id) => removeListValue("targetProductIds", id)}
+            />
+          </div>
+
+          <div className="form-group">
+            <span className="form-label">Required line item property</span>
+            <div className="target-discount-row">
+              <input
+                type="text"
+                placeholder="key (e.g. __landing_source)"
+                {...register("requiredLineAttributeKey")}
+              />
+              <input
+                type="text"
+                placeholder="value (e.g. protein-complete-lp)"
+                {...register("requiredLineAttributeValue")}
+              />
+            </div>
+          </div>
+
+          <div className="form-group">
+            <label
+              htmlFor="landingScopedDiscountPercentage"
+              className="form-label"
+            >
+              Discount Percentage
+            </label>
+
+            <input
+              type="number"
+              id="landingScopedDiscountPercentage"
+              min={1}
+              max={100}
+              {...register("discountPercentage", {
+                valueAsNumber: true,
+              })}
+              className="number-field"
+            />
+          </div>
+        </section>
+      )}
+
+      {ruleType === "landing_free_shipping" && (
+        <section className="form-section">
+          <h2 className="form-section__title">Landing page free shipping</h2>
+          <p className="field-hint">
+            Free shipping for the whole order whenever any cart line carries
+            the required line item property below.
+          </p>
+
+          <div className="form-group">
+            <span className="form-label">Required line item property</span>
+            <div className="target-discount-row">
+              <input
+                type="text"
+                placeholder="key (e.g. __landing_source)"
+                {...register("requiredLineAttributeKey")}
+              />
+              <input
+                type="text"
+                placeholder="value (e.g. protein-complete-lp)"
+                {...register("requiredLineAttributeValue")}
+              />
+            </div>
           </div>
         </section>
       )}

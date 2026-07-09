@@ -1095,7 +1095,7 @@ describe("subscription_bundle_group", () => {
     return {
       ...productLine(id, productId, VARIANT_IDS.unrelated, quantity),
       sellingPlanAllocation: subscription ? SELLING_PLAN : undefined,
-      attribute: attributeValue === null ? null : { value: attributeValue },
+      bundleTypeAttribute: attributeValue === null ? null : { value: attributeValue },
     };
   }
 
@@ -1316,5 +1316,231 @@ describe("one_time_purchase_discount", () => {
         message: "25% off Acai Berry Blast / Unicorn Milkshake",
       },
     ]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// landing_quantity_tier_fixed_price (gettrusupps TRU landing page)
+// ---------------------------------------------------------------------------
+
+describe("landing_quantity_tier_fixed_price", () => {
+  const FLAVOR_A = "gid://shopify/ProductVariant/50000000000001";
+  const FLAVOR_B = "gid://shopify/ProductVariant/50000000000002";
+
+  function config(overrides = {}) {
+    return {
+      version: 1,
+      combinesWith: { orderDiscounts: true, productDiscounts: true, shippingDiscounts: true },
+      rules: [
+        {
+          id: "tru-landing-tiers",
+          type: "landing_quantity_tier_fixed_price",
+          enabled: true,
+          targetVariantIds: [FLAVOR_A, FLAVOR_B],
+          requiredLineAttributeKey: "__landing_source",
+          requiredLineAttributeValue: "tru-landing",
+          tiers: [
+            { quantity: 1, targetPricePerUnit: 45.0 },
+            { quantity: 2, targetPricePerUnit: 38.25 },
+            { quantity: 3, targetPricePerUnit: 36.0 },
+            { quantity: 4, targetPricePerUnit: 33.75 },
+          ],
+          message: "TRU landing bundle price",
+          ...overrides,
+        },
+      ],
+    };
+  }
+
+  // tagged: false omits the line item property the landing's add-to-cart
+  // form sets — simulates the same variant added from a PDP instead.
+  function landingLine(id, variantId, quantity, unitPriceAmount, { tagged = true } = {}) {
+    return {
+      id,
+      quantity,
+      merchandise: {
+        __typename: "ProductVariant",
+        id: variantId,
+        product: { id: PRODUCT_IDS.unrelated },
+      },
+      cost: { amountPerQuantity: { amount: unitPriceAmount } },
+      landingSourceAttribute: tagged ? { value: "tru-landing" } : null,
+    };
+  }
+
+  it("discounts a single line down to the exact tier price for its quantity", () => {
+    const result = runWithLines([landingLine("l1", FLAVOR_A, 2, "44.99")], config());
+
+    expect(candidates(result)).toEqual([
+      {
+        targets: [{ cartLine: { id: "l1", quantity: 2 } }],
+        value: { fixedAmount: { amount: "6.74", appliesToEachItem: true } },
+        message: "TRU landing bundle price",
+      },
+    ]);
+  });
+
+  it("sums quantity across flavor-split lines to pick the tier, discounting each line", () => {
+    const result = runWithLines(
+      [landingLine("a", FLAVOR_A, 2, "44.99"), landingLine("b", FLAVOR_B, 1, "44.99")],
+      config(),
+    );
+
+    const list = candidates(result);
+    expect(list).toHaveLength(2);
+    expect(list.find((c) => c.targets[0].cartLine.id === "a").value.fixedAmount.amount).toBe("8.99");
+    expect(list.find((c) => c.targets[0].cartLine.id === "b").value.fixedAmount.amount).toBe("8.99");
+  });
+
+  it("does not discount a line added without the landing property (e.g. from a PDP)", () => {
+    const result = runWithLines(
+      [landingLine("pdp", FLAVOR_A, 1, "44.99", { tagged: false })],
+      config(),
+    );
+
+    expect(result).toEqual({ operations: [] });
+  });
+
+  it("does not discount when the combined quantity matches no configured tier", () => {
+    const result = runWithLines([landingLine("l1", FLAVOR_A, 5, "44.99")], config());
+
+    expect(result).toEqual({ operations: [] });
+  });
+
+  it("ignores lines outside the configured target variants even if tagged", () => {
+    const result = runWithLines(
+      [landingLine("other", VARIANT_IDS.unrelated, 1, "44.99")],
+      config(),
+    );
+
+    expect(result).toEqual({ operations: [] });
+  });
+
+  it("skips a matching line whose current price is already at or below the tier target", () => {
+    const result = runWithLines([landingLine("l1", FLAVOR_A, 1, "40.00")], config());
+
+    expect(result).toEqual({ operations: [] });
+  });
+
+  // ── requiresSubscription: subscription vs one-time price variants ────────
+
+  function landingLineWithPlan(id, variantId, quantity, unitPriceAmount, { subscription } = {}) {
+    return {
+      ...landingLine(id, variantId, quantity, unitPriceAmount),
+      sellingPlanAllocation: subscription ? { sellingPlan: { id: "gid://shopify/SellingPlan/1" } } : undefined,
+    };
+  }
+
+  it("only discounts subscription lines when requiresSubscription is true", () => {
+    const cfg = config({ requiresSubscription: true });
+
+    const subResult = runWithLines(
+      [landingLineWithPlan("sub", FLAVOR_A, 2, "44.99", { subscription: true })],
+      cfg,
+    );
+    expect(candidates(subResult)).toHaveLength(1);
+
+    const oneTimeResult = runWithLines(
+      [landingLineWithPlan("one", FLAVOR_A, 2, "44.99", { subscription: false })],
+      cfg,
+    );
+    expect(oneTimeResult).toEqual({ operations: [] });
+  });
+
+  it("only discounts one-time lines when requiresSubscription is false", () => {
+    const cfg = config({ requiresSubscription: false });
+
+    const oneTimeResult = runWithLines(
+      [landingLineWithPlan("one", FLAVOR_A, 2, "49.99", { subscription: false })],
+      cfg,
+    );
+    expect(candidates(oneTimeResult)).toHaveLength(1);
+
+    const subResult = runWithLines(
+      [landingLineWithPlan("sub", FLAVOR_A, 2, "49.99", { subscription: true })],
+      cfg,
+    );
+    expect(subResult).toEqual({ operations: [] });
+  });
+
+  it("matches both subscription and one-time lines when requiresSubscription is omitted", () => {
+    const result = runWithLines(
+      [landingLineWithPlan("sub", FLAVOR_A, 2, "44.99", { subscription: true })],
+      config(),
+    );
+    expect(candidates(result)).toHaveLength(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// landing_scoped_product_discount (gettrusupps free gift products)
+// ---------------------------------------------------------------------------
+
+describe("landing_scoped_product_discount", () => {
+  const GIFT_A = "gid://shopify/Product/60000000000001";
+  const GIFT_B = "gid://shopify/Product/60000000000002";
+
+  function config(overrides = {}) {
+    return {
+      version: 1,
+      combinesWith: { orderDiscounts: true, productDiscounts: true, shippingDiscounts: true },
+      rules: [
+        {
+          id: "tru-landing-free-gifts",
+          type: "landing_scoped_product_discount",
+          enabled: true,
+          targetProductIds: [GIFT_A, GIFT_B],
+          requiredLineAttributeKey: "__landing_source",
+          requiredLineAttributeValue: "protein-complete-lp",
+          discountPercentage: 100,
+          message: "Free gift — Protein Complete bundle",
+          ...overrides,
+        },
+      ],
+    };
+  }
+
+  function giftLine(id, productId, { tagged = true } = {}) {
+    return {
+      id,
+      quantity: 1,
+      merchandise: {
+        __typename: "ProductVariant",
+        id: VARIANT_IDS.unrelated,
+        product: { id: productId },
+      },
+      landingSourceAttribute: tagged ? { value: "protein-complete-lp" } : null,
+    };
+  }
+
+  it("discounts a tagged gift-product line by the configured percentage", () => {
+    const result = runWithLines([giftLine("gift-a", GIFT_A)], config());
+
+    expect(candidates(result)).toEqual([
+      {
+        targets: [{ cartLine: { id: "gift-a" } }],
+        value: { percentage: { value: "100.0" } },
+        message: "Free gift — Protein Complete bundle",
+      },
+    ]);
+  });
+
+  it("discounts all configured gift products when tagged", () => {
+    const result = runWithLines([giftLine("gift-a", GIFT_A), giftLine("gift-b", GIFT_B)], config());
+
+    const list = candidates(result);
+    expect(list).toHaveLength(2);
+  });
+
+  it("does not discount the same gift product added from its own PDP (untagged)", () => {
+    const result = runWithLines([giftLine("pdp-gift", GIFT_A, { tagged: false })], config());
+
+    expect(result).toEqual({ operations: [] });
+  });
+
+  it("does not discount products outside the configured target list, even if tagged", () => {
+    const result = runWithLines([giftLine("other", PRODUCT_IDS.unrelated)], config());
+
+    expect(result).toEqual({ operations: [] });
   });
 });

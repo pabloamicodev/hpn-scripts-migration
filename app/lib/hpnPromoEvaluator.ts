@@ -7,7 +7,7 @@ import type { HpnPromoConfig, HpnPromoRule, RuleConditions } from "./validations
 export interface CartLine {
   id: string;
   quantity: number;
-  cost?: { totalAmount?: { amount: string } };
+  cost?: { totalAmount?: { amount: string }; amountPerQuantity?: { amount: string } };
   sellingPlanAllocation?: { sellingPlan: { id: string } } | null;
   attributes?: Array<{ key: string; value: string | null }>;
   merchandise: {
@@ -393,6 +393,85 @@ export function evaluateSwellCartFixedAmount(
   return actions;
 }
 
+export function evaluateLandingQuantityTierFixedPrice(
+  rule: Extract<HpnPromoRule, { type: "landing_quantity_tier_fixed_price" }>,
+  lines: CartLine[],
+): DiscountAction[] {
+  const actions: DiscountAction[] = [];
+  const targetVariantIds = new Set(rule.targetVariantIds);
+
+  const matchingLines = lines.filter((line) => {
+    if (line.merchandise.__typename !== "ProductVariant") return false;
+    if (!targetVariantIds.has(line.merchandise.id)) return false;
+    const attr = (line.attributes ?? []).find((a) => a.key === rule.requiredLineAttributeKey);
+    if (attr?.value !== rule.requiredLineAttributeValue) return false;
+    if (typeof rule.requiresSubscription === "boolean") {
+      const isSubscription = Boolean(line.sellingPlanAllocation?.sellingPlan?.id);
+      if (isSubscription !== rule.requiresSubscription) return false;
+    }
+    return true;
+  });
+  if (matchingLines.length === 0) return actions;
+
+  const totalQuantity = matchingLines.reduce((sum, line) => sum + line.quantity, 0);
+  const tier = rule.tiers.find((t) => t.quantity === totalQuantity);
+  if (!tier) return actions;
+
+  for (const line of matchingLines) {
+    const currentPerUnit = parseFloat(line.cost?.amountPerQuantity?.amount ?? "");
+    if (isNaN(currentPerUnit) || currentPerUnit <= 0) continue;
+    const discountPerUnit = currentPerUnit - tier.targetPricePerUnit;
+    if (discountPerUnit <= 0) continue;
+    actions.push({
+      lineId: line.id,
+      variantId: line.merchandise.id,
+      productId: line.merchandise.product.id,
+      discountedQuantity: line.quantity,
+      // Fixed-amount discount expressed as an effective % for preview purposes.
+      percentageOff: Math.min((discountPerUnit / currentPerUnit) * 100, 100),
+      message: rule.message,
+    });
+  }
+
+  return actions;
+}
+
+export function evaluateLandingScopedProductDiscount(
+  rule: Extract<HpnPromoRule, { type: "landing_scoped_product_discount" }>,
+  cartIndex: CartIndex,
+): DiscountAction[] {
+  const actions: DiscountAction[] = [];
+
+  for (const productId of rule.targetProductIds) {
+    const lines = cartIndex.linesByProductId.get(productId);
+    if (!lines) continue;
+
+    for (const line of lines) {
+      const attr = (line.attributes ?? []).find((a) => a.key === rule.requiredLineAttributeKey);
+      if (attr?.value !== rule.requiredLineAttributeValue) continue;
+      actions.push({
+        lineId: line.id,
+        variantId: line.merchandise.id,
+        productId: line.merchandise.product.id,
+        discountedQuantity: line.quantity,
+        percentageOff: rule.discountPercentage,
+        message: rule.message,
+      });
+    }
+  }
+
+  return actions;
+}
+
+// landing_free_shipping affects delivery cost, not cart lines — it's
+// evaluated by a separate Function target (deliveryRun.js) and has no
+// PRODUCT-class discount actions to preview here.
+export function evaluateLandingFreeShipping(
+  _rule: Extract<HpnPromoRule, { type: "landing_free_shipping" }>,
+): DiscountAction[] {
+  return [];
+}
+
 // ---------------------------------------------------------------------------
 // Exhaustiveness guard — TypeScript will error here if a new rule type is
 // added to HpnPromoRule but not handled in evaluateConfig's switch.
@@ -449,6 +528,15 @@ export function evaluateConfig(
         break;
       case "swell_cart_fixed_amount":
         ruleActions = evaluateSwellCartFixedAmount(rule, lines);
+        break;
+      case "landing_quantity_tier_fixed_price":
+        ruleActions = evaluateLandingQuantityTierFixedPrice(rule, lines);
+        break;
+      case "landing_scoped_product_discount":
+        ruleActions = evaluateLandingScopedProductDiscount(rule, cartIndex);
+        break;
+      case "landing_free_shipping":
+        ruleActions = evaluateLandingFreeShipping(rule);
         break;
       default:
         assertNever(rule);

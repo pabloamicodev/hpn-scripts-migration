@@ -27,13 +27,20 @@ query RunInput {
           amount
           currencyCode
         }
+        amountPerQuantity {
+          amount
+          currencyCode
+        }
       }
       sellingPlanAllocation {
         sellingPlan {
           id
         }
       }
-      attribute(key: "__bundle_type") {
+      bundleTypeAttribute: attribute(key: "__bundle_type") {
+        value
+      }
+      landingSourceAttribute: attribute(key: "__landing_source") {
         value
       }
       merchandise {

@@ -74,6 +74,10 @@ export function cartLinesDiscountsGenerateRun(input) {
       applySwellFreeProductRule(rule, lines, candidatesByLine);
     } else if (rule.type === "swell_cart_fixed_amount") {
       applySwellCartFixedAmountRule(rule, lines, candidatesByLine);
+    } else if (rule.type === "landing_quantity_tier_fixed_price") {
+      applyLandingQuantityTierFixedPriceRule(rule, lines, candidatesByLine);
+    } else if (rule.type === "landing_scoped_product_discount") {
+      applyLandingScopedProductDiscountRule(rule, byProduct, candidatesByLine);
     }
   }
 
@@ -318,7 +322,7 @@ function applySubscriptionBundleGroupRule(rule, lines, candidates) {
 
     if (
       rule.requiredLineAttributeKey === BUNDLE_LINE_ATTRIBUTE_KEY &&
-      line.attribute?.value !== rule.requiredLineAttributeValue
+      line.bundleTypeAttribute?.value !== rule.requiredLineAttributeValue
     ) continue;
 
     const qtyToDiscount = Math.min(rule.maxUnitsTotal - unitsDiscounted, line.quantity);
@@ -344,6 +348,94 @@ function applyOneTimePurchaseDiscountRule(rule, byVariant, candidates) {
     for (const line of (byVariant.get(variantId) ?? [])) {
       if (line.sellingPlanAllocation?.sellingPlan?.id) continue;
       addCandidate(candidates, line, 1, rule.discountPercentage, rule.message);
+    }
+  }
+}
+
+// The only landing-page-scoped line attribute key fetched in run.graphql —
+// same static-key constraint as BUNDLE_LINE_ATTRIBUTE_KEY above.
+const LANDING_SOURCE_LINE_ATTRIBUTE_KEY = "__landing_source";
+
+/**
+ * Landing Page Quantity-Tier Fixed Price: only touches cart lines carrying a
+ * line item property that's set exclusively by the landing page's add-to-cart
+ * form, so the same variant added from a PDP is never affected. Sums quantity
+ * across all matching lines (a flavor split still counts as one purchase),
+ * and if that total matches a configured tier, brings each unit down to the
+ * tier's exact target price using a fixed-amount discount computed from the
+ * line's live cost — immune to rounding from the subscription discount
+ * that's already applied upstream.
+ */
+function applyLandingQuantityTierFixedPriceRule(rule, lines, candidates) {
+  if (
+    !Array.isArray(rule.targetVariantIds) ||
+    rule.targetVariantIds.length === 0 ||
+    rule.requiredLineAttributeKey !== LANDING_SOURCE_LINE_ATTRIBUTE_KEY ||
+    !rule.requiredLineAttributeValue ||
+    !Array.isArray(rule.tiers) ||
+    rule.tiers.length === 0
+  ) return;
+
+  const targetVariantIds = new Set(rule.targetVariantIds);
+  const matchingLines = lines.filter((line) => {
+    if (!targetVariantIds.has(line.merchandise?.id)) return false;
+    if (line.landingSourceAttribute?.value !== rule.requiredLineAttributeValue) return false;
+    if (typeof rule.requiresSubscription === "boolean") {
+      const isSubscription = Boolean(line.sellingPlanAllocation?.sellingPlan?.id);
+      if (isSubscription !== rule.requiresSubscription) return false;
+    }
+    return true;
+  });
+  if (matchingLines.length === 0) return;
+
+  const totalQuantity = matchingLines.reduce((sum, line) => sum + line.quantity, 0);
+  const tier = rule.tiers.find((t) => t.quantity === totalQuantity);
+  if (!tier) return;
+
+  for (const line of matchingLines) {
+    const currentPerUnit = parseFloat(line.cost?.amountPerQuantity?.amount ?? "");
+    if (isNaN(currentPerUnit)) continue;
+    const discountPerUnit = currentPerUnit - tier.targetPricePerUnit;
+    if (discountPerUnit <= 0) continue;
+    addFixedAmountCandidate(candidates, line, discountPerUnit, rule.message);
+  }
+}
+
+// Sets (rather than merges) the candidate for the line — safe because this
+// rule only ever matches lines gated by LANDING_SOURCE_LINE_ATTRIBUTE_KEY, so
+// no other rule is expected to also target the same line.
+function addFixedAmountCandidate(candidatesByLine, line, amountPerUnit, message) {
+  candidatesByLine.set(line.id, {
+    targets: [{ cartLine: { id: line.id, quantity: line.quantity } }],
+    value: {
+      fixedAmount: {
+        amount: amountPerUnit.toFixed(2),
+        appliesToEachItem: true,
+      },
+    },
+    message: message ?? "",
+  });
+}
+
+/**
+ * Landing Page Scoped Product Discount: applies a flat % (typically 100, for
+ * a free gift) to every line of the configured products, but only lines
+ * carrying the landing's line item property — the same gift product added
+ * from its own PDP is unaffected.
+ */
+function applyLandingScopedProductDiscountRule(rule, byProduct, candidates) {
+  if (
+    !Array.isArray(rule.targetProductIds) ||
+    rule.targetProductIds.length === 0 ||
+    rule.requiredLineAttributeKey !== LANDING_SOURCE_LINE_ATTRIBUTE_KEY ||
+    !rule.requiredLineAttributeValue ||
+    typeof rule.discountPercentage !== "number"
+  ) return;
+
+  for (const productId of rule.targetProductIds) {
+    for (const line of (byProduct.get(productId) ?? [])) {
+      if (line.landingSourceAttribute?.value !== rule.requiredLineAttributeValue) continue;
+      addCandidate(candidates, line, null, rule.discountPercentage, rule.message);
     }
   }
 }

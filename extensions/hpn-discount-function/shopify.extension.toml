@@ -11,3 +11,9 @@ module = "./src/index.js"
 target = "cart.lines.discounts.generate.run"
 input_query = "./src/run.graphql"
 export = "cart-lines-discounts-generate-run"
+
+[[extensions.targeting]]
+module = "./src/deliveryRun.js"
+target = "cart.delivery-options.discounts.generate.run"
+input_query = "./src/deliveryRun.graphql"
+export = "cart-delivery-options-discounts-generate-run"

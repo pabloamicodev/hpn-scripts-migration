@@ -46,6 +46,11 @@ interface LoyaltyTierEntry {
   discountPercentage: number;
 }
 
+interface QuantityTierPrice {
+  quantity: number;
+  targetPricePerUnit: number;
+}
+
 interface RuleConditionsFormValues {
   minimumCartSubtotal?: number;
   requiredCartAttributeKey?: string;
@@ -67,9 +72,11 @@ interface PromoRuleFormValues {
   freeQuantityPerLine?: number | null;
   targets?: DiscountTarget[];
   tiers?: LoyaltyTierEntry[];
+  quantityTiers?: QuantityTierPrice[];
   maxUnitsTotal?: number;
   requiredLineAttributeKey?: string;
   requiredLineAttributeValue?: string;
+  requiresSubscription?: boolean;
   targetVariantIds?: string[];
   conditions?: RuleConditionsFormValues;
 }
@@ -182,11 +189,49 @@ const DEFAULT_RULES: Record<PromoRuleType, PromoRuleFormValues> = {
     enabled: true,
     message: "Rewards",
   },
+
+  // Structural fields (variants, tiers, line attribute) are configured via
+  // the preset file, not this form — same treatment as the Swell rules above.
+  landing_quantity_tier_fixed_price: {
+    id: "landing-quantity-tier-fixed-price",
+    type: "landing_quantity_tier_fixed_price",
+    enabled: true,
+    targetVariantIds: [],
+    requiredLineAttributeKey: "__landing_source",
+    requiredLineAttributeValue: "",
+    quantityTiers: [],
+    message: "",
+  },
+
+  landing_scoped_product_discount: {
+    id: "landing-scoped-product-discount",
+    type: "landing_scoped_product_discount",
+    enabled: true,
+    targetProductIds: [],
+    requiredLineAttributeKey: "__landing_source",
+    requiredLineAttributeValue: "",
+    discountPercentage: 100,
+    message: "",
+  },
+
+  landing_free_shipping: {
+    id: "landing-free-shipping",
+    type: "landing_free_shipping",
+    enabled: true,
+    requiredLineAttributeKey: "__landing_source",
+    requiredLineAttributeValue: "",
+    message: "",
+  },
 };
 
 function normalizeDefaultValues(defaultValues?: HpnPromoRule): PromoRuleFormValues {
   if (!defaultValues) {
     return makeDefaultRule("pa7_cross_sell");
+  }
+
+  if (defaultValues.type === "landing_quantity_tier_fixed_price") {
+    const { tiers, ...rest } = defaultValues;
+    return { ...rest, quantityTiers: tiers };
   }
 
   return {
@@ -205,6 +250,9 @@ function makeRuleId(type: PromoRuleType) {
   if (type === "one_time_purchase_discount") return `one-time-purchase-discount-${suffix}`;
   if (type === "swell_free_product") return `swell-free-product-${suffix}`;
   if (type === "swell_cart_fixed_amount") return `swell-cart-fixed-amount-${suffix}`;
+  if (type === "landing_quantity_tier_fixed_price") return `landing-quantity-tier-${suffix}`;
+  if (type === "landing_scoped_product_discount") return `landing-scoped-product-${suffix}`;
+  if (type === "landing_free_shipping") return `landing-free-shipping-${suffix}`;
   return `loyalty-tier-${suffix}`;
 }
 
@@ -335,6 +383,47 @@ function buildRulePayload(values: PromoRuleFormValues): unknown {
       enabled: values.enabled,
       targetVariantIds: values.targetVariantIds ?? [],
       discountPercentage: values.discountPercentage ?? 25,
+      message: values.message,
+      conditions,
+    };
+  }
+
+  if (values.type === "landing_quantity_tier_fixed_price") {
+    return {
+      id: values.id,
+      type: "landing_quantity_tier_fixed_price",
+      enabled: values.enabled,
+      targetVariantIds: values.targetVariantIds ?? [],
+      requiredLineAttributeKey: values.requiredLineAttributeKey ?? "",
+      requiredLineAttributeValue: values.requiredLineAttributeValue ?? "",
+      requiresSubscription: values.requiresSubscription,
+      tiers: values.quantityTiers ?? [],
+      message: values.message,
+      conditions,
+    };
+  }
+
+  if (values.type === "landing_scoped_product_discount") {
+    return {
+      id: values.id,
+      type: "landing_scoped_product_discount",
+      enabled: values.enabled,
+      targetProductIds: values.targetProductIds ?? [],
+      requiredLineAttributeKey: values.requiredLineAttributeKey ?? "",
+      requiredLineAttributeValue: values.requiredLineAttributeValue ?? "",
+      discountPercentage: values.discountPercentage ?? 100,
+      message: values.message,
+      conditions,
+    };
+  }
+
+  if (values.type === "landing_free_shipping") {
+    return {
+      id: values.id,
+      type: "landing_free_shipping",
+      enabled: values.enabled,
+      requiredLineAttributeKey: values.requiredLineAttributeKey ?? "",
+      requiredLineAttributeValue: values.requiredLineAttributeValue ?? "",
       message: values.message,
       conditions,
     };

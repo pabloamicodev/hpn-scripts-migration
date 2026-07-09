@@ -1,4 +1,4 @@
-import type { HpnPromoConfig } from "./validations";
+import type { HpnPromoConfig, HpnPromoRule } from "./validations";
 import { logger } from "./logger";
 
 const CREATE_AUTOMATIC_DISCOUNT_MUTATION = `
@@ -293,7 +293,16 @@ interface CombinesWithInput {
   shippingDiscounts: boolean;
 }
 
-const HPN_DISCOUNT_CLASSES = ["PRODUCT"] as const;
+// Every shop's discount currently needs PRODUCT. SHIPPING is only added when
+// the config actually has a rule that relies on it (e.g. gettrusupps' landing
+// page free-shipping promo) — this keeps hpn/one-sol, which have no shipping
+// rules, on the exact same discountClasses they've always had.
+const SHIPPING_RULE_TYPES: ReadonlySet<HpnPromoRule["type"]> = new Set(["landing_free_shipping"]);
+
+function computeDiscountClasses(config: HpnPromoConfig): Array<"PRODUCT" | "SHIPPING"> {
+  const hasShippingRule = config.rules.some((rule) => SHIPPING_RULE_TYPES.has(rule.type));
+  return hasShippingRule ? ["PRODUCT", "SHIPPING"] : ["PRODUCT"];
+}
 
 type DiscountTypename =
   | "DiscountAutomaticApp"
@@ -366,7 +375,7 @@ export async function createAutomaticDiscount(
     automaticAppDiscount: {
       title,
       functionId,
-      discountClasses: HPN_DISCOUNT_CLASSES,
+      discountClasses: computeDiscountClasses(config),
       startsAt,
       combinesWith,
       metafields: [
@@ -395,8 +404,12 @@ export async function updateAutomaticDiscount(
     combinesWith?: CombinesWithInput;
   }
 ) {
+  // discountClasses must always be sent (the mutation doesn't merge partial
+  // input), so when no config is given we fall back to the historical
+  // PRODUCT-only default rather than guessing. Every real caller today
+  // (saveConfig, repair-config) always passes config.
   const input: Record<string, unknown> = {
-    discountClasses: HPN_DISCOUNT_CLASSES,
+    discountClasses: updates.config ? computeDiscountClasses(updates.config) : ["PRODUCT"],
   };
 
   if (updates.title) {

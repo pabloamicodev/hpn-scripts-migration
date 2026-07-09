@@ -146,6 +146,65 @@ export const swellCartFixedAmountRuleSchema = z.object({
 });
 
 // ---------------------------------------------------------------------------
+// Landing page quantity-tier fixed price (e.g. gettrusupps TRU landing) —
+// scoped to a line item property set only by that landing's add-to-cart
+// form, so the same variant added from a PDP is unaffected.
+// ---------------------------------------------------------------------------
+
+export const quantityTierPriceSchema = z.object({
+  quantity: z.number().int().positive(),
+  targetPricePerUnit: z.number().positive(),
+});
+
+export const landingQuantityTierFixedPriceRuleSchema = z.object({
+  id: ruleIdSchema,
+  type: z.literal("landing_quantity_tier_fixed_price"),
+  enabled: z.boolean(),
+  targetVariantIds: z.array(variantGidSchema).min(1),
+  requiredLineAttributeKey: z.string().min(1),
+  requiredLineAttributeValue: z.string().min(1),
+  // undefined = matches any line; true = subscription lines only; false = one-time-purchase lines only.
+  requiresSubscription: z.boolean().optional(),
+  tiers: z.array(quantityTierPriceSchema).min(1),
+  message: z.string().trim().min(1),
+  conditions: ruleConditionsSchema,
+});
+
+// ---------------------------------------------------------------------------
+// Landing page scoped product discount (e.g. free gift products bundled with
+// a landing-only offer) — same line-item-property scoping as the tier rule
+// above, but matches by PRODUCT id and applies a flat percentage.
+// ---------------------------------------------------------------------------
+
+export const landingScopedProductDiscountRuleSchema = z.object({
+  id: ruleIdSchema,
+  type: z.literal("landing_scoped_product_discount"),
+  enabled: z.boolean(),
+  targetProductIds: z.array(productGidSchema).min(1),
+  requiredLineAttributeKey: z.string().min(1),
+  requiredLineAttributeValue: z.string().min(1),
+  discountPercentage: z.number().positive().max(100).default(100),
+  message: z.string().trim().min(1),
+  conditions: ruleConditionsSchema,
+});
+
+// ---------------------------------------------------------------------------
+// Landing page free shipping — evaluated by a separate delivery-options
+// Function target. Free shipping applies to the whole order whenever any
+// cart line carries the configured line item property.
+// ---------------------------------------------------------------------------
+
+export const landingFreeShippingRuleSchema = z.object({
+  id: ruleIdSchema,
+  type: z.literal("landing_free_shipping"),
+  enabled: z.boolean(),
+  requiredLineAttributeKey: z.string().min(1),
+  requiredLineAttributeValue: z.string().min(1),
+  message: z.string().trim().min(1),
+  conditions: ruleConditionsSchema,
+});
+
+// ---------------------------------------------------------------------------
 // Loyalty tier
 // ---------------------------------------------------------------------------
 
@@ -178,6 +237,9 @@ export const hpnPromoRuleSchema = z.discriminatedUnion("type", [
   oneTimePurchaseDiscountRuleSchema,
   swellFreeProductRuleSchema,
   swellCartFixedAmountRuleSchema,
+  landingQuantityTierFixedPriceRuleSchema,
+  landingScopedProductDiscountRuleSchema,
+  landingFreeShippingRuleSchema,
 ]);
 
 export const hpnPromoConfigSchema = z.object({
@@ -205,6 +267,10 @@ export type SubscriptionBundleGroupRule = z.infer<typeof subscriptionBundleGroup
 export type OneTimePurchaseDiscountRule = z.infer<typeof oneTimePurchaseDiscountRuleSchema>;
 export type SwellFreeProductRule = z.infer<typeof swellFreeProductRuleSchema>;
 export type SwellCartFixedAmountRule = z.infer<typeof swellCartFixedAmountRuleSchema>;
+export type QuantityTierPrice = z.infer<typeof quantityTierPriceSchema>;
+export type LandingQuantityTierFixedPriceRule = z.infer<typeof landingQuantityTierFixedPriceRuleSchema>;
+export type LandingScopedProductDiscountRule = z.infer<typeof landingScopedProductDiscountRuleSchema>;
+export type LandingFreeShippingRule = z.infer<typeof landingFreeShippingRuleSchema>;
 
 export type HpnPromoRule =
   | Pa7CrossSellRule
@@ -215,7 +281,10 @@ export type HpnPromoRule =
   | SubscriptionBundleGroupRule
   | OneTimePurchaseDiscountRule
   | SwellFreeProductRule
-  | SwellCartFixedAmountRule;
+  | SwellCartFixedAmountRule
+  | LandingQuantityTierFixedPriceRule
+  | LandingScopedProductDiscountRule
+  | LandingFreeShippingRule;
 
 export type HpnPromoRuleId = HpnPromoRule["id"];
 export type HpnPromoRuleType = HpnPromoRule["type"];

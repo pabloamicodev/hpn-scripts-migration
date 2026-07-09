@@ -21,6 +21,9 @@ const typeLabels: Record<HpnPromoRule["type"], string> = {
   one_time_purchase_discount: "One-Time Purchase Discount",
   swell_free_product: "Swell Free Product",
   swell_cart_fixed_amount: "Swell Fixed-Amount Reward",
+  landing_quantity_tier_fixed_price: "Landing Page Quantity-Tier Price",
+  landing_scoped_product_discount: "Landing Page Scoped Product Discount",
+  landing_free_shipping: "Landing Page Free Shipping",
 };
 
 const pageSizeOptions = [5, 10, 25];
@@ -424,6 +427,12 @@ function getRuleIdentifiers(rule: HpnPromoRule): string {
     case "swell_free_product":
     case "swell_cart_fixed_amount":
       return "";
+    case "landing_quantity_tier_fixed_price":
+      return rule.targetVariantIds.map(getGidTail).join(" ");
+    case "landing_scoped_product_discount":
+      return rule.targetProductIds.map(getGidTail).join(" ");
+    case "landing_free_shipping":
+      return "";
   }
 }
 
@@ -466,6 +475,12 @@ function getTriggerSummary(rule: HpnPromoRule): string {
       return "Line property: _swell_discount_type = product";
     case "swell_cart_fixed_amount":
       return "Line property: _swell_discount_type = cart_fixed_amount";
+    case "landing_quantity_tier_fixed_price":
+      return `Line property: ${rule.requiredLineAttributeKey} = ${rule.requiredLineAttributeValue}`;
+    case "landing_scoped_product_discount":
+      return `Line property: ${rule.requiredLineAttributeKey} = ${rule.requiredLineAttributeValue}`;
+    case "landing_free_shipping":
+      return `Line property: ${rule.requiredLineAttributeKey} = ${rule.requiredLineAttributeValue}`;
   }
 }
 
@@ -487,6 +502,12 @@ function getTargetsCount(rule: HpnPromoRule): number {
       return rule.targetVariantIds.length;
     case "swell_free_product":
     case "swell_cart_fixed_amount":
+      return 0;
+    case "landing_quantity_tier_fixed_price":
+      return rule.targetVariantIds.length;
+    case "landing_scoped_product_discount":
+      return rule.targetProductIds.length;
+    case "landing_free_shipping":
       return 0;
   }
 }
@@ -511,5 +532,11 @@ function getDiscountSummary(rule: HpnPromoRule): string {
       return "1 unit free";
     case "swell_cart_fixed_amount":
       return "Proportional fixed-amount";
+    case "landing_quantity_tier_fixed_price":
+      return `${rule.tiers.length} tier(s), fixed price/unit`;
+    case "landing_scoped_product_discount":
+      return `${rule.discountPercentage}% off`;
+    case "landing_free_shipping":
+      return "Free shipping";
   }
 }

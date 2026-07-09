@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { cartDeliveryOptionsDiscountsGenerateRun } from "./deliveryRun.js";
+import { cartDeliveryOptionsDiscountsGenerateRun } from "./index.js";
 
 function lineWithAttribute(value) {
   return { landingSourceAttribute: value == null ? null : { value } };

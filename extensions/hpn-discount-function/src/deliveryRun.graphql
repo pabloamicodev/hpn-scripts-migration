@@ -1,4 +1,4 @@
-query RunInput {
+query DeliveryRunInput {
   cart {
     lines {
       landingSourceAttribute: attribute(key: "__landing_source") {

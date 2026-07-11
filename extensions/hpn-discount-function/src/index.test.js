@@ -1401,10 +1401,39 @@ describe("landing_quantity_tier_fixed_price", () => {
     expect(result).toEqual({ operations: [] });
   });
 
-  it("does not discount when the combined quantity matches no configured tier", () => {
+  it("caps at the highest tier's price when quantity exceeds every configured tier", () => {
     const result = runWithLines([landingLine("l1", FLAVOR_A, 5, "44.99")], config());
 
-    expect(result).toEqual({ operations: [] });
+    expect(candidates(result)).toEqual([
+      {
+        targets: [{ cartLine: { id: "l1", quantity: 5 } }],
+        value: { fixedAmount: { amount: "11.24", appliesToEachItem: true } },
+        message: "TRU landing bundle price",
+      },
+    ]);
+  });
+
+  it("applies the top tier's price to every unit on a much larger order (10 units)", () => {
+    const result = runWithLines([landingLine("l1", FLAVOR_A, 10, "44.99")], config());
+
+    expect(candidates(result)).toEqual([
+      {
+        targets: [{ cartLine: { id: "l1", quantity: 10 } }],
+        value: { fixedAmount: { amount: "11.24", appliesToEachItem: true } },
+        message: "TRU landing bundle price",
+      },
+    ]);
+  });
+
+  it("applies the top tier across flavor-split lines totaling more than the top tier", () => {
+    const result = runWithLines(
+      [landingLine("a", FLAVOR_A, 3, "44.99"), landingLine("b", FLAVOR_B, 3, "44.99")],
+      config(),
+    );
+
+    const list = candidates(result);
+    expect(list).toHaveLength(2);
+    expect(list.every((c) => c.value.fixedAmount.amount === "11.24")).toBe(true);
   });
 
   it("ignores lines outside the configured target variants even if tagged", () => {

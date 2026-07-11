@@ -361,8 +361,10 @@ const LANDING_SOURCE_LINE_ATTRIBUTE_KEY = "__landing_source";
  * line item property that's set exclusively by the landing page's add-to-cart
  * form, so the same variant added from a PDP is never affected. Sums quantity
  * across all matching lines (a flavor split still counts as one purchase),
- * and if that total matches a configured tier, brings each unit down to the
- * tier's exact target price using a fixed-amount discount computed from the
+ * and applies the highest configured tier whose quantity is at or below that
+ * total — so buying more than the highest tier (e.g. 6 units when the top
+ * tier is 4) still gets that top tier's price on every unit, it doesn't fall
+ * through to no discount. Price is a fixed-amount discount computed from the
  * line's live cost — immune to rounding from the subscription discount
  * that's already applied upstream.
  */
@@ -389,7 +391,9 @@ function applyLandingQuantityTierFixedPriceRule(rule, lines, candidates) {
   if (matchingLines.length === 0) return;
 
   const totalQuantity = matchingLines.reduce((sum, line) => sum + line.quantity, 0);
-  const tier = rule.tiers.find((t) => t.quantity === totalQuantity);
+  const tier = [...rule.tiers]
+    .sort((a, b) => b.quantity - a.quantity)
+    .find((t) => totalQuantity >= t.quantity);
   if (!tier) return;
 
   for (const line of matchingLines) {

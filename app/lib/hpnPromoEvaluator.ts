@@ -414,7 +414,9 @@ export function evaluateLandingQuantityTierFixedPrice(
   if (matchingLines.length === 0) return actions;
 
   const totalQuantity = matchingLines.reduce((sum, line) => sum + line.quantity, 0);
-  const tier = rule.tiers.find((t) => t.quantity === totalQuantity);
+  const tier = [...rule.tiers]
+    .sort((a, b) => b.quantity - a.quantity)
+    .find((t) => totalQuantity >= t.quantity);
   if (!tier) return actions;
 
   for (const line of matchingLines) {

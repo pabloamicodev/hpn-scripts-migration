@@ -77,7 +77,7 @@ export function cartLinesDiscountsGenerateRun(input) {
     } else if (rule.type === "landing_quantity_tier_fixed_price") {
       applyLandingQuantityTierFixedPriceRule(rule, lines, candidatesByLine);
     } else if (rule.type === "landing_scoped_product_discount") {
-      applyLandingScopedProductDiscountRule(rule, byProduct, candidatesByLine);
+      applyLandingScopedProductDiscountRule(rule, byProduct, lines, candidatesByLine);
     }
   }
 
@@ -423,11 +423,17 @@ function addFixedAmountCandidate(candidatesByLine, line, amountPerUnit, message)
 
 /**
  * Landing Page Scoped Product Discount: applies a flat % (typically 100, for
- * a free gift) to every line of the configured products, but only lines
+ * a free gift) to at most ONE unit per configured product, and only on lines
  * carrying the landing's line item property — the same gift product added
- * from its own PDP is unaffected.
+ * from its own PDP is unaffected. Capped at 1 unit so bumping the quantity
+ * in the cart drawer/page doesn't turn extra units free too.
+ *
+ * When requiredAnchorVariantIds is set, the discount only applies while at
+ * least one tagged anchor line (e.g. the protein purchase this gift is
+ * bundled with) is still in the cart — removing the anchor line reverts the
+ * gift to full price instead of leaving it free forever.
  */
-function applyLandingScopedProductDiscountRule(rule, byProduct, candidates) {
+function applyLandingScopedProductDiscountRule(rule, byProduct, lines, candidates) {
   if (
     !Array.isArray(rule.targetProductIds) ||
     rule.targetProductIds.length === 0 ||
@@ -436,10 +442,23 @@ function applyLandingScopedProductDiscountRule(rule, byProduct, candidates) {
     typeof rule.discountPercentage !== "number"
   ) return;
 
+  if (Array.isArray(rule.requiredAnchorVariantIds) && rule.requiredAnchorVariantIds.length > 0) {
+    const anchorVariantIds = new Set(rule.requiredAnchorVariantIds);
+    const hasAnchor = lines.some(
+      (line) =>
+        anchorVariantIds.has(line.merchandise?.id) &&
+        line.landingSourceAttribute?.value === rule.requiredLineAttributeValue,
+    );
+    if (!hasAnchor) return;
+  }
+
   for (const productId of rule.targetProductIds) {
+    let remainingFreeUnits = 1;
     for (const line of (byProduct.get(productId) ?? [])) {
+      if (remainingFreeUnits <= 0) break;
       if (line.landingSourceAttribute?.value !== rule.requiredLineAttributeValue) continue;
-      addCandidate(candidates, line, null, rule.discountPercentage, rule.message);
+      addCandidate(candidates, line, 1, rule.discountPercentage, rule.message);
+      remainingFreeUnits -= 1;
     }
   }
 }
@@ -532,15 +551,21 @@ export function cartDeliveryOptionsDiscountsGenerateRun(input) {
     );
     if (!isTagged) continue;
 
+    // One candidate targeting every delivery group at once — not one
+    // candidate per group — so checkout shows a single discount label
+    // instead of a duplicate "free shipping" line per group (e.g.
+    // subscription items and one-time gifts often land in separate groups).
     return {
       operations: [
         {
           deliveryDiscountsAdd: {
-            candidates: deliveryGroups.map((group) => ({
-              message: rule.message ?? "",
-              targets: [{ deliveryGroup: { id: group.id } }],
-              value: { percentage: { value: "100" } },
-            })),
+            candidates: [
+              {
+                message: rule.message ?? "",
+                targets: deliveryGroups.map((group) => ({ deliveryGroup: { id: group.id } })),
+                value: { percentage: { value: "100" } },
+              },
+            ],
             selectionStrategy: DELIVERY_DISCOUNT_SELECTION_STRATEGY,
           },
         },

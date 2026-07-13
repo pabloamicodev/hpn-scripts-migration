@@ -1529,14 +1529,27 @@ describe("landing_scoped_product_discount", () => {
     };
   }
 
-  function giftLine(id, productId, { tagged = true } = {}) {
+  function giftLine(id, productId, { tagged = true, quantity = 1 } = {}) {
+    return {
+      id,
+      quantity,
+      merchandise: {
+        __typename: "ProductVariant",
+        id: VARIANT_IDS.unrelated,
+        product: { id: productId },
+      },
+      landingSourceAttribute: tagged ? { value: "protein-complete-lp" } : null,
+    };
+  }
+
+  function proteinAnchorLine(id, { tagged = true } = {}) {
     return {
       id,
       quantity: 1,
       merchandise: {
         __typename: "ProductVariant",
-        id: VARIANT_IDS.unrelated,
-        product: { id: productId },
+        id: VARIANT_IDS.plantaPb, // stand-in "protein" anchor variant
+        product: { id: PRODUCT_IDS.unrelated },
       },
       landingSourceAttribute: tagged ? { value: "protein-complete-lp" } : null,
     };
@@ -1547,7 +1560,7 @@ describe("landing_scoped_product_discount", () => {
 
     expect(candidates(result)).toEqual([
       {
-        targets: [{ cartLine: { id: "gift-a" } }],
+        targets: [{ cartLine: { id: "gift-a", quantity: 1 } }],
         value: { percentage: { value: "100.0" } },
         message: "Free gift — Protein Complete bundle",
       },
@@ -1571,5 +1584,65 @@ describe("landing_scoped_product_discount", () => {
     const result = runWithLines([giftLine("other", PRODUCT_IDS.unrelated)], config());
 
     expect(result).toEqual({ operations: [] });
+  });
+
+  // ── Quantity-manipulation guard: only 1 free unit per product ────────────
+
+  it("caps the free discount at 1 unit even when the gift line's quantity is bumped up in the cart", () => {
+    const result = runWithLines([giftLine("gift-a", GIFT_A, { quantity: 5 })], config());
+
+    expect(candidates(result)).toEqual([
+      {
+        targets: [{ cartLine: { id: "gift-a", quantity: 1 } }],
+        value: { percentage: { value: "100.0" } },
+        message: "Free gift — Protein Complete bundle",
+      },
+    ]);
+  });
+
+  it("caps at 1 free unit total for a product even if it's split across two tagged lines", () => {
+    const result = runWithLines(
+      [giftLine("gift-a-1", GIFT_A), giftLine("gift-a-2", GIFT_A)],
+      config(),
+    );
+
+    const list = candidates(result);
+    expect(list).toHaveLength(1);
+    expect(list[0].targets[0].cartLine.id).toBe("gift-a-1");
+  });
+
+  // ── Anchor requirement: gift stops being free once the anchor line is gone ──
+
+  describe("with requiredAnchorVariantIds", () => {
+    function anchoredConfig(overrides = {}) {
+      return config({
+        requiredAnchorVariantIds: [VARIANT_IDS.plantaPb],
+        ...overrides,
+      });
+    }
+
+    it("discounts the gift when a tagged anchor line is present", () => {
+      const result = runWithLines(
+        [proteinAnchorLine("protein"), giftLine("gift-a", GIFT_A)],
+        anchoredConfig(),
+      );
+
+      expect(candidates(result)).toHaveLength(1);
+    });
+
+    it("does not discount the gift once the anchor line has been removed from the cart", () => {
+      const result = runWithLines([giftLine("gift-a", GIFT_A)], anchoredConfig());
+
+      expect(result).toEqual({ operations: [] });
+    });
+
+    it("does not discount the gift when the anchor product is present but untagged", () => {
+      const result = runWithLines(
+        [proteinAnchorLine("protein", { tagged: false }), giftLine("gift-a", GIFT_A)],
+        anchoredConfig(),
+      );
+
+      expect(result).toEqual({ operations: [] });
+    });
   });
 });

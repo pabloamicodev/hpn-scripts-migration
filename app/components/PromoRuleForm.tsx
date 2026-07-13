@@ -78,6 +78,7 @@ interface PromoRuleFormValues {
   requiredLineAttributeValue?: string;
   requiresSubscriptionOption?: "any" | "true" | "false";
   targetVariantIds?: string[];
+  requiredAnchorVariantIds?: string[];
   conditions?: RuleConditionsFormValues;
 }
 
@@ -420,6 +421,10 @@ function buildRulePayload(values: PromoRuleFormValues): unknown {
       targetProductIds: values.targetProductIds ?? [],
       requiredLineAttributeKey: values.requiredLineAttributeKey ?? "",
       requiredLineAttributeValue: values.requiredLineAttributeValue ?? "",
+      requiredAnchorVariantIds:
+        values.requiredAnchorVariantIds && values.requiredAnchorVariantIds.length > 0
+          ? values.requiredAnchorVariantIds
+          : undefined,
       discountPercentage: values.discountPercentage ?? 100,
       message: values.message,
       conditions,
@@ -490,6 +495,7 @@ export function PromoRuleForm({
     | "oneTimeVariant"
     | "landingTierVariant"
     | "landingScopedProduct"
+    | "landingScopedAnchorVariant"
     | null
   >(null);
   const [selectionMetaById, setSelectionMetaById] = useState<
@@ -513,6 +519,7 @@ export function PromoRuleForm({
   const requiredVariantIds = watch("requiredVariantIds");
   const freeVariantIds = watch("freeVariantIds");
   const targetVariantIds = watch("targetVariantIds");
+  const requiredAnchorVariantIds = watch("requiredAnchorVariantIds");
   const targets = watch("targets");
   const tiers = watch("tiers");
   const quantityTiers = watch("quantityTiers");
@@ -525,11 +532,20 @@ export function PromoRuleForm({
           ...(requiredVariantIds ?? []),
           ...(freeVariantIds ?? []),
           ...(targetVariantIds ?? []),
+          ...(requiredAnchorVariantIds ?? []),
           ...(targets ?? []).map((t) => t.productId),
         ].filter((id): id is string => Boolean(id)),
       ),
     );
-  }, [freeVariantIds, requiredVariantIds, targetProductIds, targetVariantIds, triggerProductId, targets]);
+  }, [
+    freeVariantIds,
+    requiredVariantIds,
+    targetProductIds,
+    targetVariantIds,
+    requiredAnchorVariantIds,
+    triggerProductId,
+    targets,
+  ]);
   const selectedIdsKey = selectedIds.join("|");
 
   useEffect(() => {
@@ -704,6 +720,21 @@ export function PromoRuleForm({
       }
     }
 
+    if (productPickerMode === "landingScopedAnchorVariant") {
+      const currentIds = requiredAnchorVariantIds ?? [];
+
+      if (!currentIds.includes(selection.variantId)) {
+        setSelectionMetaById((current) => ({
+          ...current,
+          [selection.variantId]: selectedProductMeta,
+        }));
+        setValue("requiredAnchorVariantIds", [...currentIds, selection.variantId], {
+          shouldDirty: true,
+          shouldValidate: false,
+        });
+      }
+    }
+
     if (productPickerMode === "discountedTarget") {
       const currentTargets = targets ?? [];
       if (!currentTargets.some((t) => t.productId === selection.productId)) {
@@ -723,7 +754,12 @@ export function PromoRuleForm({
   }
 
   function removeListValue(
-    fieldName: "targetProductIds" | "requiredVariantIds" | "freeVariantIds" | "targetVariantIds",
+    fieldName:
+      | "targetProductIds"
+      | "requiredVariantIds"
+      | "freeVariantIds"
+      | "targetVariantIds"
+      | "requiredAnchorVariantIds",
     value: string,
   ) {
     const values = watch(fieldName) ?? [];
@@ -1513,6 +1549,26 @@ export function PromoRuleForm({
                 {...register("requiredLineAttributeValue")}
               />
             </div>
+          </div>
+
+          <div className="form-group">
+            <span className="form-label">Required anchor variants (optional)</span>
+            <p className="field-hint">
+              If set, this discount only applies while at least one tagged
+              line for one of these variants is still in the cart — e.g. the
+              protein purchase this gift is bundled with. Removing the anchor
+              from the cart reverts the gift to full price instead of leaving
+              it free forever.
+            </p>
+            <ProductIdListSelector
+              productIds={requiredAnchorVariantIds ?? []}
+              metaById={selectionMetaById}
+              emptyText="Choose the variant(s) this gift is bundled with."
+              itemLabel="Variant"
+              addLabel="Add anchor variant"
+              onPick={() => setProductPickerMode("landingScopedAnchorVariant")}
+              onRemove={(variantId) => removeListValue("requiredAnchorVariantIds", variantId)}
+            />
           </div>
 
           <div className="form-group">

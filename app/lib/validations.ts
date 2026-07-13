@@ -183,6 +183,11 @@ export const landingScopedProductDiscountRuleSchema = z.object({
   targetProductIds: z.array(productGidSchema).min(1),
   requiredLineAttributeKey: z.string().min(1),
   requiredLineAttributeValue: z.string().min(1),
+  // When set, at least one tagged line matching one of these variants must
+  // still be in the cart for the discount to apply — prevents a free gift
+  // from staying discounted (or free) after the qualifying purchase it was
+  // bundled with is removed.
+  requiredAnchorVariantIds: z.array(variantGidSchema).optional(),
   discountPercentage: z.number().positive().max(100).default(100),
   message: z.string().trim().min(1),
   conditions: ruleConditionsSchema,

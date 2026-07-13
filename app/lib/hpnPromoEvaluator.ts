@@ -441,24 +441,39 @@ export function evaluateLandingQuantityTierFixedPrice(
 export function evaluateLandingScopedProductDiscount(
   rule: Extract<HpnPromoRule, { type: "landing_scoped_product_discount" }>,
   cartIndex: CartIndex,
+  allLines: CartLine[],
 ): DiscountAction[] {
   const actions: DiscountAction[] = [];
+
+  if (rule.requiredAnchorVariantIds?.length) {
+    const anchorVariantIds = new Set(rule.requiredAnchorVariantIds);
+    const hasAnchor = allLines.some((line) => {
+      if (line.merchandise.__typename !== "ProductVariant") return false;
+      if (!anchorVariantIds.has(line.merchandise.id)) return false;
+      const attr = (line.attributes ?? []).find((a) => a.key === rule.requiredLineAttributeKey);
+      return attr?.value === rule.requiredLineAttributeValue;
+    });
+    if (!hasAnchor) return actions;
+  }
 
   for (const productId of rule.targetProductIds) {
     const lines = cartIndex.linesByProductId.get(productId);
     if (!lines) continue;
 
+    let remainingFreeUnits = 1;
     for (const line of lines) {
+      if (remainingFreeUnits <= 0) break;
       const attr = (line.attributes ?? []).find((a) => a.key === rule.requiredLineAttributeKey);
       if (attr?.value !== rule.requiredLineAttributeValue) continue;
       actions.push({
         lineId: line.id,
         variantId: line.merchandise.id,
         productId: line.merchandise.product.id,
-        discountedQuantity: line.quantity,
+        discountedQuantity: 1,
         percentageOff: rule.discountPercentage,
         message: rule.message,
       });
+      remainingFreeUnits -= 1;
     }
   }
 
@@ -535,7 +550,7 @@ export function evaluateConfig(
         ruleActions = evaluateLandingQuantityTierFixedPrice(rule, lines);
         break;
       case "landing_scoped_product_discount":
-        ruleActions = evaluateLandingScopedProductDiscount(rule, cartIndex);
+        ruleActions = evaluateLandingScopedProductDiscount(rule, cartIndex, lines);
         break;
       case "landing_free_shipping":
         ruleActions = evaluateLandingFreeShipping(rule);

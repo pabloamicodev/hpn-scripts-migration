@@ -62,7 +62,7 @@ describe("cartDeliveryOptionsDiscountsGenerateRun", () => {
     ).toEqual({ operations: [] });
   });
 
-  it("discounts every delivery group to 100% when a cart line carries the landing tag", () => {
+  it("discounts every delivery group to 100% via a single candidate (one checkout label, not one per group)", () => {
     const result = runWith(
       [lineWithAttribute("protein-complete-lp")],
       [{ id: "gid://shopify/CartDeliveryGroup/1" }, { id: "gid://shopify/CartDeliveryGroup/2" }],
@@ -75,12 +75,10 @@ describe("cartDeliveryOptionsDiscountsGenerateRun", () => {
             candidates: [
               {
                 message: "Free shipping — Protein Complete bundle",
-                targets: [{ deliveryGroup: { id: "gid://shopify/CartDeliveryGroup/1" } }],
-                value: { percentage: { value: "100" } },
-              },
-              {
-                message: "Free shipping — Protein Complete bundle",
-                targets: [{ deliveryGroup: { id: "gid://shopify/CartDeliveryGroup/2" } }],
+                targets: [
+                  { deliveryGroup: { id: "gid://shopify/CartDeliveryGroup/1" } },
+                  { deliveryGroup: { id: "gid://shopify/CartDeliveryGroup/2" } },
+                ],
                 value: { percentage: { value: "100" } },
               },
             ],

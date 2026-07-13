@@ -94,6 +94,9 @@ export const gettruSuppsPreset: HpnPromoConfig = {
       ],
       requiredLineAttributeKey: "__landing_source",
       requiredLineAttributeValue: PROTEIN_LANDING_SOURCE_VALUE,
+      // Reverts the gift to full price if the protein purchase it's bundled
+      // with gets removed from the cart, instead of staying free forever.
+      requiredAnchorVariantIds: PROTEIN_LANDING_FLAVOR_VARIANT_IDS,
       discountPercentage: 100,
       message: "Protein Complete Bundle",
     },

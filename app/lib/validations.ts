@@ -188,6 +188,7 @@ export const landingScopedProductDiscountRuleSchema = z.object({
   // from staying discounted (or free) after the qualifying purchase it was
   // bundled with is removed.
   requiredAnchorVariantIds: z.array(variantGidSchema).optional(),
+  requiredAnchorMinQuantity: z.number().int().positive().optional(),
   discountPercentage: z.number().positive().max(100).default(100),
   message: z.string().trim().min(1),
   conditions: ruleConditionsSchema,
@@ -205,6 +206,8 @@ export const landingFreeShippingRuleSchema = z.object({
   enabled: z.boolean(),
   requiredLineAttributeKey: z.string().min(1),
   requiredLineAttributeValue: z.string().min(1),
+  requiredAnchorVariantIds: z.array(variantGidSchema).optional(),
+  requiredAnchorMinQuantity: z.number().int().positive().optional(),
   message: z.string().trim().min(1),
   conditions: ruleConditionsSchema,
 });

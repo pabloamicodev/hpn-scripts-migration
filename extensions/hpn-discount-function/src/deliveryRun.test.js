@@ -2,8 +2,17 @@ import { describe, expect, it } from "vitest";
 
 import { cartDeliveryOptionsDiscountsGenerateRun } from "./index.js";
 
-function lineWithAttribute(value) {
-  return { landingSourceAttribute: value == null ? null : { value } };
+const PROTEIN_VARIANT_ID = "gid://shopify/ProductVariant/31358533206097";
+
+function lineWithAttribute(value, { quantity = 1, variantId = PROTEIN_VARIANT_ID } = {}) {
+  return {
+    quantity,
+    landingSourceAttribute: value == null ? null : { value },
+    merchandise: {
+      __typename: "ProductVariant",
+      id: variantId,
+    },
+  };
 }
 
 function config(overrides = {}) {
@@ -106,6 +115,35 @@ describe("cartDeliveryOptionsDiscountsGenerateRun", () => {
     );
 
     expect(result).toEqual({ operations: [] });
+  });
+
+  it("does not discount shipping until tagged anchor quantity reaches the configured minimum", () => {
+    const result = runWith(
+      [lineWithAttribute("protein-complete-lp", { quantity: 1 })],
+      [{ id: "gid://shopify/CartDeliveryGroup/1" }],
+      config({
+        requiredAnchorVariantIds: [PROTEIN_VARIANT_ID],
+        requiredAnchorMinQuantity: 2,
+      }),
+    );
+
+    expect(result).toEqual({ operations: [] });
+  });
+
+  it("discounts shipping when tagged anchor quantity reaches the configured minimum", () => {
+    const result = runWith(
+      [
+        lineWithAttribute("protein-complete-lp", { quantity: 1 }),
+        lineWithAttribute("protein-complete-lp", { quantity: 1 }),
+      ],
+      [{ id: "gid://shopify/CartDeliveryGroup/1" }],
+      config({
+        requiredAnchorVariantIds: [PROTEIN_VARIANT_ID],
+        requiredAnchorMinQuantity: 2,
+      }),
+    );
+
+    expect(result.operations).toHaveLength(1);
   });
 
   it("ignores non-landing_free_shipping rules in the same shared config", () => {

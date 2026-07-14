@@ -1,8 +1,15 @@
 query DeliveryRunInput {
   cart {
     lines {
+      quantity
       landingSourceAttribute: attribute(key: "__landing_source") {
         value
+      }
+      merchandise {
+        __typename
+        ... on ProductVariant {
+          id
+        }
       }
     }
     deliveryGroups {

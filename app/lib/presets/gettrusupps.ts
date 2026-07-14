@@ -7,7 +7,7 @@ import type { HpnPromoConfig } from "../validations";
 // Protein Complete landing page (https://gettrusupps.com/pages/protein-complete-lp).
 // Scoped to this landing only via the __landing_source line item property,
 // which the page's add-to-cart form must set on every line it adds (protein
-// flavors + the two free-gift products) — see tru-store step2 ATC wiring.
+// flavors + the tiered free-gift products) — see tru-store step2 ATC wiring.
 const PROTEIN_LANDING_SOURCE_VALUE = "protein-complete-lp";
 
 const PROTEIN_LANDING_FLAVOR_VARIANT_IDS = [
@@ -79,17 +79,16 @@ export const gettruSuppsPreset: HpnPromoConfig = {
       message: "Protein Complete Bundle",
     },
     {
-      // Free gift products (shaker + ebook) — only free when added by this
-      // landing's own ATC flow, never when added from their own PDPs.
-      id: "protein-landing-free-gifts",
+      // 1+ bag: free recipe ebook. Only free when added by this landing's own
+      // ATC flow, never when added from its own PDP.
+      id: "protein-landing-recipe-ebook",
       type: "landing_scoped_product_discount",
       enabled: true,
       targetProductIds: [
-        "gid://shopify/Product/15030069100912", // TRU Sport Shaker - Clear & Black
         // The BOGOS.io "_sca_clone_freegift" clone (15092501152112) doesn't
         // work here — BOGOS actively manages/removes its own clone gift line
         // items from the cart when they weren't added through its own gift
-        // flow. Use the real product instead, same as the shaker above.
+        // flow. Use the real product instead.
         "gid://shopify/Product/15083050828144", // Lifestyle Nutrition Guide (real product)
       ],
       requiredLineAttributeKey: "__landing_source",
@@ -97,16 +96,49 @@ export const gettruSuppsPreset: HpnPromoConfig = {
       // Reverts the gift to full price if the protein purchase it's bundled
       // with gets removed from the cart, instead of staying free forever.
       requiredAnchorVariantIds: PROTEIN_LANDING_FLAVOR_VARIANT_IDS,
+      requiredAnchorMinQuantity: 1,
       discountPercentage: 100,
       message: "Protein Complete Bundle",
     },
     {
-      // Free shipping for the whole order whenever any line came from this landing.
+      // 3+ bags: free sport shaker.
+      id: "protein-landing-shaker",
+      type: "landing_scoped_product_discount",
+      enabled: true,
+      targetProductIds: [
+        "gid://shopify/Product/15030069100912", // TRU Sport Shaker - Clear & Black
+      ],
+      requiredLineAttributeKey: "__landing_source",
+      requiredLineAttributeValue: PROTEIN_LANDING_SOURCE_VALUE,
+      requiredAnchorVariantIds: PROTEIN_LANDING_FLAVOR_VARIANT_IDS,
+      requiredAnchorMinQuantity: 3,
+      discountPercentage: 100,
+      message: "Protein Complete Bundle",
+    },
+    {
+      // 4+ bags: free resistance bands.
+      id: "protein-landing-resistance-bands",
+      type: "landing_scoped_product_discount",
+      enabled: true,
+      targetProductIds: [
+        "gid://shopify/Product/7461732286545", // TRU Training - Fabric Mini Bands - Set of 3
+      ],
+      requiredLineAttributeKey: "__landing_source",
+      requiredLineAttributeValue: PROTEIN_LANDING_SOURCE_VALUE,
+      requiredAnchorVariantIds: PROTEIN_LANDING_FLAVOR_VARIANT_IDS,
+      requiredAnchorMinQuantity: 4,
+      discountPercentage: 100,
+      message: "Protein Complete Bundle",
+    },
+    {
+      // 2+ bags: free shipping for the whole order.
       id: "protein-landing-free-shipping",
       type: "landing_free_shipping",
       enabled: true,
       requiredLineAttributeKey: "__landing_source",
       requiredLineAttributeValue: PROTEIN_LANDING_SOURCE_VALUE,
+      requiredAnchorVariantIds: PROTEIN_LANDING_FLAVOR_VARIANT_IDS,
+      requiredAnchorMinQuantity: 2,
       message: "Protein Complete Bundle",
     },
   ],

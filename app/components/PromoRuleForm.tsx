@@ -79,6 +79,7 @@ interface PromoRuleFormValues {
   requiresSubscriptionOption?: "any" | "true" | "false";
   targetVariantIds?: string[];
   requiredAnchorVariantIds?: string[];
+  requiredAnchorMinQuantity?: number;
   conditions?: RuleConditionsFormValues;
 }
 
@@ -421,10 +422,11 @@ function buildRulePayload(values: PromoRuleFormValues): unknown {
       targetProductIds: values.targetProductIds ?? [],
       requiredLineAttributeKey: values.requiredLineAttributeKey ?? "",
       requiredLineAttributeValue: values.requiredLineAttributeValue ?? "",
-      requiredAnchorVariantIds:
-        values.requiredAnchorVariantIds && values.requiredAnchorVariantIds.length > 0
-          ? values.requiredAnchorVariantIds
-          : undefined,
+    requiredAnchorVariantIds:
+      values.requiredAnchorVariantIds && values.requiredAnchorVariantIds.length > 0
+        ? values.requiredAnchorVariantIds
+        : undefined,
+      requiredAnchorMinQuantity: values.requiredAnchorMinQuantity || undefined,
       discountPercentage: values.discountPercentage ?? 100,
       message: values.message,
       conditions,
@@ -438,6 +440,11 @@ function buildRulePayload(values: PromoRuleFormValues): unknown {
       enabled: values.enabled,
       requiredLineAttributeKey: values.requiredLineAttributeKey ?? "",
       requiredLineAttributeValue: values.requiredLineAttributeValue ?? "",
+      requiredAnchorVariantIds:
+        values.requiredAnchorVariantIds && values.requiredAnchorVariantIds.length > 0
+          ? values.requiredAnchorVariantIds
+          : undefined,
+      requiredAnchorMinQuantity: values.requiredAnchorMinQuantity || undefined,
       message: values.message,
       conditions,
     };
@@ -1573,6 +1580,30 @@ export function PromoRuleForm({
 
           <div className="form-group">
             <label
+              htmlFor="landingScopedAnchorMinQuantity"
+              className="form-label"
+            >
+              Required anchor minimum quantity
+            </label>
+            <p className="field-hint">
+              Optional. When set, the tagged anchor lines must add up to at
+              least this quantity before the product discount applies.
+            </p>
+            <input
+              type="number"
+              id="landingScopedAnchorMinQuantity"
+              min={1}
+              step={1}
+              placeholder="e.g. 4"
+              {...register("requiredAnchorMinQuantity", {
+                valueAsNumber: true,
+              })}
+              className="number-field"
+            />
+          </div>
+
+          <div className="form-group">
+            <label
               htmlFor="landingScopedDiscountPercentage"
               className="form-label"
             >
@@ -1615,6 +1646,48 @@ export function PromoRuleForm({
                 {...register("requiredLineAttributeValue")}
               />
             </div>
+          </div>
+
+          <div className="form-group">
+            <span className="form-label">Required anchor variants (optional)</span>
+            <p className="field-hint">
+              If set, free shipping only applies while tagged lines for these
+              variants are in the cart. Use this with the minimum quantity to
+              gate landing shipping on the real qualifying product quantity.
+            </p>
+            <ProductIdListSelector
+              productIds={requiredAnchorVariantIds ?? []}
+              metaById={selectionMetaById}
+              emptyText="Choose the variant(s) that qualify for free shipping."
+              itemLabel="Variant"
+              addLabel="Add anchor variant"
+              onPick={() => setProductPickerMode("landingScopedAnchorVariant")}
+              onRemove={(variantId) => removeListValue("requiredAnchorVariantIds", variantId)}
+            />
+          </div>
+
+          <div className="form-group">
+            <label
+              htmlFor="landingShippingAnchorMinQuantity"
+              className="form-label"
+            >
+              Required anchor minimum quantity
+            </label>
+            <p className="field-hint">
+              Optional. When set, tagged anchor lines must add up to at least
+              this quantity before free shipping applies.
+            </p>
+            <input
+              type="number"
+              id="landingShippingAnchorMinQuantity"
+              min={1}
+              step={1}
+              placeholder="e.g. 4"
+              {...register("requiredAnchorMinQuantity", {
+                valueAsNumber: true,
+              })}
+              className="number-field"
+            />
           </div>
         </section>
       )}

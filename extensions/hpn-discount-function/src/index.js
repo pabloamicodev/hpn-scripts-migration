@@ -356,6 +356,26 @@ function applyOneTimePurchaseDiscountRule(rule, byVariant, candidates) {
 // same static-key constraint as BUNDLE_LINE_ATTRIBUTE_KEY above.
 const LANDING_SOURCE_LINE_ATTRIBUTE_KEY = "__landing_source";
 
+function getLandingAnchorQuantity(rule, lines) {
+  const anchorVariantIds = Array.isArray(rule.requiredAnchorVariantIds) && rule.requiredAnchorVariantIds.length > 0
+    ? new Set(rule.requiredAnchorVariantIds)
+    : null;
+
+  return lines.reduce((sum, line) => {
+    if (line.landingSourceAttribute?.value !== rule.requiredLineAttributeValue) return sum;
+    if (anchorVariantIds && !anchorVariantIds.has(line.merchandise?.id)) return sum;
+    return sum + (line.quantity || 0);
+  }, 0);
+}
+
+function satisfiesLandingAnchorRequirement(rule, lines) {
+  const minQuantity = typeof rule.requiredAnchorMinQuantity === "number"
+    ? rule.requiredAnchorMinQuantity
+    : 1;
+
+  return getLandingAnchorQuantity(rule, lines) >= minQuantity;
+}
+
 /**
  * Landing Page Quantity-Tier Fixed Price: only touches cart lines carrying a
  * line item property that's set exclusively by the landing page's add-to-cart
@@ -442,15 +462,7 @@ function applyLandingScopedProductDiscountRule(rule, byProduct, lines, candidate
     typeof rule.discountPercentage !== "number"
   ) return;
 
-  if (Array.isArray(rule.requiredAnchorVariantIds) && rule.requiredAnchorVariantIds.length > 0) {
-    const anchorVariantIds = new Set(rule.requiredAnchorVariantIds);
-    const hasAnchor = lines.some(
-      (line) =>
-        anchorVariantIds.has(line.merchandise?.id) &&
-        line.landingSourceAttribute?.value === rule.requiredLineAttributeValue,
-    );
-    if (!hasAnchor) return;
-  }
+  if (!satisfiesLandingAnchorRequirement(rule, lines)) return;
 
   for (const productId of rule.targetProductIds) {
     let remainingFreeUnits = 1;
@@ -515,12 +527,12 @@ const DELIVERY_DISCOUNT_SELECTION_STRATEGY = "ALL";
 const LANDING_FREE_SHIPPING_RULE_TYPE = "landing_free_shipping";
 
 /**
- * Landing Page Free Shipping: whenever any cart line carries the landing's
- * line item property, discounts every delivery group to 100% off — free
- * shipping for the whole order. Independent of the cart-lines target above;
- * reads the same shared config metafield but only acts on
- * landing_free_shipping rules. `conditions` is intentionally not evaluated
- * here (out of scope for this rule — see validations.ts).
+ * Landing Page Free Shipping: whenever the cart satisfies the landing anchor
+ * requirement, discounts every delivery group to 100% off — free shipping for
+ * the whole order. Independent of the cart-lines target above; reads the same
+ * shared config metafield but only acts on landing_free_shipping rules.
+ * `conditions` is intentionally not evaluated here (out of scope for this rule
+ * — see validations.ts).
  */
 export function cartDeliveryOptionsDiscountsGenerateRun(input) {
   const discountClasses = input?.discount?.discountClasses ?? [];
@@ -546,10 +558,7 @@ export function cartDeliveryOptionsDiscountsGenerateRun(input) {
     if (!rule.enabled) continue;
     if (!rule.requiredLineAttributeKey || !rule.requiredLineAttributeValue) continue;
 
-    const isTagged = deliveryLines.some(
-      (line) => line.landingSourceAttribute?.value === rule.requiredLineAttributeValue,
-    );
-    if (!isTagged) continue;
+    if (!satisfiesLandingAnchorRequirement(rule, deliveryLines)) continue;
 
     // One candidate targeting every delivery group at once — not one
     // candidate per group — so checkout shows a single discount label

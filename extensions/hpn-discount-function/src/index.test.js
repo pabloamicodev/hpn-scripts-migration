@@ -1542,10 +1542,10 @@ describe("landing_scoped_product_discount", () => {
     };
   }
 
-  function proteinAnchorLine(id, { tagged = true } = {}) {
+  function proteinAnchorLine(id, { tagged = true, quantity = 1 } = {}) {
     return {
       id,
-      quantity: 1,
+      quantity,
       merchandise: {
         __typename: "ProductVariant",
         id: VARIANT_IDS.plantaPb, // stand-in "protein" anchor variant
@@ -1643,6 +1643,28 @@ describe("landing_scoped_product_discount", () => {
       );
 
       expect(result).toEqual({ operations: [] });
+    });
+
+    it("does not discount the gift until tagged anchor quantity reaches the configured minimum", () => {
+      const result = runWithLines(
+        [proteinAnchorLine("protein", { quantity: 1 }), giftLine("gift-a", GIFT_A)],
+        anchoredConfig({ requiredAnchorMinQuantity: 3 }),
+      );
+
+      expect(result).toEqual({ operations: [] });
+    });
+
+    it("discounts the gift when tagged anchor quantity reaches the configured minimum", () => {
+      const result = runWithLines(
+        [
+          proteinAnchorLine("protein-a", { quantity: 1 }),
+          proteinAnchorLine("protein-b", { quantity: 2 }),
+          giftLine("gift-a", GIFT_A),
+        ],
+        anchoredConfig({ requiredAnchorMinQuantity: 3 }),
+      );
+
+      expect(candidates(result)).toHaveLength(1);
     });
   });
 });

@@ -478,9 +478,13 @@ function getTriggerSummary(rule: HpnPromoRule): string {
     case "landing_quantity_tier_fixed_price":
       return `Line property: ${rule.requiredLineAttributeKey} = ${rule.requiredLineAttributeValue}`;
     case "landing_scoped_product_discount":
-      return `Line property: ${rule.requiredLineAttributeKey} = ${rule.requiredLineAttributeValue}`;
+      return rule.requiredAnchorMinQuantity
+        ? `Line property: ${rule.requiredLineAttributeKey} = ${rule.requiredLineAttributeValue}, anchors >= ${rule.requiredAnchorMinQuantity}`
+        : `Line property: ${rule.requiredLineAttributeKey} = ${rule.requiredLineAttributeValue}`;
     case "landing_free_shipping":
-      return `Line property: ${rule.requiredLineAttributeKey} = ${rule.requiredLineAttributeValue}`;
+      return rule.requiredAnchorMinQuantity
+        ? `Line property: ${rule.requiredLineAttributeKey} = ${rule.requiredLineAttributeValue}, anchors >= ${rule.requiredAnchorMinQuantity}`
+        : `Line property: ${rule.requiredLineAttributeKey} = ${rule.requiredLineAttributeValue}`;
   }
 }
 
@@ -535,8 +539,12 @@ function getDiscountSummary(rule: HpnPromoRule): string {
     case "landing_quantity_tier_fixed_price":
       return `${rule.tiers.length} tier(s), fixed price/unit`;
     case "landing_scoped_product_discount":
-      return `${rule.discountPercentage}% off`;
+      return rule.requiredAnchorMinQuantity
+        ? `${rule.discountPercentage}% off, anchor min ${rule.requiredAnchorMinQuantity}`
+        : `${rule.discountPercentage}% off`;
     case "landing_free_shipping":
-      return "Free shipping";
+      return rule.requiredAnchorMinQuantity
+        ? `Free shipping, anchor min ${rule.requiredAnchorMinQuantity}`
+        : "Free shipping";
   }
 }

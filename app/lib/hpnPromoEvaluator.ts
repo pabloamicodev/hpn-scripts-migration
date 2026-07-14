@@ -438,6 +438,41 @@ export function evaluateLandingQuantityTierFixedPrice(
   return actions;
 }
 
+function getLineAttribute(line: CartLine, key: string): string | null | undefined {
+  return (line.attributes ?? []).find((a) => a.key === key)?.value;
+}
+
+function getLandingAnchorQuantity(
+  rule: Extract<
+    HpnPromoRule,
+    { type: "landing_scoped_product_discount" | "landing_free_shipping" }
+  >,
+  lines: CartLine[],
+): number {
+  const anchorVariantIds = rule.requiredAnchorVariantIds?.length
+    ? new Set(rule.requiredAnchorVariantIds)
+    : null;
+
+  return lines.reduce((sum, line) => {
+    if (line.merchandise.__typename !== "ProductVariant") return sum;
+    if (getLineAttribute(line, rule.requiredLineAttributeKey) !== rule.requiredLineAttributeValue) {
+      return sum;
+    }
+    if (anchorVariantIds && !anchorVariantIds.has(line.merchandise.id)) return sum;
+    return sum + line.quantity;
+  }, 0);
+}
+
+function satisfiesLandingAnchorRequirement(
+  rule: Extract<
+    HpnPromoRule,
+    { type: "landing_scoped_product_discount" | "landing_free_shipping" }
+  >,
+  lines: CartLine[],
+): boolean {
+  return getLandingAnchorQuantity(rule, lines) >= (rule.requiredAnchorMinQuantity ?? 1);
+}
+
 export function evaluateLandingScopedProductDiscount(
   rule: Extract<HpnPromoRule, { type: "landing_scoped_product_discount" }>,
   cartIndex: CartIndex,
@@ -445,16 +480,7 @@ export function evaluateLandingScopedProductDiscount(
 ): DiscountAction[] {
   const actions: DiscountAction[] = [];
 
-  if (rule.requiredAnchorVariantIds?.length) {
-    const anchorVariantIds = new Set(rule.requiredAnchorVariantIds);
-    const hasAnchor = allLines.some((line) => {
-      if (line.merchandise.__typename !== "ProductVariant") return false;
-      if (!anchorVariantIds.has(line.merchandise.id)) return false;
-      const attr = (line.attributes ?? []).find((a) => a.key === rule.requiredLineAttributeKey);
-      return attr?.value === rule.requiredLineAttributeValue;
-    });
-    if (!hasAnchor) return actions;
-  }
+  if (!satisfiesLandingAnchorRequirement(rule, allLines)) return actions;
 
   for (const productId of rule.targetProductIds) {
     const lines = cartIndex.linesByProductId.get(productId);
@@ -463,8 +489,7 @@ export function evaluateLandingScopedProductDiscount(
     let remainingFreeUnits = 1;
     for (const line of lines) {
       if (remainingFreeUnits <= 0) break;
-      const attr = (line.attributes ?? []).find((a) => a.key === rule.requiredLineAttributeKey);
-      if (attr?.value !== rule.requiredLineAttributeValue) continue;
+      if (getLineAttribute(line, rule.requiredLineAttributeKey) !== rule.requiredLineAttributeValue) continue;
       actions.push({
         lineId: line.id,
         variantId: line.merchandise.id,

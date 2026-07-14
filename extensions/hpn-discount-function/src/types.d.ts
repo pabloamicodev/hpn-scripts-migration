@@ -3409,7 +3409,7 @@ export enum WeightUnit {
 export type DeliveryRunInputQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type DeliveryRunInputQuery = { __typename?: 'Input', cart: { __typename?: 'Cart', lines: Array<{ __typename?: 'CartLine', landingSourceAttribute?: { __typename?: 'Attribute', value?: string | null } | null }>, deliveryGroups: Array<{ __typename?: 'CartDeliveryGroup', id: string }> }, discount: { __typename?: 'Discount', discountClasses: Array<DiscountClass>, metafield?: { __typename?: 'Metafield', value: string } | null } };
+export type DeliveryRunInputQuery = { __typename?: 'Input', cart: { __typename?: 'Cart', lines: Array<{ __typename?: 'CartLine', quantity: number, landingSourceAttribute?: { __typename?: 'Attribute', value?: string | null } | null, merchandise: { __typename: 'CustomProduct' } | { __typename: 'ProductVariant', id: string } }>, deliveryGroups: Array<{ __typename?: 'CartDeliveryGroup', id: string }> }, discount: { __typename?: 'Discount', discountClasses: Array<DiscountClass>, metafield?: { __typename?: 'Metafield', value: string } | null } };
 
 export type RunInputQueryVariables = Exact<{ [key: string]: never; }>;
 

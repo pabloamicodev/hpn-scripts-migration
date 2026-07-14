@@ -7,7 +7,7 @@
 #   3. Update application_url if deploying to a separate URL
 #   4. Set STORE_PROFILE=gettrusupps in the deployment env vars
 
-name = "gettrusupps"
+name = "Script Migration App"
 client_id = "819b1c9f7db3b989c8138940a6078afd"
 handle = "hpn-scripts-migration"
 application_url = "https://hpn-scripts-migration.vercel.app"

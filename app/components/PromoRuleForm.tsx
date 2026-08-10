@@ -80,6 +80,7 @@ interface PromoRuleFormValues {
   targetVariantIds?: string[];
   requiredAnchorVariantIds?: string[];
   requiredAnchorMinQuantity?: number;
+  discountPercentageOnGifts?: number;
   conditions?: RuleConditionsFormValues;
 }
 
@@ -223,6 +224,14 @@ const DEFAULT_RULES: Record<PromoRuleType, PromoRuleFormValues> = {
     requiredLineAttributeValue: "",
     message: "",
   },
+
+  quiz_bundle_price_match: {
+    id: "quiz-bundle-price-match",
+    type: "quiz_bundle_price_match",
+    enabled: true,
+    discountPercentageOnGifts: 100,
+    message: "Product Quiz bundle",
+  },
 };
 
 function normalizeDefaultValues(defaultValues?: HpnPromoRule): PromoRuleFormValues {
@@ -259,6 +268,7 @@ function makeRuleId(type: PromoRuleType) {
   if (type === "landing_quantity_tier_fixed_price") return `landing-quantity-tier-${suffix}`;
   if (type === "landing_scoped_product_discount") return `landing-scoped-product-${suffix}`;
   if (type === "landing_free_shipping") return `landing-free-shipping-${suffix}`;
+  if (type === "quiz_bundle_price_match") return `quiz-bundle-price-match-${suffix}`;
   return `loyalty-tier-${suffix}`;
 }
 
@@ -445,6 +455,17 @@ function buildRulePayload(values: PromoRuleFormValues): unknown {
           ? values.requiredAnchorVariantIds
           : undefined,
       requiredAnchorMinQuantity: values.requiredAnchorMinQuantity || undefined,
+      message: values.message,
+      conditions,
+    };
+  }
+
+  if (values.type === "quiz_bundle_price_match") {
+    return {
+      id: values.id,
+      type: "quiz_bundle_price_match",
+      enabled: values.enabled,
+      discountPercentageOnGifts: values.discountPercentageOnGifts ?? 100,
       message: values.message,
       conditions,
     };
@@ -873,6 +894,10 @@ export function PromoRuleForm({
 
           <option value="landing_free_shipping">
             Landing Page → Free Shipping
+          </option>
+
+          <option value="quiz_bundle_price_match">
+            Product Quiz → Bundle Price Match + Free Gifts
           </option>
         </select>
       </div>
@@ -1684,6 +1709,41 @@ export function PromoRuleForm({
               step={1}
               placeholder="e.g. 4"
               {...register("requiredAnchorMinQuantity", {
+                valueAsNumber: true,
+              })}
+              className="number-field"
+            />
+          </div>
+        </section>
+      )}
+
+      {ruleType === "quiz_bundle_price_match" && (
+        <section className="form-section">
+          <h2 className="form-section__title">Product Quiz bundle price match + free gifts</h2>
+          <p className="field-hint">
+            OneSol-specific. No product IDs to configure — this rule is fully
+            generic and only ever touches cart lines the Product Quiz's own
+            bulk add-to-cart tags with a shared "_quiz_bundle_id" property.
+            Paid lines in each group are discounted down to the
+            "_quiz_target_cents" value the theme already computed for that
+            quiz result; lines flagged "_quiz_free_gift" get the percentage
+            below. Enable at most one of these rules per shop.
+          </p>
+
+          <div className="form-group">
+            <label
+              htmlFor="quizGiftDiscountPercentage"
+              className="form-label"
+            >
+              Free gift discount percentage
+            </label>
+
+            <input
+              type="number"
+              id="quizGiftDiscountPercentage"
+              min={1}
+              max={100}
+              {...register("discountPercentageOnGifts", {
                 valueAsNumber: true,
               })}
               className="number-field"

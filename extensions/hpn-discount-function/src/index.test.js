@@ -1668,3 +1668,171 @@ describe("landing_scoped_product_discount", () => {
     });
   });
 });
+
+// ---------------------------------------------------------------------------
+// quiz_bundle_price_match (OneSol Product Quiz) — fully generic, keyed
+// entirely off _quiz_bundle_id/_quiz_target_cents/_quiz_free_gift line
+// properties, no product IDs configured on the rule itself.
+// ---------------------------------------------------------------------------
+
+describe("quiz_bundle_price_match", () => {
+  function config(overrides = {}) {
+    return {
+      version: 1,
+      combinesWith: { orderDiscounts: true, productDiscounts: true, shippingDiscounts: true },
+      rules: [
+        {
+          id: "quiz-bundle-price-match",
+          type: "quiz_bundle_price_match",
+          enabled: true,
+          discountPercentageOnGifts: 100,
+          message: "Product Quiz bundle",
+          ...overrides,
+        },
+      ],
+    };
+  }
+
+  function quizLine(
+    id,
+    { bundleId = "pq-1", isGift = false, targetCents = 9900, amount, quantity = 1 } = {},
+  ) {
+    return {
+      id,
+      quantity,
+      cost: { totalAmount: { amount: String(amount) } },
+      merchandise: {
+        __typename: "ProductVariant",
+        id: VARIANT_IDS.unrelated,
+        product: { id: PRODUCT_IDS.unrelated },
+      },
+      quizBundleIdAttribute: { value: bundleId },
+      quizTargetCentsAttribute: { value: String(targetCents) },
+      quizFreeGiftAttribute: isGift ? { value: "true" } : null,
+    };
+  }
+
+  it("does nothing when no line carries _quiz_bundle_id", () => {
+    const result = runWithLines(
+      [productLine("p1", PRODUCT_IDS.unrelated, VARIANT_IDS.unrelated)],
+      config(),
+    );
+    expect(result).toEqual({ operations: [] });
+  });
+
+  it("discounts the paid lines in a group down to the target total, as one combined fixed-amount candidate", () => {
+    const result = runWithLines(
+      [
+        quizLine("paid-1", { amount: "44.99" }),
+        quizLine("paid-2", { amount: "36.99" }),
+        quizLine("paid-3", { amount: "39.99" }),
+        quizLine("paid-4", { amount: "32.99" }),
+      ],
+      config(),
+    );
+
+    // 44.99 + 36.99 + 39.99 + 32.99 = 154.96, target 99.00 -> discount 55.96
+    expect(candidates(result)).toEqual([
+      {
+        targets: [
+          { cartLine: { id: "paid-1", quantity: 1 } },
+          { cartLine: { id: "paid-2", quantity: 1 } },
+          { cartLine: { id: "paid-3", quantity: 1 } },
+          { cartLine: { id: "paid-4", quantity: 1 } },
+        ],
+        value: { fixedAmount: { amount: "55.96", appliesToEachItem: false } },
+        message: "Product Quiz bundle",
+      },
+    ]);
+  });
+
+  it("discounts gift lines to the configured percentage, independent of the price-match math", () => {
+    const result = runWithLines(
+      [
+        quizLine("paid-1", { amount: "44.99" }),
+        quizLine("gift-1", { isGift: true, amount: "39.99" }),
+        quizLine("gift-2", { isGift: true, amount: "11.99" }),
+      ],
+      config(),
+    );
+
+    const list = candidates(result);
+    const giftCandidates = list.filter((c) =>
+      c.targets.some((t) => t.cartLine.id === "gift-1" || t.cartLine.id === "gift-2"),
+    );
+    expect(giftCandidates).toEqual([
+      {
+        targets: [{ cartLine: { id: "gift-1", quantity: 1 } }],
+        value: { percentage: { value: "100.0" } },
+        message: "Product Quiz bundle",
+      },
+      {
+        targets: [{ cartLine: { id: "gift-2", quantity: 1 } }],
+        value: { percentage: { value: "100.0" } },
+        message: "Product Quiz bundle",
+      },
+    ]);
+  });
+
+  it("respects a custom discountPercentageOnGifts", () => {
+    const result = runWithLines(
+      [quizLine("gift-1", { isGift: true, amount: "20.00" })],
+      config({ discountPercentageOnGifts: 50 }),
+    );
+
+    expect(candidates(result)).toEqual([
+      {
+        targets: [{ cartLine: { id: "gift-1", quantity: 1 } }],
+        value: { percentage: { value: "50" } },
+        message: "Product Quiz bundle",
+      },
+    ]);
+  });
+
+  it("does not discount paid lines when their total is already at or below the target", () => {
+    const result = runWithLines(
+      [quizLine("paid-1", { amount: "50.00", targetCents: 9900 })],
+      config(),
+    );
+    expect(result).toEqual({ operations: [] });
+  });
+
+  it("keeps two separate quiz bundle-id groups in the same cart independent", () => {
+    const result = runWithLines(
+      [
+        quizLine("a-paid", { bundleId: "pq-a", amount: "100.00", targetCents: 8000 }),
+        quizLine("b-paid", { bundleId: "pq-b", amount: "50.00", targetCents: 5000 }),
+      ],
+      config(),
+    );
+
+    const list = candidates(result);
+    expect(list).toHaveLength(1); // only group "pq-a" needs a discount
+    expect(list[0].targets).toEqual([{ cartLine: { id: "a-paid", quantity: 1 } }]);
+    expect(list[0].value.fixedAmount.amount).toBe("20.00");
+  });
+
+  it("never touches lines from the unrelated Bundle Builder feature (_bundle_item/_bundle_id)", () => {
+    const bundleBuilderLine = {
+      id: "bb-line",
+      quantity: 1,
+      cost: { totalAmount: { amount: "44.99" } },
+      merchandise: {
+        __typename: "ProductVariant",
+        id: VARIANT_IDS.unrelated,
+        product: { id: PRODUCT_IDS.unrelated },
+      },
+      // No quizBundleIdAttribute at all — this rule only reads that key.
+    };
+    const result = runWithLines([bundleBuilderLine], config());
+    expect(result).toEqual({ operations: [] });
+  });
+
+  it("is skipped entirely when the rule is disabled", () => {
+    const result = runWithLines(
+      [quizLine("paid-1", { amount: "150.00" })],
+      config({ enabled: false }),
+    );
+    expect(result).toEqual({ operations: [] });
+  });
+});

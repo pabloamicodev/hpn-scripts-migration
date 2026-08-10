@@ -514,6 +514,85 @@ export function evaluateLandingFreeShipping(
   return [];
 }
 
+/**
+ * Quiz Bundle Price Match + Free Gifts: groups lines by _quiz_bundle_id,
+ * discounts _quiz_free_gift lines to (default 100%) free, and discounts the
+ * remaining paid lines in the group down to that group's _quiz_target_cents
+ * total. The real Function applies the paid-line discount as one combined
+ * fixedAmount candidate; here it's expressed as an equivalent effective
+ * percentage per line, matching how the fixed-amount landing tier rule above
+ * is previewed.
+ */
+export function evaluateQuizBundlePriceMatch(
+  rule: Extract<HpnPromoRule, { type: "quiz_bundle_price_match" }>,
+  lines: CartLine[],
+): DiscountAction[] {
+  const actions: DiscountAction[] = [];
+
+  const groups = new Map<
+    string,
+    { paid: CartLine[]; gifts: CartLine[]; targetCents: number | null }
+  >();
+
+  for (const line of lines) {
+    if (line.merchandise.__typename !== "ProductVariant") continue;
+    const bundleId = getLineAttribute(line, "_quiz_bundle_id");
+    if (!bundleId) continue;
+
+    if (!groups.has(bundleId)) groups.set(bundleId, { paid: [], gifts: [], targetCents: null });
+    const group = groups.get(bundleId)!;
+
+    if (getLineAttribute(line, "_quiz_free_gift") === "true") {
+      group.gifts.push(line);
+    } else {
+      group.paid.push(line);
+    }
+
+    if (group.targetCents == null) {
+      const raw = getLineAttribute(line, "_quiz_target_cents");
+      const parsed = raw != null ? parseInt(raw, 10) : NaN;
+      if (!isNaN(parsed)) group.targetCents = parsed;
+    }
+  }
+
+  for (const group of groups.values()) {
+    for (const line of group.gifts) {
+      actions.push({
+        lineId: line.id,
+        variantId: line.merchandise.id,
+        productId: line.merchandise.product.id,
+        discountedQuantity: line.quantity,
+        percentageOff: rule.discountPercentageOnGifts,
+        message: rule.message,
+      });
+    }
+
+    if (group.paid.length === 0 || group.targetCents == null) continue;
+
+    const currentTotal = group.paid.reduce(
+      (sum, line) => sum + parseFloat(line.cost?.totalAmount?.amount ?? "0"),
+      0,
+    );
+    const targetAmount = group.targetCents / 100;
+    const discountNeeded = currentTotal - targetAmount;
+    if (discountNeeded <= 0 || currentTotal <= 0) continue;
+
+    const effectivePercentage = Math.min((discountNeeded / currentTotal) * 100, 100);
+    for (const line of group.paid) {
+      actions.push({
+        lineId: line.id,
+        variantId: line.merchandise.id,
+        productId: line.merchandise.product.id,
+        discountedQuantity: line.quantity,
+        percentageOff: effectivePercentage,
+        message: rule.message,
+      });
+    }
+  }
+
+  return actions;
+}
+
 // ---------------------------------------------------------------------------
 // Exhaustiveness guard — TypeScript will error here if a new rule type is
 // added to HpnPromoRule but not handled in evaluateConfig's switch.
@@ -579,6 +658,9 @@ export function evaluateConfig(
         break;
       case "landing_free_shipping":
         ruleActions = evaluateLandingFreeShipping(rule);
+        break;
+      case "quiz_bundle_price_match":
+        ruleActions = evaluateQuizBundlePriceMatch(rule, lines);
         break;
       default:
         assertNever(rule);

@@ -78,6 +78,8 @@ export function cartLinesDiscountsGenerateRun(input) {
       applyLandingQuantityTierFixedPriceRule(rule, lines, candidatesByLine);
     } else if (rule.type === "landing_scoped_product_discount") {
       applyLandingScopedProductDiscountRule(rule, byProduct, lines, candidatesByLine);
+    } else if (rule.type === "quiz_bundle_price_match") {
+      applyQuizBundlePriceMatchRule(rule, lines, candidatesByLine);
     }
   }
 
@@ -472,6 +474,78 @@ function applyLandingScopedProductDiscountRule(rule, byProduct, lines, candidate
       addCandidate(candidates, line, 1, rule.discountPercentage, rule.message);
       remainingFreeUnits -= 1;
     }
+  }
+}
+
+/**
+ * Quiz Bundle Price Match + Free Gifts (OneSol Product Quiz): groups cart
+ * lines by the _quiz_bundle_id property the quiz's own bulk add-to-cart sets
+ * on every line it adds (see product-quiz.js). No product IDs are
+ * configured on this rule — it's fully generic and only ever touches lines
+ * carrying that property, so it can't affect the unrelated Bundle Builder
+ * feature (_bundle_item/_bundle_id) or ordinary cart activity.
+ *
+ * Within each bundle-id group: lines flagged _quiz_free_gift get a flat
+ * (default 100%) percentage discount. The remaining paid lines get ONE
+ * combined fixedAmount discount (appliesToEachItem: false, spread across
+ * all of them) equal to (their current total) − (_quiz_target_cents) — the
+ * price the theme already computed server-side for that quiz result, so
+ * this rule never needs its own hardcoded per-bundle price.
+ */
+function applyQuizBundlePriceMatchRule(rule, lines, candidates) {
+  const giftPercentage = typeof rule.discountPercentageOnGifts === "number"
+    ? rule.discountPercentageOnGifts
+    : 100;
+
+  const groups = new Map();
+  for (const line of lines) {
+    const bundleId = line.quizBundleIdAttribute?.value;
+    if (!bundleId) continue;
+
+    if (!groups.has(bundleId)) groups.set(bundleId, { paid: [], gifts: [], targetCents: null });
+    const group = groups.get(bundleId);
+
+    if (line.quizFreeGiftAttribute?.value === "true") {
+      group.gifts.push(line);
+    } else {
+      group.paid.push(line);
+    }
+
+    if (group.targetCents == null) {
+      const raw = line.quizTargetCentsAttribute?.value;
+      const parsed = raw != null ? parseInt(raw, 10) : NaN;
+      if (!isNaN(parsed)) group.targetCents = parsed;
+    }
+  }
+
+  for (const [bundleId, group] of groups) {
+    for (const line of group.gifts) {
+      addCandidate(candidates, line, line.quantity, giftPercentage, rule.message);
+    }
+
+    if (group.paid.length === 0 || group.targetCents == null) continue;
+
+    const currentTotal = group.paid.reduce((sum, line) => {
+      const amount = parseFloat(line.cost?.totalAmount?.amount ?? "0");
+      return sum + (isNaN(amount) ? 0 : amount);
+    }, 0);
+    const targetAmount = group.targetCents / 100;
+    const discountNeeded = currentTotal - targetAmount;
+    if (discountNeeded <= 0) continue;
+
+    // One combined candidate across every paid line in this group, keyed by
+    // bundle id rather than a single line id (this is the only rule that
+    // targets more than one line per candidate).
+    candidates.set(`quiz-bundle-price-match:${bundleId}`, {
+      targets: group.paid.map((line) => ({ cartLine: { id: line.id, quantity: line.quantity } })),
+      value: {
+        fixedAmount: {
+          amount: discountNeeded.toFixed(2),
+          appliesToEachItem: false,
+        },
+      },
+      message: rule.message ?? "",
+    });
   }
 }
 

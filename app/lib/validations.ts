@@ -213,6 +213,28 @@ export const landingFreeShippingRuleSchema = z.object({
 });
 
 // ---------------------------------------------------------------------------
+// Quiz bundle price match + free gifts (OneSol Product Quiz) — groups cart
+// lines by the _quiz_bundle_id line item property set by the quiz's own
+// bulk add-to-cart (Order Summary "Add to Cart" / "Shop All"). Fully
+// generic: no product IDs are configured here, so one enabled rule covers
+// every quiz result/bundle automatically. Paid lines in a group are
+// discounted (fixed amount) down to that group's _quiz_target_cents value
+// (the price the theme already computed server-side for that result);
+// lines flagged _quiz_free_gift are discounted to (default 100%) free.
+// Entirely separate from the unrelated Bundle Builder feature's
+// _bundle_item/_bundle_id properties — this rule never reads those.
+// ---------------------------------------------------------------------------
+
+export const quizBundlePriceMatchRuleSchema = z.object({
+  id: ruleIdSchema,
+  type: z.literal("quiz_bundle_price_match"),
+  enabled: z.boolean(),
+  discountPercentageOnGifts: z.number().positive().max(100).default(100),
+  message: z.string().trim().min(1),
+  conditions: ruleConditionsSchema,
+});
+
+// ---------------------------------------------------------------------------
 // Loyalty tier
 // ---------------------------------------------------------------------------
 
@@ -248,6 +270,7 @@ export const hpnPromoRuleSchema = z.discriminatedUnion("type", [
   landingQuantityTierFixedPriceRuleSchema,
   landingScopedProductDiscountRuleSchema,
   landingFreeShippingRuleSchema,
+  quizBundlePriceMatchRuleSchema,
 ]);
 
 export const hpnPromoConfigSchema = z.object({
@@ -279,6 +302,7 @@ export type QuantityTierPrice = z.infer<typeof quantityTierPriceSchema>;
 export type LandingQuantityTierFixedPriceRule = z.infer<typeof landingQuantityTierFixedPriceRuleSchema>;
 export type LandingScopedProductDiscountRule = z.infer<typeof landingScopedProductDiscountRuleSchema>;
 export type LandingFreeShippingRule = z.infer<typeof landingFreeShippingRuleSchema>;
+export type QuizBundlePriceMatchRule = z.infer<typeof quizBundlePriceMatchRuleSchema>;
 
 export type HpnPromoRule =
   | Pa7CrossSellRule
@@ -292,7 +316,8 @@ export type HpnPromoRule =
   | SwellCartFixedAmountRule
   | LandingQuantityTierFixedPriceRule
   | LandingScopedProductDiscountRule
-  | LandingFreeShippingRule;
+  | LandingFreeShippingRule
+  | QuizBundlePriceMatchRule;
 
 export type HpnPromoRuleId = HpnPromoRule["id"];
 export type HpnPromoRuleType = HpnPromoRule["type"];

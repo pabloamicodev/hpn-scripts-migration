@@ -43,6 +43,15 @@ query RunInput {
       landingSourceAttribute: attribute(key: "__landing_source") {
         value
       }
+      quizBundleIdAttribute: attribute(key: "_quiz_bundle_id") {
+        value
+      }
+      quizTargetCentsAttribute: attribute(key: "_quiz_target_cents") {
+        value
+      }
+      quizFreeGiftAttribute: attribute(key: "_quiz_free_gift") {
+        value
+      }
       merchandise {
         __typename
         ... on ProductVariant {

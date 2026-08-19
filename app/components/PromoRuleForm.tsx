@@ -232,6 +232,13 @@ const DEFAULT_RULES: Record<PromoRuleType, PromoRuleFormValues> = {
     discountPercentageOnGifts: 100,
     message: "Product Quiz bundle",
   },
+
+  quiz_bundle_free_shipping: {
+    id: "quiz-bundle-free-shipping",
+    type: "quiz_bundle_free_shipping",
+    enabled: true,
+    message: "Product Quiz bundle",
+  },
 };
 
 function normalizeDefaultValues(defaultValues?: HpnPromoRule): PromoRuleFormValues {
@@ -269,6 +276,7 @@ function makeRuleId(type: PromoRuleType) {
   if (type === "landing_scoped_product_discount") return `landing-scoped-product-${suffix}`;
   if (type === "landing_free_shipping") return `landing-free-shipping-${suffix}`;
   if (type === "quiz_bundle_price_match") return `quiz-bundle-price-match-${suffix}`;
+  if (type === "quiz_bundle_free_shipping") return `quiz-bundle-free-shipping-${suffix}`;
   return `loyalty-tier-${suffix}`;
 }
 
@@ -466,6 +474,16 @@ function buildRulePayload(values: PromoRuleFormValues): unknown {
       type: "quiz_bundle_price_match",
       enabled: values.enabled,
       discountPercentageOnGifts: values.discountPercentageOnGifts ?? 100,
+      message: values.message,
+      conditions,
+    };
+  }
+
+  if (values.type === "quiz_bundle_free_shipping") {
+    return {
+      id: values.id,
+      type: "quiz_bundle_free_shipping",
+      enabled: values.enabled,
       message: values.message,
       conditions,
     };
@@ -898,6 +916,10 @@ export function PromoRuleForm({
 
           <option value="quiz_bundle_price_match">
             Product Quiz → Bundle Price Match + Free Gifts
+          </option>
+
+          <option value="quiz_bundle_free_shipping">
+            Product Quiz → Bundle Free Shipping
           </option>
         </select>
       </div>
@@ -1749,6 +1771,21 @@ export function PromoRuleForm({
               className="number-field"
             />
           </div>
+        </section>
+      )}
+
+      {ruleType === "quiz_bundle_free_shipping" && (
+        <section className="form-section">
+          <h2 className="form-section__title">Product Quiz bundle free shipping</h2>
+          <p className="field-hint">
+            No fields to configure — this rule is fully generic and grants
+            free shipping on the whole order whenever a cart line carries a
+            "_quiz_bundle_id" property whose group still has every paid
+            component the Product Quiz originally added (same abuse guard as
+            the price match + free gifts rule above, applied to shipping
+            instead of price). Evaluated by a separate delivery-options
+            Function target, independent of the cart-lines rule above.
+          </p>
         </section>
       )}
 

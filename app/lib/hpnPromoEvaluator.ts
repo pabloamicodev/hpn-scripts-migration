@@ -514,6 +514,14 @@ export function evaluateLandingFreeShipping(
   return [];
 }
 
+// quiz_bundle_free_shipping — same reasoning as landing_free_shipping above:
+// delivery cost, not cart lines, evaluated by cartDeliveryOptionsDiscountsGenerateRun.
+export function evaluateQuizBundleFreeShipping(
+  _rule: Extract<HpnPromoRule, { type: "quiz_bundle_free_shipping" }>,
+): DiscountAction[] {
+  return [];
+}
+
 /**
  * Quiz Bundle Price Match + Free Gifts: groups lines by _quiz_bundle_id,
  * discounts _quiz_free_gift lines to (default 100%) free, and discounts the
@@ -531,7 +539,7 @@ export function evaluateQuizBundlePriceMatch(
 
   const groups = new Map<
     string,
-    { paid: CartLine[]; gifts: CartLine[]; targetCents: number | null }
+    { paid: CartLine[]; gifts: CartLine[]; targetCents: number | null; expectedPaidCount: number | null }
   >();
 
   for (const line of lines) {
@@ -539,7 +547,9 @@ export function evaluateQuizBundlePriceMatch(
     const bundleId = getLineAttribute(line, "_quiz_bundle_id");
     if (!bundleId) continue;
 
-    if (!groups.has(bundleId)) groups.set(bundleId, { paid: [], gifts: [], targetCents: null });
+    if (!groups.has(bundleId)) {
+      groups.set(bundleId, { paid: [], gifts: [], targetCents: null, expectedPaidCount: null });
+    }
     const group = groups.get(bundleId)!;
 
     if (getLineAttribute(line, "_quiz_free_gift") === "true") {
@@ -553,9 +563,19 @@ export function evaluateQuizBundlePriceMatch(
       const parsed = raw != null ? parseInt(raw, 10) : NaN;
       if (!isNaN(parsed)) group.targetCents = parsed;
     }
+
+    if (group.expectedPaidCount == null) {
+      const raw = getLineAttribute(line, "_quiz_expected_paid_count");
+      const parsed = raw != null ? parseInt(raw, 10) : NaN;
+      if (!isNaN(parsed)) group.expectedPaidCount = parsed;
+    }
   }
 
   for (const group of groups.values()) {
+    // Same gate as the real Function: every originally-added paid line must
+    // still be present before this group gets any discount at all.
+    if (group.expectedPaidCount == null || group.paid.length < group.expectedPaidCount) continue;
+
     for (const line of group.gifts) {
       actions.push({
         lineId: line.id,
@@ -661,6 +681,9 @@ export function evaluateConfig(
         break;
       case "quiz_bundle_price_match":
         ruleActions = evaluateQuizBundlePriceMatch(rule, lines);
+        break;
+      case "quiz_bundle_free_shipping":
+        ruleActions = evaluateQuizBundleFreeShipping(rule);
         break;
       default:
         assertNever(rule);

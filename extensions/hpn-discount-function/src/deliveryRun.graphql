@@ -5,6 +5,15 @@ query DeliveryRunInput {
       landingSourceAttribute: attribute(key: "__landing_source") {
         value
       }
+      quizBundleIdAttribute: attribute(key: "_quiz_bundle_id") {
+        value
+      }
+      quizFreeGiftAttribute: attribute(key: "_quiz_free_gift") {
+        value
+      }
+      quizExpectedPaidCountAttribute: attribute(key: "_quiz_expected_paid_count") {
+        value
+      }
       merchandise {
         __typename
         ... on ProductVariant {

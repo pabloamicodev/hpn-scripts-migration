@@ -141,6 +141,31 @@ export const gettruSuppsPreset: HpnPromoConfig = {
       requiredAnchorMinQuantity: 2,
       message: "Protein Complete Bundle",
     },
+    {
+      // Product Quiz results screen (theme: sections/product-quiz.liquid) —
+      // bulk-adds a bundle's individual component products to cart, tagged
+      // with _quiz_bundle_id/_quiz_target_cents/_quiz_expected_paid_count,
+      // plus a real (non-BOGOS) Hydration Complete single-stick line tagged
+      // _quiz_free_gift for the Body Transformation / Goddess Glow results.
+      // Generic rule type (no product IDs here) — see extensions/hpn-discount-function
+      // src/index.js's applyQuizBundlePriceMatchRule for the shared logic
+      // this reuses from the one-sol store's quiz.
+      id: "quiz-bundle-price-match",
+      type: "quiz_bundle_price_match",
+      enabled: true,
+      discountPercentageOnGifts: 100,
+      message: "Product Quiz Bundle",
+    },
+    {
+      // Free shipping for quiz results — evaluated by the delivery-options
+      // Function target. Same _quiz_bundle_id/_quiz_expected_paid_count
+      // abuse guard as quiz-bundle-price-match above: removing a paid
+      // component from the cart drops this back to normal shipping too.
+      id: "quiz-bundle-free-shipping",
+      type: "quiz_bundle_free_shipping",
+      enabled: true,
+      message: "Product Quiz Bundle",
+    },
   ],
   combinesWith: {
     orderDiscounts: true,

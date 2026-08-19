@@ -502,7 +502,9 @@ function applyQuizBundlePriceMatchRule(rule, lines, candidates) {
     const bundleId = line.quizBundleIdAttribute?.value;
     if (!bundleId) continue;
 
-    if (!groups.has(bundleId)) groups.set(bundleId, { paid: [], gifts: [], targetCents: null });
+    if (!groups.has(bundleId)) {
+      groups.set(bundleId, { paid: [], gifts: [], targetCents: null, expectedPaidCount: null });
+    }
     const group = groups.get(bundleId);
 
     if (line.quizFreeGiftAttribute?.value === "true") {
@@ -516,9 +518,22 @@ function applyQuizBundlePriceMatchRule(rule, lines, candidates) {
       const parsed = raw != null ? parseInt(raw, 10) : NaN;
       if (!isNaN(parsed)) group.targetCents = parsed;
     }
+
+    if (group.expectedPaidCount == null) {
+      const raw = line.quizExpectedPaidCountAttribute?.value;
+      const parsed = raw != null ? parseInt(raw, 10) : NaN;
+      if (!isNaN(parsed)) group.expectedPaidCount = parsed;
+    }
   }
 
   for (const [bundleId, group] of groups) {
+    // Every paid component this bundle originally added must still be in
+    // the cart before ANY discount applies to this group — otherwise a
+    // shopper could remove the paid lines and keep the free gifts free, or
+    // remove just one paid line and have the remaining ones discounted all
+    // the way down to the full bundle price instead of a prorated amount.
+    if (group.expectedPaidCount == null || group.paid.length < group.expectedPaidCount) continue;
+
     for (const line of group.gifts) {
       addCandidate(candidates, line, line.quantity, giftPercentage, rule.message);
     }
@@ -599,14 +614,75 @@ function applyLoyaltyTierRule(rule, byProduct, candidates, buyerIdentity) {
 
 const DELIVERY_DISCOUNT_SELECTION_STRATEGY = "ALL";
 const LANDING_FREE_SHIPPING_RULE_TYPE = "landing_free_shipping";
+const QUIZ_BUNDLE_FREE_SHIPPING_RULE_TYPE = "quiz_bundle_free_shipping";
+
+// One candidate targeting every delivery group at once — not one candidate
+// per group — so checkout shows a single discount label instead of a
+// duplicate "free shipping" line per group (e.g. subscription items and
+// one-time gifts often land in separate groups).
+function freeShippingResult(message, deliveryGroups) {
+  return {
+    operations: [
+      {
+        deliveryDiscountsAdd: {
+          candidates: [
+            {
+              message: message ?? "",
+              targets: deliveryGroups.map((group) => ({ deliveryGroup: { id: group.id } })),
+              value: { percentage: { value: "100" } },
+            },
+          ],
+          selectionStrategy: DELIVERY_DISCOUNT_SELECTION_STRATEGY,
+        },
+      },
+    ],
+  };
+}
 
 /**
- * Landing Page Free Shipping: whenever the cart satisfies the landing anchor
- * requirement, discounts every delivery group to 100% off — free shipping for
- * the whole order. Independent of the cart-lines target above; reads the same
- * shared config metafield but only acts on landing_free_shipping rules.
- * `conditions` is intentionally not evaluated here (out of scope for this rule
- * — see validations.ts).
+ * Same _quiz_bundle_id grouping as applyQuizBundlePriceMatchRule, but only
+ * needs to know whether at least one bundle group still has every paid
+ * component it originally added — the same abuse guard (removing a paid
+ * component reverts the discount) applied to shipping instead of price.
+ */
+function hasCompleteQuizBundle(deliveryLines) {
+  const groups = new Map();
+
+  for (const line of deliveryLines) {
+    const bundleId = line.quizBundleIdAttribute?.value;
+    if (!bundleId) continue;
+
+    if (!groups.has(bundleId)) {
+      groups.set(bundleId, { paidLineCount: 0, expectedPaidCount: null });
+    }
+    const group = groups.get(bundleId);
+
+    if (line.quizFreeGiftAttribute?.value !== "true") {
+      group.paidLineCount += 1;
+    }
+
+    if (group.expectedPaidCount == null) {
+      const raw = line.quizExpectedPaidCountAttribute?.value;
+      const parsed = raw != null ? parseInt(raw, 10) : NaN;
+      if (!isNaN(parsed)) group.expectedPaidCount = parsed;
+    }
+  }
+
+  for (const group of groups.values()) {
+    if (group.expectedPaidCount != null && group.paidLineCount >= group.expectedPaidCount) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Landing Page Free Shipping / Quiz Bundle Free Shipping: whenever the cart
+ * satisfies the matching rule's requirement, discounts every delivery group
+ * to 100% off — free shipping for the whole order. Independent of the
+ * cart-lines target above; reads the same shared config metafield but only
+ * acts on these two rule types. `conditions` is intentionally not evaluated
+ * here (out of scope for these rules — see validations.ts).
  */
 export function cartDeliveryOptionsDiscountsGenerateRun(input) {
   const discountClasses = input?.discount?.discountClasses ?? [];
@@ -628,32 +704,18 @@ export function cartDeliveryOptionsDiscountsGenerateRun(input) {
   if (deliveryGroups.length === 0) return EMPTY_RESULT;
 
   for (const rule of config.rules) {
-    if (!rule || typeof rule !== "object" || rule.type !== LANDING_FREE_SHIPPING_RULE_TYPE) continue;
-    if (!rule.enabled) continue;
-    if (!rule.requiredLineAttributeKey || !rule.requiredLineAttributeValue) continue;
+    if (!rule || typeof rule !== "object" || !rule.enabled) continue;
 
-    if (!satisfiesLandingAnchorRequirement(rule, deliveryLines)) continue;
+    if (rule.type === LANDING_FREE_SHIPPING_RULE_TYPE) {
+      if (!rule.requiredLineAttributeKey || !rule.requiredLineAttributeValue) continue;
+      if (!satisfiesLandingAnchorRequirement(rule, deliveryLines)) continue;
+      return freeShippingResult(rule.message, deliveryGroups);
+    }
 
-    // One candidate targeting every delivery group at once — not one
-    // candidate per group — so checkout shows a single discount label
-    // instead of a duplicate "free shipping" line per group (e.g.
-    // subscription items and one-time gifts often land in separate groups).
-    return {
-      operations: [
-        {
-          deliveryDiscountsAdd: {
-            candidates: [
-              {
-                message: rule.message ?? "",
-                targets: deliveryGroups.map((group) => ({ deliveryGroup: { id: group.id } })),
-                value: { percentage: { value: "100" } },
-              },
-            ],
-            selectionStrategy: DELIVERY_DISCOUNT_SELECTION_STRATEGY,
-          },
-        },
-      ],
-    };
+    if (rule.type === QUIZ_BUNDLE_FREE_SHIPPING_RULE_TYPE) {
+      if (!hasCompleteQuizBundle(deliveryLines)) continue;
+      return freeShippingResult(rule.message, deliveryGroups);
+    }
   }
 
   return EMPTY_RESULT;

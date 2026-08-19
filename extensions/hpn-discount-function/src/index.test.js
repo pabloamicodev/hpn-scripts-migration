@@ -1695,7 +1695,14 @@ describe("quiz_bundle_price_match", () => {
 
   function quizLine(
     id,
-    { bundleId = "pq-1", isGift = false, targetCents = 9900, amount, quantity = 1 } = {},
+    {
+      bundleId = "pq-1",
+      isGift = false,
+      targetCents = 9900,
+      amount,
+      quantity = 1,
+      expectedPaidCount = 1,
+    } = {},
   ) {
     return {
       id,
@@ -1709,6 +1716,7 @@ describe("quiz_bundle_price_match", () => {
       quizBundleIdAttribute: { value: bundleId },
       quizTargetCentsAttribute: { value: String(targetCents) },
       quizFreeGiftAttribute: isGift ? { value: "true" } : null,
+      quizExpectedPaidCountAttribute: { value: String(expectedPaidCount) },
     };
   }
 
@@ -1723,10 +1731,10 @@ describe("quiz_bundle_price_match", () => {
   it("discounts the paid lines in a group down to the target total, as one combined fixed-amount candidate", () => {
     const result = runWithLines(
       [
-        quizLine("paid-1", { amount: "44.99" }),
-        quizLine("paid-2", { amount: "36.99" }),
-        quizLine("paid-3", { amount: "39.99" }),
-        quizLine("paid-4", { amount: "32.99" }),
+        quizLine("paid-1", { amount: "44.99", expectedPaidCount: 4 }),
+        quizLine("paid-2", { amount: "36.99", expectedPaidCount: 4 }),
+        quizLine("paid-3", { amount: "39.99", expectedPaidCount: 4 }),
+        quizLine("paid-4", { amount: "32.99", expectedPaidCount: 4 }),
       ],
       config(),
     );
@@ -1776,17 +1784,21 @@ describe("quiz_bundle_price_match", () => {
 
   it("respects a custom discountPercentageOnGifts", () => {
     const result = runWithLines(
-      [quizLine("gift-1", { isGift: true, amount: "20.00" })],
+      [
+        quizLine("paid-1", { amount: "50.00", targetCents: 5000 }),
+        quizLine("gift-1", { isGift: true, amount: "20.00" }),
+      ],
       config({ discountPercentageOnGifts: 50 }),
     );
 
-    expect(candidates(result)).toEqual([
-      {
-        targets: [{ cartLine: { id: "gift-1", quantity: 1 } }],
-        value: { percentage: { value: "50" } },
-        message: "Product Quiz bundle",
-      },
-    ]);
+    const giftCandidate = candidates(result).find((c) =>
+      c.targets.some((t) => t.cartLine.id === "gift-1"),
+    );
+    expect(giftCandidate).toEqual({
+      targets: [{ cartLine: { id: "gift-1", quantity: 1 } }],
+      value: { percentage: { value: "50" } },
+      message: "Product Quiz bundle",
+    });
   });
 
   it("does not discount paid lines when their total is already at or below the target", () => {
@@ -1834,5 +1846,56 @@ describe("quiz_bundle_price_match", () => {
       config({ enabled: false }),
     );
     expect(result).toEqual({ operations: [] });
+  });
+
+  // ── Abuse guard: removing a paid line must kill the whole group's discount ──
+
+  it("does not discount the free gifts if the shopper removes ALL paid lines from the cart", () => {
+    const result = runWithLines(
+      [
+        quizLine("gift-1", { isGift: true, amount: "39.99", expectedPaidCount: 4 }),
+        quizLine("gift-2", { isGift: true, amount: "11.99", expectedPaidCount: 4 }),
+      ],
+      config(),
+    );
+    // No paid lines present at all (0 < expectedPaidCount 4) -> gifts stay full price.
+    expect(result).toEqual({ operations: [] });
+  });
+
+  it("does not discount anything if the shopper removes just ONE of the bundle's paid lines", () => {
+    const result = runWithLines(
+      [
+        // Bundle originally had 4 paid lines; only 3 are still in the cart.
+        quizLine("paid-1", { amount: "44.99", expectedPaidCount: 4 }),
+        quizLine("paid-2", { amount: "36.99", expectedPaidCount: 4 }),
+        quizLine("paid-3", { amount: "39.99", expectedPaidCount: 4 }),
+        quizLine("gift-1", { isGift: true, amount: "39.99", expectedPaidCount: 4 }),
+      ],
+      config(),
+    );
+    // Without the gate, the 3 remaining paid lines (121.97 total) would get
+    // discounted all the way down to the full 99.00 bundle target instead of
+    // a prorated amount — and the gift would stay free with one fewer paid
+    // item than the bundle required. Neither should happen.
+    expect(result).toEqual({ operations: [] });
+  });
+
+  it("resumes discounting once the missing paid line is added back", () => {
+    const result = runWithLines(
+      [
+        quizLine("paid-1", { amount: "44.99", expectedPaidCount: 4 }),
+        quizLine("paid-2", { amount: "36.99", expectedPaidCount: 4 }),
+        quizLine("paid-3", { amount: "39.99", expectedPaidCount: 4 }),
+        quizLine("paid-4", { amount: "32.99", expectedPaidCount: 4 }),
+        quizLine("gift-1", { isGift: true, amount: "39.99", expectedPaidCount: 4 }),
+      ],
+      config(),
+    );
+
+    const list = candidates(result);
+    expect(list.some((c) => c.targets.some((t) => t.cartLine.id === "gift-1"))).toBe(true);
+    expect(
+      list.some((c) => c.targets.some((t) => t.cartLine.id === "paid-1") && c.value.fixedAmount),
+    ).toBe(true);
   });
 });

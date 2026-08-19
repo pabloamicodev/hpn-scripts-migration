@@ -52,6 +52,9 @@ query RunInput {
       quizFreeGiftAttribute: attribute(key: "_quiz_free_gift") {
         value
       }
+      quizExpectedPaidCountAttribute: attribute(key: "_quiz_expected_paid_count") {
+        value
+      }
       merchandise {
         __typename
         ... on ProductVariant {

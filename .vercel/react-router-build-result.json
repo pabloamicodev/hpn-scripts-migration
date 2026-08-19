@@ -24,7 +24,8 @@
       "routes/app.docs": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/auth.login": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/auth.$": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
-      "routes/webhooks": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0"
+      "routes/webhooks": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/debug.sessions": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0"
     },
     "routes": {
       "root": {
@@ -174,6 +175,15 @@
         "config": {
           "runtime": "nodejs"
         }
+      },
+      "routes/debug.sessions": {
+        "id": "routes/debug.sessions",
+        "parentId": "root",
+        "file": "app/routes/debug.sessions.tsx",
+        "path": "debug/sessions",
+        "config": {
+          "runtime": "nodejs"
+        }
       }
     }
   },
@@ -291,6 +301,12 @@
         "parentId": "root",
         "file": "routes/webhooks.tsx",
         "path": "webhooks"
+      },
+      "routes/debug.sessions": {
+        "id": "routes/debug.sessions",
+        "parentId": "root",
+        "file": "routes/debug.sessions.tsx",
+        "path": "debug/sessions"
       }
     },
     "routeDiscovery": {
@@ -373,6 +389,10 @@
           {
             "file": "routes/webhooks.tsx",
             "path": "webhooks"
+          },
+          {
+            "file": "routes/debug.sessions.tsx",
+            "path": "debug/sessions"
           }
         ]
       }

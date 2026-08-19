@@ -235,6 +235,24 @@ export const quizBundlePriceMatchRuleSchema = z.object({
 });
 
 // ---------------------------------------------------------------------------
+// Quiz bundle free shipping — evaluated by the delivery-options Function
+// target (see cartDeliveryOptionsDiscountsGenerateRun). Same _quiz_bundle_id
+// grouping and expectedPaidCount abuse guard as quiz_bundle_price_match
+// above, applied to shipping instead of price: free shipping for the whole
+// order whenever at least one quiz bundle group in the cart still has every
+// paid component it originally added. No product IDs configured — fully
+// generic, covers every quiz result/bundle automatically.
+// ---------------------------------------------------------------------------
+
+export const quizBundleFreeShippingRuleSchema = z.object({
+  id: ruleIdSchema,
+  type: z.literal("quiz_bundle_free_shipping"),
+  enabled: z.boolean(),
+  message: z.string().trim().min(1),
+  conditions: ruleConditionsSchema,
+});
+
+// ---------------------------------------------------------------------------
 // Loyalty tier
 // ---------------------------------------------------------------------------
 
@@ -271,6 +289,7 @@ export const hpnPromoRuleSchema = z.discriminatedUnion("type", [
   landingScopedProductDiscountRuleSchema,
   landingFreeShippingRuleSchema,
   quizBundlePriceMatchRuleSchema,
+  quizBundleFreeShippingRuleSchema,
 ]);
 
 export const hpnPromoConfigSchema = z.object({
@@ -303,6 +322,7 @@ export type LandingQuantityTierFixedPriceRule = z.infer<typeof landingQuantityTi
 export type LandingScopedProductDiscountRule = z.infer<typeof landingScopedProductDiscountRuleSchema>;
 export type LandingFreeShippingRule = z.infer<typeof landingFreeShippingRuleSchema>;
 export type QuizBundlePriceMatchRule = z.infer<typeof quizBundlePriceMatchRuleSchema>;
+export type QuizBundleFreeShippingRule = z.infer<typeof quizBundleFreeShippingRuleSchema>;
 
 export type HpnPromoRule =
   | Pa7CrossSellRule
@@ -317,7 +337,8 @@ export type HpnPromoRule =
   | LandingQuantityTierFixedPriceRule
   | LandingScopedProductDiscountRule
   | LandingFreeShippingRule
-  | QuizBundlePriceMatchRule;
+  | QuizBundlePriceMatchRule
+  | QuizBundleFreeShippingRule;
 
 export type HpnPromoRuleId = HpnPromoRule["id"];
 export type HpnPromoRuleType = HpnPromoRule["type"];

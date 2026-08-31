@@ -483,7 +483,14 @@ function applyLandingScopedProductDiscountRule(rule, byProduct, lines, candidate
  * on every line it adds (see product-quiz.js). No product IDs are
  * configured on this rule — it's fully generic and only ever touches lines
  * carrying that property, so it can't affect the unrelated Bundle Builder
- * feature (_bundle_item/_bundle_id) or ordinary cart activity.
+ * feature (_bundle_item/_bundle_id) or ordinary cart activity. Which
+ * products end up paid vs. gifted is entirely decided by the theme's
+ * bundle_components/freebies block settings, not by this rule — e.g. for
+ * gettrusupps the full-size Hydration Complete (with flavor picker) is now a
+ * paid bundle_component in the Body Transformation / Goddess Glow results,
+ * so the redundant free Hydration sample-pack freebie was dropped from
+ * those two results (Muscle Mami, which doesn't include Hydration as a
+ * paid component, still gets it free).
  *
  * Within each bundle-id group: lines flagged _quiz_free_gift get a flat
  * (default 100%) percentage discount. The remaining paid lines get ONE

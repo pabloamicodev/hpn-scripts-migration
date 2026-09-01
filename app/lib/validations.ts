@@ -189,6 +189,7 @@ export const landingScopedProductDiscountRuleSchema = z.object({
   // bundled with is removed.
   requiredAnchorVariantIds: z.array(variantGidSchema).optional(),
   requiredAnchorMinQuantity: z.number().int().positive().optional(),
+  requiresAnchorSubscription: z.boolean().optional(),
   discountPercentage: z.number().positive().max(100).default(100),
   message: z.string().trim().min(1),
   conditions: ruleConditionsSchema,

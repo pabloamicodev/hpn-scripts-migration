@@ -366,6 +366,7 @@ function getLandingAnchorQuantity(rule, lines) {
   return lines.reduce((sum, line) => {
     if (line.landingSourceAttribute?.value !== rule.requiredLineAttributeValue) return sum;
     if (anchorVariantIds && !anchorVariantIds.has(line.merchandise?.id)) return sum;
+    if (rule.requiresAnchorSubscription && !line.sellingPlanAllocation?.sellingPlan?.id) return sum;
     return sum + (line.quantity || 0);
   }, 0);
 }

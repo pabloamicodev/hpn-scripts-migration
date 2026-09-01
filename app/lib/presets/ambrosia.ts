@@ -43,6 +43,7 @@ export const ambrosiaPreset: HpnPromoConfig = {
       requiredLineAttributeValue: NEKTAR_GLP1_LANDING_SOURCE,
       requiredAnchorVariantIds: NEKTAR_GLP1_FLAVOR_VARIANT_IDS,
       requiredAnchorMinQuantity: 1,
+      requiresAnchorSubscription: true,
       discountPercentage: 100,
       message: "Nektar GLP-1 Starter Kit — Free Shaker Cup",
     },

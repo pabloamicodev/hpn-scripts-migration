@@ -1,14 +1,16 @@
 import { hpnSupplementsPreset } from "./hpn-supplements";
 import { gettruSuppsPreset } from "./gettrusupps";
 import { oneSolPreset } from "./one-sol";
+import { ambrosiaPreset } from "./ambrosia";
 import type { HpnPromoConfig } from "../validations";
 
 // Keyed by myshopify.com domain. The shop param from Shopify's session is
 // always the full domain (e.g. "gettrusupps.myshopify.com").
 const PRESETS: Record<string, HpnPromoConfig> = {
-  "hpn-supplements.myshopify.com": hpnSupplementsPreset,
-  "gettrusupps.myshopify.com":     gettruSuppsPreset,
-  "onesolsupps.myshopify.com":     oneSolPreset,
+  "hpn-supplements.myshopify.com":       hpnSupplementsPreset,
+  "gettrusupps.myshopify.com":           gettruSuppsPreset,
+  "onesolsupps.myshopify.com":           oneSolPreset,
+  "ambrosia-nutraceuticals.myshopify.com": ambrosiaPreset,
 };
 
 /**
@@ -20,9 +22,10 @@ export function getStorePreset(shop: string): HpnPromoConfig {
 }
 
 const DISCOUNT_TITLES: Record<string, string> = {
-  "hpn-supplements.myshopify.com": "HPN Scripts Migration Discounts",
-  "gettrusupps.myshopify.com":     "GetTru Scripts Migration Discounts",
-  "onesolsupps.myshopify.com":     "One Sol Scripts Migration Discounts",
+  "hpn-supplements.myshopify.com":         "HPN Scripts Migration Discounts",
+  "gettrusupps.myshopify.com":             "GetTru Scripts Migration Discounts",
+  "onesolsupps.myshopify.com":             "One Sol Scripts Migration Discounts",
+  "ambrosia-nutraceuticals.myshopify.com": "Ambrosia Scripts Migration Discounts",
 };
 
 /**

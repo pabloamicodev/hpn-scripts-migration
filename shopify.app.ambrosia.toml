@@ -1,0 +1,30 @@
+# ambrosia-nutraceuticals — dev config for ambrosia-nutraceuticals.myshopify.com
+# Usage: shopify app dev --config=ambrosia
+
+name = "Script Migration App"
+client_id = "6695e1912e586b1434b91b712119328e"
+handle = "script-migration-ambrosia"
+application_url = "https://hpn-scripts-migration.vercel.app"
+embedded = true
+
+[access_scopes]
+scopes = "write_discounts,read_products"
+
+[auth]
+redirect_urls = [
+  "https://hpn-scripts-migration.vercel.app/auth/callback",
+  "https://hpn-scripts-migration.vercel.app/api/auth/callback",
+  "https://localhost:8081/auth/callback",
+  "https://localhost:8081/api/auth/callback"
+]
+
+[webhooks]
+api_version = "2026-04"
+
+[[webhooks.subscriptions]]
+topics = [ "app/uninstalled" ]
+uri = "/webhooks"
+
+[[webhooks.subscriptions]]
+compliance_topics = [ "customers/data_request", "customers/redact", "shop/redact" ]
+uri = "/webhooks"

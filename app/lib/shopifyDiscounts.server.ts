@@ -605,10 +605,12 @@ export async function listAllDiscounts(
 // The app handle is set in shopify.app.toml — used to scope function lookup
 // to our own app only, preventing accidental matches against other installed apps.
 // hpn-supplements and gettrusupps share the same Partner app/handle; One Sol
-// is a separate Partner org with its own client_id and handle (shopify.app.one-sol.toml).
+// and Ambrosia are separate Partner orgs with their own client_id and handle
+// (shopify.app.one-sol.toml, shopify.app.ambrosia.toml).
 const DEFAULT_APP_HANDLE = "hpn-scripts-migration";
 const SHOP_APP_HANDLES: Record<string, string> = {
   "onesolsupps.myshopify.com": "script-migration-one-sol",
+  "ambrosia-nutraceuticals.myshopify.com": "script-migration-ambrosia",
 };
 
 export async function findHpnFunctionId(

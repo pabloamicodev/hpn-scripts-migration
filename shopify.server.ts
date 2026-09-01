@@ -91,6 +91,18 @@ const shopifyOneSol =
 
 const ONE_SOL_SHOP = "onesolsupps.myshopify.com";
 
+// Tertiary instance — AMBROSIA COLECTIVE HOLDINGS LLC (ambrosia-nutraceuticals)
+// Only created when Ambrosia credentials are provided.
+const shopifyAmbrosia =
+  process.env.SHOPIFY_API_KEY_AMBROSIA && process.env.SHOPIFY_API_SECRET_AMBROSIA
+    ? makeShopifyInstance(
+        process.env.SHOPIFY_API_KEY_AMBROSIA,
+        process.env.SHOPIFY_API_SECRET_AMBROSIA,
+      )
+    : null;
+
+const AMBROSIA_SHOP = "ambrosia-nutraceuticals.myshopify.com";
+
 // Detect which shop is making the request so we can pick the right credentials.
 function detectShop(request: Request): string | null {
   const url = new URL(request.url);
@@ -130,11 +142,16 @@ function pickInstance(request: Request) {
   const url = new URL(request.url);
   console.warn(
     `[shopify-proxy] shop=${shop} path=${url.pathname} ` +
-    `hasAuthHeader=${request.headers.has("authorization")} oneSolAvail=${!!shopifyOneSol}`,
+    `hasAuthHeader=${request.headers.has("authorization")} ` +
+    `oneSolAvail=${!!shopifyOneSol} ambrosiaAvail=${!!shopifyAmbrosia}`,
   );
   if (shopifyOneSol && shop === ONE_SOL_SHOP) {
     console.warn(`[shopify-proxy] → routing to ONE SOL instance`);
     return shopifyOneSol;
+  }
+  if (shopifyAmbrosia && shop === AMBROSIA_SHOP) {
+    console.warn(`[shopify-proxy] → routing to AMBROSIA instance`);
+    return shopifyAmbrosia;
   }
   return shopify;
 }

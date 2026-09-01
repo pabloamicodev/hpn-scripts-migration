@@ -1,13 +1,19 @@
 import { useLoaderData } from "react-router";
+import type { LoaderFunctionArgs } from "react-router";
+import { authenticate } from "~/shopify.server";
+import { getDiscountTitle } from "~/lib/hpnPromoDefaults";
 import { GraphqlConsole } from "~/components/GraphqlConsole";
 
-export function loader() {
-  // app.tsx parent already calls authenticate.admin — no need to repeat here
-  return { enabled: process.env.ENABLE_GRAPHQL_CONSOLE === "true" };
+export async function loader({ request }: LoaderFunctionArgs) {
+  const enabled = process.env.ENABLE_GRAPHQL_CONSOLE === "true";
+  if (!enabled) return { enabled, discountTitle: "" };
+
+  const { session } = await authenticate.admin(request);
+  return { enabled, discountTitle: getDiscountTitle(session.shop) };
 }
 
 export default function GraphQLPage() {
-  const { enabled } = useLoaderData<typeof loader>();
+  const { enabled, discountTitle } = useLoaderData<typeof loader>();
 
   if (!enabled) {
     return (
@@ -28,7 +34,7 @@ export default function GraphQLPage() {
           </p>
         </div>
       </header>
-      <GraphqlConsole />
+      <GraphqlConsole discountTitle={discountTitle} />
     </div>
   );
 }

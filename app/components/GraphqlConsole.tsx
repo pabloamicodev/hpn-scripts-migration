@@ -157,14 +157,17 @@ interface QueryPreset {
   variables: string;
 }
 
-const queryPresets: QueryPreset[] = [
-  {
-    id: "hpn-discount",
-    name: "HPN discount",
-    description: "Find the migration discount and read its metafield config.",
-    variables: "{}",
-    query: `query HpnMigrationDiscount {
-  discountNodes(first: 10, query: "title:'HPN Scripts Migration Discounts'") {
+function buildQueryPresets(discountTitle: string): QueryPreset[] {
+  const escapedTitle = discountTitle.replace(/'/g, "\\'");
+
+  return [
+    {
+      id: "migration-discount",
+      name: "Migration discount",
+      description: "Find this store's migration discount and read its metafield config.",
+      variables: "{}",
+      query: `query MigrationDiscount {
+  discountNodes(first: 10, query: "title:'${escapedTitle}'") {
     nodes {
       id
       metafield(namespace: "hpn_scripts", key: "function_configuration") {
@@ -186,13 +189,13 @@ const queryPresets: QueryPreset[] = [
     }
   }
 }`,
-  },
-  {
-    id: "active-discounts",
-    name: "Active discounts",
-    description: "List active automatic discounts currently visible to Admin API.",
-    variables: "{}",
-    query: `query ActiveAutomaticDiscounts {
+    },
+    {
+      id: "active-discounts",
+      name: "Active discounts",
+      description: "List active automatic discounts currently visible to Admin API.",
+      variables: "{}",
+      query: `query ActiveAutomaticDiscounts {
   discountNodes(first: 25, query: "status:active") {
     nodes {
       id
@@ -227,13 +230,13 @@ const queryPresets: QueryPreset[] = [
     }
   }
 }`,
-  },
-  {
-    id: "shopify-functions",
-    name: "Shopify functions",
-    description: "Confirm the product discount function installed in this store.",
-    variables: "{}",
-    query: `query ShopifyFunctions {
+    },
+    {
+      id: "shopify-functions",
+      name: "Shopify functions",
+      description: "Confirm the product discount function installed in this store.",
+      variables: "{}",
+      query: `query ShopifyFunctions {
   shopifyFunctions(first: 25) {
     nodes {
       id
@@ -245,12 +248,17 @@ const queryPresets: QueryPreset[] = [
     }
   }
 }`,
-  },
-];
+    },
+  ];
+}
 
 // ─── Console ──────────────────────────────────────────────────────────────────
 
-export function GraphqlConsole() {
+export function GraphqlConsole({ discountTitle }: { discountTitle: string }) {
+  const queryPresets = useMemo(
+    () => buildQueryPresets(discountTitle),
+    [discountTitle],
+  );
   const [query, setQuery] = useState(queryPresets[0].query);
   const [variables, setVariables] = useState(queryPresets[0].variables);
   const [result, setResult] = useState<unknown>(null);

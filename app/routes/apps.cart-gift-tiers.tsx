@@ -82,7 +82,10 @@ export async function loader({ request }: LoaderFunctionArgs) {
             .filter((v): v is NonNullable<typeof v> => v !== null && v.availableForSale !== false)
             .map((v) => ({
               id: v.id,
-              title: v.product.title === v.title ? v.title : `${v.product.title} — ${v.title}`,
+              title:
+                v.title === "Default Title" || v.product.title === v.title
+                  ? v.product.title
+                  : `${v.product.title} — ${v.title}`,
               image: v.image?.url ?? v.product.featuredImage?.url ?? null,
               price: v.price,
             })),

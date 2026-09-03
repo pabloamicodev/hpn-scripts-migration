@@ -26,6 +26,7 @@ const typeLabels: Record<HpnPromoRule["type"], string> = {
   landing_free_shipping: "Landing Page Free Shipping",
   quiz_bundle_price_match: "Product Quiz Bundle Price Match + Gifts",
   quiz_bundle_free_shipping: "Product Quiz Bundle Free Shipping",
+  cart_subtotal_free_gift: "Cart Subtotal Free Gift",
 };
 
 const pageSizeOptions = [5, 10, 25];
@@ -438,6 +439,8 @@ function getRuleIdentifiers(rule: HpnPromoRule): string {
     case "quiz_bundle_price_match":
     case "quiz_bundle_free_shipping":
       return "";
+    case "cart_subtotal_free_gift":
+      return rule.tiers.flatMap((tier) => tier.giftVariantIds).map(getGidTail).join(" ");
   }
 }
 
@@ -494,6 +497,12 @@ function getTriggerSummary(rule: HpnPromoRule): string {
       return "Line property: _quiz_bundle_id (any value)";
     case "quiz_bundle_free_shipping":
       return "Line property: _quiz_bundle_id (any value)";
+    case "cart_subtotal_free_gift": {
+      const lowest = rule.tiers.reduce((min, t) =>
+        t.minimumSubtotal < min.minimumSubtotal ? t : min,
+      );
+      return `Cart subtotal >= $${lowest.minimumSubtotal} (${rule.tiers.length} tier(s))`;
+    }
   }
 }
 
@@ -525,6 +534,8 @@ function getTargetsCount(rule: HpnPromoRule): number {
     case "quiz_bundle_price_match":
     case "quiz_bundle_free_shipping":
       return 0;
+    case "cart_subtotal_free_gift":
+      return rule.tiers.reduce((sum, t) => sum + t.giftVariantIds.length, 0);
   }
 }
 
@@ -562,5 +573,7 @@ function getDiscountSummary(rule: HpnPromoRule): string {
       return `Price match + ${rule.discountPercentageOnGifts}% off gifts`;
     case "quiz_bundle_free_shipping":
       return "Free shipping";
+    case "cart_subtotal_free_gift":
+      return `${rule.tiers.length} tier(s), ${rule.stackingMode === "cumulative" ? "cumulative" : "highest tier only"}`;
   }
 }

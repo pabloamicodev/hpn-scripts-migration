@@ -43,6 +43,9 @@ query RunInput {
       landingSourceAttribute: attribute(key: "__landing_source") {
         value
       }
+      cartGiftTierAttribute: attribute(key: "__cart_gift_tier") {
+        value
+      }
       quizBundleIdAttribute: attribute(key: "_quiz_bundle_id") {
         value
       }

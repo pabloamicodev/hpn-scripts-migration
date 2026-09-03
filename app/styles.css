@@ -27,6 +27,35 @@
   --shadow-raised: 0 1px 0 rgba(0, 0, 0, 0.05), 0 8px 24px rgba(0, 0, 0, 0.04);
   --radius: 8px;
   --radius-small: 6px;
+
+  /* Type scale — one consistent step system instead of one-off sizes. */
+  --font-size-xs: 11px;
+  --font-size-sm: 12px;
+  --font-size-base: 13px;
+  --font-size-md: 14px;
+  --font-size-lg: 16px;
+  --font-size-xl: 20px;
+  --font-size-2xl: 24px;
+  --font-size-3xl: 28px;
+
+  /* Weight scale — regular body copy, medium labels, semibold headings,
+     bold hero numbers. Labels and section headings must never share a
+     weight — that's what makes a form read as one flat block. */
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  /* Spacing scale */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 32px;
+  --space-8: 40px;
+
   color-scheme: light;
   font-family: -apple-system, BlinkMacSystemFont, "San Francisco", "Segoe UI",
     Roboto, "Helvetica Neue", sans-serif;
@@ -79,12 +108,12 @@ pre {
 .app-main {
   inline-size: min(100%, 1400px);
   margin-inline: auto;
-  padding: 28px 32px;
+  padding: 32px 32px 40px;
 }
 
 .app-page {
   display: grid;
-  gap: 16px;
+  gap: var(--space-6);
 }
 
 .app-page--narrow {
@@ -103,30 +132,34 @@ pre {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  gap: var(--space-4);
   min-block-size: 48px;
+  padding-block-end: var(--space-2);
+  border-block-end: 1px solid var(--border);
 }
 
 .page-title {
   margin: 0;
   color: var(--text);
-  font-size: 20px;
-  font-weight: 650;
-  letter-spacing: 0;
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: -0.01em;
   line-height: 1.25;
 }
 
 .page-subtitle {
-  margin: 4px 0 0;
+  margin: 6px 0 0;
   color: var(--text-subdued);
-  font-size: 13px;
+  font-size: var(--font-size-base);
+  line-height: 1.5;
 }
 
 .page-kicker {
-  margin: 0 0 4px;
+  margin: 0 0 6px;
   color: var(--text-subdued);
-  font-size: 12px;
-  font-weight: 650;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: 0.04em;
   text-transform: uppercase;
 }
 
@@ -150,21 +183,23 @@ pre {
 }
 
 .card__body {
-  padding: 16px;
+  padding: var(--space-5);
 }
 
 .card__header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding: 16px;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+  background: var(--surface-subdued);
   border-block-end: 1px solid var(--border);
 }
 
 .card__header--flush {
   padding: 0;
   border: 0;
+  background: none;
 }
 
 .card__header > div,
@@ -175,18 +210,20 @@ pre {
 .card__title {
   margin: 0;
   color: var(--text);
-  font-size: 14px;
-  font-weight: 650;
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: -0.005em;
 }
 
 .card__title--spaced {
-  margin-block-end: 8px;
+  margin-block-end: var(--space-2);
 }
 
 .card__subtitle {
   margin: 4px 0 0;
   color: var(--text-subdued);
-  font-size: 12px;
+  font-size: var(--font-size-sm);
+  line-height: 1.5;
 }
 
 .metric-grid {
@@ -217,15 +254,18 @@ pre {
 .metric-label {
   margin: 0;
   color: var(--text-subdued);
-  font-size: 12px;
-  font-weight: 650;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
 }
 
 .metric-value {
   margin: 0;
   color: var(--text);
-  font-size: 28px;
-  font-weight: 700;
+  font-size: var(--font-size-3xl);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: -0.01em;
   line-height: 1;
 }
 
@@ -237,20 +277,20 @@ pre {
 .section-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: 16px;
+  gap: var(--space-6);
 }
 
 .split-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
-  gap: 16px;
+  gap: var(--space-6);
   align-items: start;
 }
 
 .settings-layout {
   display: grid;
   grid-template-columns: repeat(12, minmax(0, 1fr));
-  gap: 16px;
+  gap: var(--space-6);
   align-items: start;
 }
 
@@ -327,15 +367,17 @@ pre {
 .summary-tile__label {
   margin: 0;
   color: var(--text-subdued);
-  font-size: 12px;
-  font-weight: 650;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
 }
 
 .summary-tile__value {
   margin: 0;
   color: var(--text);
-  font-size: 18px;
-  font-weight: 700;
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
 }
 
 .summary-tile__value--compact {
@@ -929,15 +971,15 @@ textarea:focus-visible {
 .form-card,
 .promo-rule-form {
   display: grid;
-  gap: 16px;
+  gap: var(--space-6);
   max-inline-size: 840px;
 }
 
 .form-section {
   container-type: inline-size;
   display: grid;
-  gap: 14px;
-  padding: 16px;
+  gap: var(--space-5);
+  padding: var(--space-5) var(--space-5) var(--space-6);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--surface);
@@ -949,29 +991,34 @@ textarea:focus-visible {
 
 .form-section__title {
   margin: 0;
-  font-size: 14px;
-  font-weight: 650;
+  padding-block-end: var(--space-3);
+  border-block-end: 1px solid var(--border);
+  color: var(--text);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: -0.005em;
 }
 
 .form-section__title--spaced {
-  margin-block-end: 10px;
+  margin-block-end: var(--space-2);
 }
 
 .form-group {
   display: grid;
-  gap: 6px;
+  gap: var(--space-2);
 }
 
 .form-label {
   color: var(--text);
-  font-size: 13px;
-  font-weight: 650;
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-medium);
 }
 
 .field-hint {
   margin: -2px 0 2px;
   color: var(--text-subdued);
-  font-size: 12px;
+  font-size: var(--font-size-sm);
+  line-height: 1.5;
 }
 
 .field,

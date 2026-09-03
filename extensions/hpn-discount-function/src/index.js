@@ -80,6 +80,8 @@ export function cartLinesDiscountsGenerateRun(input) {
       applyLandingScopedProductDiscountRule(rule, byProduct, lines, candidatesByLine);
     } else if (rule.type === "quiz_bundle_price_match") {
       applyQuizBundlePriceMatchRule(rule, lines, candidatesByLine);
+    } else if (rule.type === "cart_subtotal_free_gift") {
+      applyCartSubtotalFreeGiftRule(rule, cart, byVariant, lines, candidatesByLine);
     }
   }
 
@@ -569,6 +571,71 @@ function applyQuizBundlePriceMatchRule(rule, lines, candidates) {
       },
       message: rule.message ?? "",
     });
+  }
+}
+
+/**
+ * Cart Subtotal Free Gift: the storefront (a theme app extension, outside
+ * this Function) is responsible for adding the gift variant to the cart
+ * once a tier's minimumSubtotal is crossed, tagging that line's
+ * __cart_gift_tier property with the tier's id — this rule only ever
+ * discounts a line already carrying that tag, it never creates one.
+ *
+ * The qualifying subtotal excludes any line already tagged as a gift by
+ * this same mechanism, so adding the free gift can never nudge the
+ * customer into qualifying for a bigger tier than what they actually paid
+ * for. If the subtotal later drops back below a tier's threshold, that
+ * tier simply stops matching here and the line's price is restored
+ * automatically on the next recalculation — same as every other
+ * anchor-gated rule in this file.
+ */
+function applyCartSubtotalFreeGiftRule(rule, cart, byVariant, lines, candidates) {
+  if (!Array.isArray(rule.tiers) || rule.tiers.length === 0) return;
+
+  const rawSubtotal = parseFloat(cart.cost?.subtotalAmount?.amount ?? "0");
+  if (isNaN(rawSubtotal)) return;
+
+  const giftLineCost = lines.reduce((sum, line) => {
+    if (!line.cartGiftTierAttribute?.value) return sum;
+    const amount = parseFloat(line.cost?.totalAmount?.amount ?? "0");
+    return sum + (isNaN(amount) ? 0 : amount);
+  }, 0);
+  const qualifyingSubtotal = rawSubtotal - giftLineCost;
+
+  const qualifyingTiers = rule.tiers.filter(
+    (tier) =>
+      tier &&
+      typeof tier.minimumSubtotal === "number" &&
+      Array.isArray(tier.giftVariantIds) &&
+      tier.giftVariantIds.length > 0 &&
+      qualifyingSubtotal >= tier.minimumSubtotal,
+  );
+  if (qualifyingTiers.length === 0) return;
+
+  const activeTiers =
+    rule.stackingMode === "cumulative"
+      ? qualifyingTiers
+      : [
+          qualifyingTiers.reduce((best, tier) =>
+            tier.minimumSubtotal > best.minimumSubtotal ? tier : best,
+          ),
+        ];
+
+  for (const tier of activeTiers) {
+    const maxFreeUnits = typeof tier.maxFreeUnits === "number" ? tier.maxFreeUnits : 1;
+    const pct = typeof tier.discountPercentage === "number" ? tier.discountPercentage : 100;
+    let remainingFreeUnits = maxFreeUnits;
+
+    for (const variantId of tier.giftVariantIds) {
+      if (remainingFreeUnits <= 0) break;
+      for (const line of byVariant.get(variantId) ?? []) {
+        if (remainingFreeUnits <= 0) break;
+        if (line.cartGiftTierAttribute?.value !== tier.id) continue;
+        const qty = Math.min(remainingFreeUnits, line.quantity);
+        addCandidate(candidates, line, qty, pct, rule.message);
+        remainingFreeUnits -= qty;
+      }
+    }
   }
 }
 

@@ -273,6 +273,36 @@ export const loyaltyTierRuleSchema = z.object({
 });
 
 // ---------------------------------------------------------------------------
+// Cart subtotal free gift — spend $X in cart, get a free gift product.
+// Storefront (theme app extension) adds the gift line itself once a tier's
+// threshold is crossed, tagging it with the hardcoded __cart_gift_tier
+// property set to that tier's id — the Function only ever discounts a line
+// already carrying that tag, it never creates one. Multiple tiers can be
+// configured; stackingMode decides whether only the highest qualifying tier
+// stays active or every qualifying tier's gift stays active at once.
+// ---------------------------------------------------------------------------
+
+export const cartSubtotalGiftTierSchema = z.object({
+  id: ruleIdSchema,
+  minimumSubtotal: z.number().positive(),
+  giftVariantIds: z.array(variantGidSchema).min(1),
+  // Capped at 1 unit by default so bumping quantity in the cart doesn't
+  // turn extra units free too — same cap pattern as the other gift rules.
+  maxFreeUnits: z.number().int().positive().default(1),
+  discountPercentage: z.number().positive().max(100).default(100),
+});
+
+export const cartSubtotalFreeGiftRuleSchema = z.object({
+  id: ruleIdSchema,
+  type: z.literal("cart_subtotal_free_gift"),
+  enabled: z.boolean(),
+  tiers: z.array(cartSubtotalGiftTierSchema).min(1),
+  stackingMode: z.enum(["highest_tier_only", "cumulative"]).default("highest_tier_only"),
+  message: z.string().trim().min(1),
+  conditions: ruleConditionsSchema,
+});
+
+// ---------------------------------------------------------------------------
 // Union
 // ---------------------------------------------------------------------------
 
@@ -291,6 +321,7 @@ export const hpnPromoRuleSchema = z.discriminatedUnion("type", [
   landingFreeShippingRuleSchema,
   quizBundlePriceMatchRuleSchema,
   quizBundleFreeShippingRuleSchema,
+  cartSubtotalFreeGiftRuleSchema,
 ]);
 
 export const hpnPromoConfigSchema = z.object({
@@ -324,6 +355,8 @@ export type LandingScopedProductDiscountRule = z.infer<typeof landingScopedProdu
 export type LandingFreeShippingRule = z.infer<typeof landingFreeShippingRuleSchema>;
 export type QuizBundlePriceMatchRule = z.infer<typeof quizBundlePriceMatchRuleSchema>;
 export type QuizBundleFreeShippingRule = z.infer<typeof quizBundleFreeShippingRuleSchema>;
+export type CartSubtotalGiftTier = z.infer<typeof cartSubtotalGiftTierSchema>;
+export type CartSubtotalFreeGiftRule = z.infer<typeof cartSubtotalFreeGiftRuleSchema>;
 
 export type HpnPromoRule =
   | Pa7CrossSellRule
@@ -339,7 +372,8 @@ export type HpnPromoRule =
   | LandingScopedProductDiscountRule
   | LandingFreeShippingRule
   | QuizBundlePriceMatchRule
-  | QuizBundleFreeShippingRule;
+  | QuizBundleFreeShippingRule
+  | CartSubtotalFreeGiftRule;
 
 export type HpnPromoRuleId = HpnPromoRule["id"];
 export type HpnPromoRuleType = HpnPromoRule["type"];

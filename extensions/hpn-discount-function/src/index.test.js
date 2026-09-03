@@ -1899,3 +1899,208 @@ describe("quiz_bundle_price_match", () => {
     ).toBe(true);
   });
 });
+
+// ---------------------------------------------------------------------------
+// cart_subtotal_free_gift — storefront adds the gift line and tags it
+// __cart_gift_tier; this rule only ever discounts a line already carrying
+// that tag, keyed to a specific tier id.
+// ---------------------------------------------------------------------------
+
+describe("cart_subtotal_free_gift", () => {
+  const SHAKER_VARIANT = "gid://shopify/ProductVariant/70000000000001";
+  const FROTHER_VARIANT = "gid://shopify/ProductVariant/70000000000002";
+  const BOTTLE_VARIANT = "gid://shopify/ProductVariant/70000000000003";
+
+  function config(overrides = {}) {
+    return {
+      version: 1,
+      combinesWith: { orderDiscounts: true, productDiscounts: true, shippingDiscounts: true },
+      rules: [
+        {
+          id: "spend-tiers",
+          type: "cart_subtotal_free_gift",
+          enabled: true,
+          stackingMode: "highest_tier_only",
+          tiers: [
+            {
+              id: "tier-50",
+              minimumSubtotal: 50,
+              giftVariantIds: [SHAKER_VARIANT],
+              maxFreeUnits: 1,
+              discountPercentage: 100,
+            },
+            {
+              id: "tier-100",
+              minimumSubtotal: 100,
+              giftVariantIds: [FROTHER_VARIANT, BOTTLE_VARIANT],
+              maxFreeUnits: 1,
+              discountPercentage: 100,
+            },
+          ],
+          message: "Free gift unlocked",
+          ...overrides,
+        },
+      ],
+    };
+  }
+
+  function paidLine(id, amount, quantity = 1) {
+    return {
+      id,
+      quantity,
+      cost: { totalAmount: { amount: String(amount) } },
+      merchandise: {
+        __typename: "ProductVariant",
+        id: VARIANT_IDS.unrelated,
+        product: { id: PRODUCT_IDS.unrelated },
+      },
+    };
+  }
+
+  function giftLine(id, variantId, tierId, { quantity = 1, amount = "0.00" } = {}) {
+    return {
+      id,
+      quantity,
+      cost: { totalAmount: { amount: String(amount) } },
+      merchandise: {
+        __typename: "ProductVariant",
+        id: variantId,
+        product: { id: PRODUCT_IDS.unrelated },
+      },
+      cartGiftTierAttribute: tierId ? { value: tierId } : null,
+    };
+  }
+
+  function runWithCart(lines, cfg, subtotal) {
+    return cartLinesDiscountsGenerateRun({
+      cart: {
+        lines,
+        cost: { subtotalAmount: { amount: String(subtotal), currencyCode: "USD" } },
+      },
+      discount: {
+        discountClasses: ["PRODUCT"],
+        metafield: { value: JSON.stringify(cfg) },
+      },
+    });
+  }
+
+  it("does not discount the gift line before any tier threshold is reached", () => {
+    const result = runWithCart(
+      [paidLine("paid-1", "30.00"), giftLine("gift", SHAKER_VARIANT, "tier-50")],
+      config(),
+      30,
+    );
+
+    expect(result).toEqual({ operations: [] });
+  });
+
+  it("discounts the tagged gift line once its tier's threshold is reached", () => {
+    const result = runWithCart(
+      [paidLine("paid-1", "50.00"), giftLine("gift", SHAKER_VARIANT, "tier-50")],
+      config(),
+      50,
+    );
+
+    expect(candidates(result)).toEqual([
+      {
+        targets: [{ cartLine: { id: "gift", quantity: 1 } }],
+        value: { percentage: { value: "100.0" } },
+        message: "Free gift unlocked",
+      },
+    ]);
+  });
+
+  it("does not discount a gift line tagged for a tier that hasn't been reached", () => {
+    // Subtotal only qualifies for tier-50, but the line is tagged tier-100.
+    const result = runWithCart(
+      [paidLine("paid-1", "60.00"), giftLine("gift", FROTHER_VARIANT, "tier-100")],
+      config(),
+      60,
+    );
+
+    expect(result).toEqual({ operations: [] });
+  });
+
+  it("does not discount the same variant added from its own PDP (untagged)", () => {
+    const result = runWithCart(
+      [paidLine("paid-1", "50.00"), giftLine("gift", SHAKER_VARIANT, null)],
+      config(),
+      50,
+    );
+
+    expect(result).toEqual({ operations: [] });
+  });
+
+  it("caps the free discount at maxFreeUnits even when quantity is bumped up", () => {
+    const result = runWithCart(
+      [paidLine("paid-1", "50.00"), giftLine("gift", SHAKER_VARIANT, "tier-50", { quantity: 5 })],
+      config(),
+      50,
+    );
+
+    expect(candidates(result)).toEqual([
+      {
+        targets: [{ cartLine: { id: "gift", quantity: 1 } }],
+        value: { percentage: { value: "100.0" } },
+        message: "Free gift unlocked",
+      },
+    ]);
+  });
+
+  it("excludes already-tagged gift lines from the qualifying subtotal (no feedback loop)", () => {
+    // Paid lines only total 45 — the gift line's own cost must not count
+    // toward reaching the 50 threshold, even though it's in the cart.
+    const result = runWithCart(
+      [paidLine("paid-1", "45.00"), giftLine("gift", SHAKER_VARIANT, "tier-50", { amount: "12.00" })],
+      config(),
+      57, // Shopify's cart.cost.subtotalAmount includes every line, gift included.
+    );
+
+    expect(result).toEqual({ operations: [] });
+  });
+
+  describe("stackingMode: highest_tier_only", () => {
+    it("only discounts the higher tier's gift once both tiers qualify", () => {
+      const result = runWithCart(
+        [
+          paidLine("paid-1", "100.00"),
+          giftLine("shaker", SHAKER_VARIANT, "tier-50"),
+          giftLine("frother", FROTHER_VARIANT, "tier-100"),
+        ],
+        config(),
+        100,
+      );
+
+      const list = candidates(result);
+      expect(list).toHaveLength(1);
+      expect(list[0].targets[0].cartLine.id).toBe("frother");
+    });
+  });
+
+  describe("stackingMode: cumulative", () => {
+    it("discounts every qualifying tier's gift at once", () => {
+      const result = runWithCart(
+        [
+          paidLine("paid-1", "100.00"),
+          giftLine("shaker", SHAKER_VARIANT, "tier-50"),
+          giftLine("frother", FROTHER_VARIANT, "tier-100"),
+        ],
+        config({ stackingMode: "cumulative" }),
+        100,
+      );
+
+      const list = candidates(result);
+      expect(list).toHaveLength(2);
+    });
+  });
+
+  it("stops discounting once the subtotal drops back below the tier threshold", () => {
+    const result = runWithCart(
+      [paidLine("paid-1", "20.00"), giftLine("gift", SHAKER_VARIANT, "tier-50")],
+      config(),
+      20,
+    );
+
+    expect(result).toEqual({ operations: [] });
+  });
+});

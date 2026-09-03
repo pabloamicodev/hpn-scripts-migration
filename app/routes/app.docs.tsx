@@ -111,6 +111,21 @@ const RULES: RuleData[] = [
     example:
       "On their 7th order a customer automatically gets 15% off (your '5+ orders' tier). A first-time visitor sees nothing. A 12-order customer gets your top tier: 25% off.",
   },
+  {
+    id: "cart-gift-tiers",
+    label: "Spend & get a gift",
+    icon: <ShoppingCart size={15} aria-hidden="true" />,
+    name: "Spend $X, unlock a free gift",
+    typeName: "cart_subtotal_free_gift",
+    description:
+      "Once the cart subtotal crosses a tier's threshold, the free gift for that tier becomes $0 — but only on the gift line a storefront widget (Theme App Extension) already added and tagged for that tier; this rule never adds a line itself. If a tier offers more than one gift variant, the customer picks one from a modal on the storefront. Define as many tiers as you want, and choose whether only the highest qualifying tier's gift applies or every qualifying tier stacks.",
+    config: [
+      "Tiers — each with a minimum cart subtotal, one or more gift variants to choose from, max free units, and a discount %",
+      "Stacking mode — highest tier only, or every qualifying tier at once",
+    ],
+    example:
+      "Tier 1 at $50 offers a free shaker (one variant, added automatically). Tier 2 at $100 offers a choice of two flavors of a sample pack — the customer sees a picker. Remove items and drop back under $100: the tier 2 gift's discount stops and the line is removed from the cart.",
+  },
 ];
 
 // ---------------------------------------------------------------------------

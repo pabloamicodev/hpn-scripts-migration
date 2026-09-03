@@ -613,6 +613,72 @@ export function evaluateQuizBundlePriceMatch(
   return actions;
 }
 
+/**
+ * Cart Subtotal Free Gift: mirrors applyCartSubtotalFreeGiftRule in the real
+ * Function (extensions/hpn-discount-function/src/index.js) for preview
+ * purposes. The qualifying subtotal excludes lines already tagged
+ * __cart_gift_tier so a gift can never nudge the cart into a bigger tier
+ * than what was actually spent.
+ */
+export function evaluateCartSubtotalFreeGift(
+  rule: Extract<HpnPromoRule, { type: "cart_subtotal_free_gift" }>,
+  cartIndex: CartIndex,
+  lines: CartLine[],
+  context: CartEvalContext,
+): DiscountAction[] {
+  const actions: DiscountAction[] = [];
+
+  const rawSubtotal = context.subtotalAmount ?? 0;
+  const giftLineCost = lines.reduce((sum, line) => {
+    if (line.merchandise.__typename !== "ProductVariant") return sum;
+    if (!getLineAttribute(line, "__cart_gift_tier")) return sum;
+    const amount = Number(line.cost?.totalAmount?.amount ?? "0");
+    return sum + (Number.isNaN(amount) ? 0 : amount);
+  }, 0);
+  const qualifyingSubtotal = rawSubtotal - giftLineCost;
+
+  const qualifyingTiers = rule.tiers.filter(
+    (tier) => qualifyingSubtotal >= tier.minimumSubtotal,
+  );
+  if (qualifyingTiers.length === 0) return actions;
+
+  const activeTiers =
+    rule.stackingMode === "cumulative"
+      ? qualifyingTiers
+      : [
+          qualifyingTiers.reduce((best, tier) =>
+            tier.minimumSubtotal > best.minimumSubtotal ? tier : best,
+          ),
+        ];
+
+  for (const tier of activeTiers) {
+    let remainingFreeUnits = tier.maxFreeUnits;
+
+    for (const variantId of tier.giftVariantIds) {
+      if (remainingFreeUnits <= 0) break;
+      const variantLines = cartIndex.linesByVariantId.get(variantId);
+      if (!variantLines) continue;
+
+      for (const line of variantLines) {
+        if (remainingFreeUnits <= 0) break;
+        if (getLineAttribute(line, "__cart_gift_tier") !== tier.id) continue;
+        const qty = Math.min(remainingFreeUnits, line.quantity);
+        actions.push({
+          lineId: line.id,
+          variantId: line.merchandise.id,
+          productId: line.merchandise.product.id,
+          discountedQuantity: qty,
+          percentageOff: tier.discountPercentage,
+          message: rule.message,
+        });
+        remainingFreeUnits -= qty;
+      }
+    }
+  }
+
+  return actions;
+}
+
 // ---------------------------------------------------------------------------
 // Exhaustiveness guard — TypeScript will error here if a new rule type is
 // added to HpnPromoRule but not handled in evaluateConfig's switch.
@@ -684,6 +750,9 @@ export function evaluateConfig(
         break;
       case "quiz_bundle_free_shipping":
         ruleActions = evaluateQuizBundleFreeShipping(rule);
+        break;
+      case "cart_subtotal_free_gift":
+        ruleActions = evaluateCartSubtotalFreeGift(rule, cartIndex, lines, context);
         break;
       default:
         assertNever(rule);

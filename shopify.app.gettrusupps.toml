@@ -24,6 +24,11 @@ redirect_urls = [
   "https://localhost:8081/api/auth/callback"
 ]
 
+[app_proxy]
+url = "https://hpn-scripts-migration.vercel.app/apps/cart-gift-tiers"
+prefix = "apps"
+subpath = "cart-gift-tiers"
+
 [webhooks]
 api_version = "2026-04"
 

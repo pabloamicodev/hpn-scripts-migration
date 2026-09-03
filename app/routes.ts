@@ -18,5 +18,6 @@ export default [
   route("auth/login", "routes/auth.login.tsx"),
   route("auth/*", "routes/auth.$.tsx"),
   route("webhooks", "routes/webhooks.tsx"),
+  route("apps/cart-gift-tiers", "routes/apps.cart-gift-tiers.tsx"),
   route("debug/sessions", "routes/debug.sessions.tsx"),
 ] satisfies RouteConfig;

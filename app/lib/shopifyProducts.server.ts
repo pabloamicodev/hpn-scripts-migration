@@ -118,6 +118,7 @@ const GET_VARIANT_BY_ID_QUERY = `
       sku
       price
       inventoryQuantity
+      availableForSale
       selectedOptions {
         name
         value
@@ -146,6 +147,7 @@ export interface ProductVariantNode {
   sku?: string | null;
   price: string;
   inventoryQuantity?: number | null;
+  availableForSale?: boolean;
   selectedOptions?: Array<{
     name: string;
     value: string;

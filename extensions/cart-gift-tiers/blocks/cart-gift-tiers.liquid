@@ -1,0 +1,56 @@
+{% comment %}
+  Cart Gift Tiers — app embed (Theme Editor → App embeds).
+  Renders no visible markup of its own; the JS asset below drives
+  everything (subtotal watching, silent single-variant gifts, the
+  multi-variant picker modal). Works on any Online Store 2.0 theme without
+  theme code changes — that's the point of shipping this as an app embed
+  instead of a snippet someone has to paste in.
+{% endcomment %}
+<div
+  id="cart-gift-tiers-root"
+  data-proxy-url="/apps/cart-gift-tiers"
+  data-cart-url="{{ routes.cart_url }}"
+  data-shop-currency="{{ shop.currency }}"
+  hidden
+></div>
+
+<template id="cart-gift-tiers-modal-template">
+  <div class="cart-gift-tiers-overlay" data-cart-gift-tiers-overlay>
+    <div
+      class="cart-gift-tiers-dialog"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="cart-gift-tiers-modal-title"
+    >
+      <button
+        type="button"
+        class="cart-gift-tiers-close"
+        data-cart-gift-tiers-close
+        aria-label="Close"
+      >&times;</button>
+      <h2 id="cart-gift-tiers-modal-title" class="cart-gift-tiers-title">
+        Choose your free gift
+      </h2>
+      <div class="cart-gift-tiers-options" data-cart-gift-tiers-options></div>
+    </div>
+  </div>
+</template>
+
+<template id="cart-gift-tiers-option-template">
+  <button type="button" class="cart-gift-tiers-option">
+    <img class="cart-gift-tiers-option__image" alt="" width="44" height="44" loading="lazy">
+    <span class="cart-gift-tiers-option__title"></span>
+    <span class="cart-gift-tiers-option__price"></span>
+  </button>
+</template>
+
+{{ 'cart-gift-tiers.css' | asset_url | stylesheet_tag }}
+<script src="{{ 'cart-gift-tiers.js' | asset_url }}" defer="defer"></script>
+
+{% schema %}
+{
+  "name": "Cart Gift Tiers",
+  "target": "body",
+  "settings": []
+}
+{% endschema %}

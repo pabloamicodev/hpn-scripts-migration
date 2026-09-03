@@ -156,11 +156,36 @@ function pickInstance(request: Request) {
   return shopify;
 }
 
+// authenticate.public is a namespace object ({ appProxy, checkout,
+// customerAccount }), not a function — the generic trap below can only
+// proxy top-level *function* properties like authenticate.admin. Route it
+// through its own nested proxy so authenticate.public.appProxy(request)
+// (needed by app-proxy routes) still resolves to the right shop instance.
+function makePublicDelegate() {
+  return new Proxy(shopify.authenticate.public, {
+    get(_, publicProp) {
+      return (...args: unknown[]) => {
+        const request = args[0] as Request;
+        const instance = pickInstance(request);
+        const publicAuth = instance.authenticate.public as unknown as Record<string, unknown>;
+        const method = publicAuth[publicProp as string];
+        if (typeof method === "function") {
+          return (method as (...a: unknown[]) => unknown).apply(instance.authenticate.public, args);
+        }
+        return (shopify.authenticate.public as unknown as Record<string, unknown>)[publicProp as string];
+      };
+    },
+  });
+}
+
 // Proxy authenticate — routes to the correct shopify instance
 export const authenticate: typeof shopify.authenticate = new Proxy(
   shopify.authenticate,
   {
     get(_, prop) {
+      if (prop === "public") {
+        return makePublicDelegate();
+      }
       return (...args: unknown[]) => {
         const request = args[0] as Request;
         const instance = pickInstance(request);

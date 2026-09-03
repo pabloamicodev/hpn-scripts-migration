@@ -1,0 +1,114 @@
+/* Cart Gift Tiers — self-contained modal styling.
+   Deliberately theme-agnostic (no reliance on the host theme's CSS custom
+   properties or classes) since this runs on any Online Store 2.0 theme. */
+
+.cart-gift-tiers-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(20, 20, 20, 0.55);
+  animation: cart-gift-tiers-fade-in 160ms ease;
+}
+
+@keyframes cart-gift-tiers-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.cart-gift-tiers-dialog {
+  position: relative;
+  width: 100%;
+  max-width: 420px;
+  max-height: 85vh;
+  overflow-y: auto;
+  padding: 28px 24px 24px;
+  border-radius: 12px;
+  background: #ffffff;
+  color: #1a1a1a;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    Helvetica, Arial, sans-serif;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+}
+
+.cart-gift-tiers-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 999px;
+  background: #f2f2f2;
+  color: #1a1a1a;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.cart-gift-tiers-close:hover {
+  background: #e5e5e5;
+}
+
+.cart-gift-tiers-title {
+  margin: 0 0 18px;
+  padding-right: 32px;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.cart-gift-tiers-options {
+  display: grid;
+  gap: 10px;
+}
+
+.cart-gift-tiers-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #1a1a1a;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 120ms ease, background-color 120ms ease;
+}
+
+.cart-gift-tiers-option:hover {
+  border-color: #1a1a1a;
+  background: #fafafa;
+}
+
+.cart-gift-tiers-option:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.cart-gift-tiers-option__image {
+  width: 44px;
+  height: 44px;
+  flex: 0 0 auto;
+  border-radius: 6px;
+  object-fit: cover;
+  background: #f2f2f2;
+}
+
+.cart-gift-tiers-option__title {
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.cart-gift-tiers-option__price {
+  flex: 0 0 auto;
+  font-size: 12px;
+  color: #6b6b6b;
+}

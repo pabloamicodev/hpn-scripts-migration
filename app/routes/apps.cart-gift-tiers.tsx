@@ -31,12 +31,27 @@ function json(data: unknown, init?: ResponseInit) {
 
 const EMPTY_RESPONSE = { stackingMode: "highest_tier_only", tiers: [] };
 
+// Every storefront page view hits this route, but the signed URL Shopify
+// generates (shop/timestamp/signature) is different on every request, so
+// HTTP Cache-Control alone almost never gets a hit. Resolving each gift
+// variant's title/image/price is an Admin API call per variant per tier —
+// without this, a store with several tiers could burst through its Admin
+// API rate limit under real traffic. The config changes rarely (a merchant
+// editing a promo rule), so a short server-side cache is a safe trade.
+const RESPONSE_CACHE_TTL_MS = 60_000;
+const responseCache = new Map<string, { expiresAt: number; body: unknown }>();
+
 export async function loader({ request }: LoaderFunctionArgs) {
   const { session, admin } = await authenticate.public.appProxy(request);
 
   if (!session || !admin) {
     // Shop isn't installed (or has no offline session) — widget goes idle.
     return json(EMPTY_RESPONSE);
+  }
+
+  const cached = responseCache.get(session.shop);
+  if (cached && cached.expiresAt > Date.now()) {
+    return json(cached.body);
   }
 
   const config = getStorePreset(session.shop);
@@ -75,10 +90,12 @@ export async function loader({ request }: LoaderFunctionArgs) {
       }),
     );
 
-    return json({
+    const body = {
       stackingMode: rule.stackingMode,
       tiers: tiers.filter((tier) => tier.variants.length > 0),
-    });
+    };
+    responseCache.set(session.shop, { expiresAt: Date.now() + RESPONSE_CACHE_TTL_MS, body });
+    return json(body);
   } catch (error) {
     console.error("[apps/cart-gift-tiers] failed to resolve gift tier variants", error);
     return json(EMPTY_RESPONSE);

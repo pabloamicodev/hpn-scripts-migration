@@ -50,7 +50,7 @@
         style: "currency",
         currency: SHOP_CURRENCY,
       }).format(Number(amount));
-    } catch (err) {
+    } catch {
       return amount;
     }
   }
@@ -86,10 +86,15 @@
   }
 
   function qualifyingSubtotal(cart) {
-    return cart.items.reduce(function (sum, item) {
+    // /cart.js expresses every money value in the shop's smallest currency
+    // unit (cents for USD) — tier.minimumSubtotal is a plain dollar amount
+    // (same convention the discount function uses via the Admin GraphQL
+    // API's decimal MoneyV2 strings), so this must convert before comparing.
+    var cents = cart.items.reduce(function (sum, item) {
       if (giftTierOf(item)) return sum;
       return sum + (item.original_line_price || item.line_price || 0);
     }, 0);
+    return cents / 100;
   }
 
   function addGiftVariant(variantId, tierId) {
@@ -143,13 +148,19 @@
     function closeModal() {
       if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
       modalOpen = false;
+      document.removeEventListener("keydown", handleKeydown);
       processModalQueue();
+    }
+
+    function handleKeydown(event) {
+      if (event.key === "Escape") closeModal();
     }
 
     closeBtn.addEventListener("click", closeModal);
     overlay.addEventListener("click", function (event) {
       if (event.target === overlay) closeModal();
     });
+    document.addEventListener("keydown", handleKeydown);
 
     tier.variants.forEach(function (variant) {
       var optionFragment = optionTemplate.content.cloneNode(true);
@@ -288,7 +299,7 @@
   }
 
   var originalFetch = window.fetch;
-  window.fetch = function (input, init) {
+  window.fetch = function (input, _init) {
     var url = typeof input === "string" ? input : (input && input.url) || "";
     var isCartMutation = CART_MUTATION_URL_PATTERN.test(url);
     var result = originalFetch.apply(window, arguments);

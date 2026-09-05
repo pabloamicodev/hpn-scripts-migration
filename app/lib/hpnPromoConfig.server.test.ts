@@ -72,16 +72,12 @@ describe("loadActiveDiscount", () => {
   });
 
   it("produces stable revisions for optimistic concurrency checks", () => {
-    expect(getConfigRevision(defaultHpnPromoConfig)).toBe(
-      getConfigRevision(structuredClone(defaultHpnPromoConfig)),
-    );
+    expect(getConfigRevision(defaultHpnPromoConfig)).toBe(getConfigRevision(structuredClone(defaultHpnPromoConfig)));
   });
 
   it("migrates legacy unlimited Planta configs to one free unit", async () => {
     const legacyConfig = structuredClone(defaultHpnPromoConfig);
-    const plantaRule = legacyConfig.rules.find(
-      (rule) => rule.type === "required_variants_free_variants",
-    );
+    const plantaRule = legacyConfig.rules.find((rule) => rule.type === "required_variants_free_variants");
     if (!plantaRule) throw new Error("Planta rule fixture is missing.");
 
     const loaded = await loadActiveDiscount(
@@ -90,9 +86,7 @@ describe("loadActiveDiscount", () => {
           JSON.stringify({
             ...legacyConfig,
             rules: legacyConfig.rules.map((rule) =>
-              rule.id === plantaRule.id
-                ? { ...rule, freeQuantityPerLine: null }
-                : rule,
+              rule.id === plantaRule.id ? { ...rule, freeQuantityPerLine: null } : rule,
             ),
           }),
         ),
@@ -102,9 +96,7 @@ describe("loadActiveDiscount", () => {
 
     expect(loaded.configValid).toBe(true);
     expect(
-      loaded.config.rules.find(
-        (rule) => rule.type === "required_variants_free_variants",
-      )?.freeQuantityPerLine,
+      loaded.config.rules.find((rule) => rule.type === "required_variants_free_variants")?.freeQuantityPerLine,
     ).toBe(1);
   });
 });
@@ -121,7 +113,11 @@ describe("getMissingPresetRules / syncNewRulesFromPreset", () => {
           message: "Rewards",
         },
       ],
-      combinesWith: { orderDiscounts: true, productDiscounts: true, shippingDiscounts: false },
+      combinesWith: {
+        orderDiscounts: true,
+        productDiscounts: true,
+        shippingDiscounts: false,
+      },
       ...overrides,
     };
   }
@@ -140,6 +136,10 @@ describe("getMissingPresetRules / syncNewRulesFromPreset", () => {
         enabled: true,
         requiredLineAttributeKey: "__landing_source",
         requiredLineAttributeValue: "protein-complete-lp",
+        deliveryDiscountType: "percentage",
+        deliveryDiscountPercentage: 100,
+        shippingDiscountAmount: 1,
+        targetDeliveryGroupTypes: ["ONE_TIME_PURCHASE", "SUBSCRIPTION"],
         message: "Free shipping",
       },
     ],
@@ -162,7 +162,11 @@ describe("getMissingPresetRules / syncNewRulesFromPreset", () => {
   it("appends missing rules without touching existing ones or combinesWith", () => {
     const live = baseConfig({
       rules: [{ ...baseConfig().rules[0], enabled: false }], // live rule diverges from preset (paused)
-      combinesWith: { orderDiscounts: false, productDiscounts: true, shippingDiscounts: false },
+      combinesWith: {
+        orderDiscounts: false,
+        productDiscounts: true,
+        shippingDiscounts: false,
+      },
     });
 
     const synced = syncNewRulesFromPreset(live, preset);

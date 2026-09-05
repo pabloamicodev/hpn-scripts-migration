@@ -97,17 +97,10 @@ function ActionIcon({ icon }: { icon: RuleActionIcon }) {
   );
 }
 
-export function PromoRulesTable({
-  rules,
-  onPause,
-  onResume,
-  onDelete,
-}: PromoRulesTableProps) {
+export function PromoRulesTable({ rules, onPause, onResume, onDelete }: PromoRulesTableProps) {
   const navigate = useNavigate();
   const [query, setQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "paused">(
-    "all",
-  );
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "paused">("all");
   const [pageSize, setPageSize] = useState(10);
   const [page, setPage] = useState(1);
 
@@ -155,11 +148,7 @@ export function PromoRulesTable({
       <section className="card empty-state">
         <h2>No promo rules found</h2>
         <p>Create your first promo rule to start migrating legacy discounts.</p>
-        <button
-          type="button"
-          onClick={() => navigate("/app/promos/new")}
-          className="btn btn--primary"
-        >
+        <button type="button" onClick={() => navigate("/app/promos/new")} className="btn btn--primary">
           Create rule
         </button>
       </section>
@@ -176,11 +165,7 @@ export function PromoRulesTable({
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={() => navigate("/app/promos/new")}
-          className="btn btn--primary"
-        >
+        <button type="button" onClick={() => navigate("/app/promos/new")} className="btn btn--primary">
           Add rule
         </button>
       </div>
@@ -255,10 +240,7 @@ export function PromoRulesTable({
               const triggerSummary = getTriggerSummary(rule);
 
               return (
-                <tr
-                  key={rule.id}
-                  className={rule.enabled ? undefined : "data-table__row--muted"}
-                >
+                <tr key={rule.id} className={rule.enabled ? undefined : "data-table__row--muted"}>
                   <td className="cell-strong cell-nowrap" data-label="Name">
                     {displayName}
                   </td>
@@ -339,10 +321,7 @@ export function PromoRulesTable({
 
             {visibleRules.length === 0 && (
               <tr>
-                <td
-                  colSpan={8}
-                  className="muted table-empty"
-                >
+                <td colSpan={8} className="muted table-empty">
                   No rules match the current filters.
                 </td>
               </tr>
@@ -354,8 +333,7 @@ export function PromoRulesTable({
       <div className="resource-footer">
         <span className="pagination__label">
           Showing {filteredRules.length === 0 ? 0 : pageStart + 1}-
-          {Math.min(pageStart + pageSize, filteredRules.length)} of{" "}
-          {filteredRules.length}
+          {Math.min(pageStart + pageSize, filteredRules.length)} of {filteredRules.length}
         </span>
 
         <div className="pagination">
@@ -402,25 +380,13 @@ function getRuleSearchText(rule: HpnPromoRule): string {
 function getRuleIdentifiers(rule: HpnPromoRule): string {
   switch (rule.type) {
     case "pa7_cross_sell":
-      return [rule.triggerProductId, ...rule.targetProductIds]
-        .map(getGidTail)
-        .join(" ");
+      return [rule.triggerProductId, ...rule.targetProductIds].map(getGidTail).join(" ");
     case "required_variants_free_variants":
-      return [...rule.requiredVariantIds, ...rule.freeVariantIds]
-        .map(getGidTail)
-        .join(" ");
+      return [...rule.requiredVariantIds, ...rule.freeVariantIds].map(getGidTail).join(" ");
     case "required_product_with_free_variants":
-      return [
-        rule.triggerProductId,
-        ...rule.requiredVariantIds,
-        ...rule.freeVariantIds,
-      ]
-        .map(getGidTail)
-        .join(" ");
+      return [rule.triggerProductId, ...rule.requiredVariantIds, ...rule.freeVariantIds].map(getGidTail).join(" ");
     case "trigger_product_discounted_targets":
-      return [rule.triggerProductId, ...rule.targets.map((t) => t.productId)]
-        .map(getGidTail)
-        .join(" ");
+      return [rule.triggerProductId, ...rule.targets.map((t) => t.productId)].map(getGidTail).join(" ");
     case "loyalty_tier":
       return rule.targetProductIds.map(getGidTail).join(" ");
     case "subscription_bundle_group":
@@ -440,7 +406,10 @@ function getRuleIdentifiers(rule: HpnPromoRule): string {
     case "quiz_bundle_free_shipping":
       return "";
     case "cart_subtotal_free_gift":
-      return rule.tiers.flatMap((tier) => tier.giftVariantIds).map(getGidTail).join(" ");
+      return rule.tiers
+        .flatMap((tier) => tier.giftVariantIds)
+        .map(getGidTail)
+        .join(" ");
   }
 }
 
@@ -468,9 +437,7 @@ function getTriggerSummary(rule: HpnPromoRule): string {
     case "required_variants_free_variants":
       return `Requires ${rule.requiredVariantIds.length} variants`;
     case "required_product_with_free_variants":
-      return `Product: ${getGidTail(rule.triggerProductId)} + ${
-        rule.requiredVariantIds.length
-      } variants`;
+      return `Product: ${getGidTail(rule.triggerProductId)} + ${rule.requiredVariantIds.length} variants`;
     case "trigger_product_discounted_targets":
       return `Product: ${getGidTail(rule.triggerProductId)}`;
     case "loyalty_tier":
@@ -498,9 +465,7 @@ function getTriggerSummary(rule: HpnPromoRule): string {
     case "quiz_bundle_free_shipping":
       return "Line property: _quiz_bundle_id (any value)";
     case "cart_subtotal_free_gift": {
-      const lowest = rule.tiers.reduce((min, t) =>
-        t.minimumSubtotal < min.minimumSubtotal ? t : min,
-      );
+      const lowest = rule.tiers.reduce((min, t) => (t.minimumSubtotal < min.minimumSubtotal ? t : min));
       return `Cart subtotal >= $${lowest.minimumSubtotal} (${rule.tiers.length} tier(s))`;
     }
   }
@@ -540,6 +505,21 @@ function getTargetsCount(rule: HpnPromoRule): number {
 }
 
 function getDiscountSummary(rule: HpnPromoRule): string {
+  const shippingDiscountSummary = (
+    shippingRule:
+      | Extract<HpnPromoRule, { type: "landing_free_shipping" }>
+      | Extract<HpnPromoRule, { type: "quiz_bundle_free_shipping" }>,
+  ) => {
+    const value =
+      shippingRule.deliveryDiscountType === "fixed_amount"
+        ? `$${shippingRule.shippingDiscountAmount} off shipping`
+        : `${shippingRule.deliveryDiscountPercentage}% off shipping`;
+    const profiles = shippingRule.targetDeliveryGroupTypes
+      .map((groupType) => (groupType === "ONE_TIME_PURCHASE" ? "General/initial" : "SKIO/recurring"))
+      .join(" + ");
+    return `${value} · ${profiles}`;
+  };
+
   switch (rule.type) {
     case "pa7_cross_sell":
       return `${rule.discountPercentage}% Off`;
@@ -567,12 +547,12 @@ function getDiscountSummary(rule: HpnPromoRule): string {
         : `${rule.discountPercentage}% off`;
     case "landing_free_shipping":
       return rule.requiredAnchorMinQuantity
-        ? `Free shipping, anchor min ${rule.requiredAnchorMinQuantity}`
-        : "Free shipping";
+        ? `${shippingDiscountSummary(rule)}, anchor min ${rule.requiredAnchorMinQuantity}`
+        : shippingDiscountSummary(rule);
     case "quiz_bundle_price_match":
       return `Price match + ${rule.discountPercentageOnGifts}% off gifts`;
     case "quiz_bundle_free_shipping":
-      return "Free shipping";
+      return shippingDiscountSummary(rule);
     case "cart_subtotal_free_gift":
       return `${rule.tiers.length} tier(s), ${rule.stackingMode === "cumulative" ? "cumulative" : "highest tier only"}`;
   }

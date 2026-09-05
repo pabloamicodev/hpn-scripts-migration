@@ -27,9 +27,7 @@ export function cartLinesDiscountsGenerateRun(input) {
   const cartAttributes = deriveCartAttributes(cart);
 
   // --- Index cart lines by product ID and variant ID ---
-  const lines = (cart.lines ?? []).filter(
-    (l) => l.merchandise?.__typename === "ProductVariant"
-  );
+  const lines = (cart.lines ?? []).filter((l) => l.merchandise?.__typename === "ProductVariant");
 
   const byProduct = new Map();
   const byVariant = new Map();
@@ -102,11 +100,7 @@ export function cartLinesDiscountsGenerateRun(input) {
 
 function addCandidate(candidatesByLine, line, quantity, percentage, message) {
   const candidate = {
-    targets: [
-      quantity === null
-        ? { cartLine: { id: line.id } }
-        : { cartLine: { id: line.id, quantity } },
-    ],
+    targets: [quantity === null ? { cartLine: { id: line.id } } : { cartLine: { id: line.id, quantity } }],
     value: {
       percentage: { value: percentage === 100 ? "100.0" : String(percentage) },
     },
@@ -121,10 +115,7 @@ function addCandidate(candidatesByLine, line, quantity, percentage, message) {
   const existingPercentage = Number(existing.value.percentage.value);
   const existingQuantity = existing.targets[0].cartLine.quantity ?? Number.POSITIVE_INFINITY;
   const candidateQuantity = quantity ?? Number.POSITIVE_INFINITY;
-  if (
-    percentage > existingPercentage ||
-    (percentage === existingPercentage && candidateQuantity > existingQuantity)
-  ) {
+  if (percentage > existingPercentage || (percentage === existingPercentage && candidateQuantity > existingQuantity)) {
     candidatesByLine.set(line.id, candidate);
   }
 }
@@ -176,9 +167,7 @@ function checkGlobalConditions(rule, cart, cartAttributes) {
 
   // Requires at least one subscription item
   if (c.requiresSubscriptionInCart === true) {
-    const hasSub = (cart.lines ?? []).some(
-      (l) => l.sellingPlanAllocation != null
-    );
+    const hasSub = (cart.lines ?? []).some((l) => l.sellingPlanAllocation != null);
     if (!hasSub) return false;
   }
 
@@ -199,7 +188,8 @@ function applyPa7Rule(rule, byProduct, candidates) {
     !Array.isArray(rule.targetProductIds) ||
     typeof rule.discountPercentage !== "number" ||
     typeof rule.targetLineQuantityEquals !== "number"
-  ) return;
+  )
+    return;
   const triggerLines = byProduct.get(rule.triggerProductId);
   if (!triggerLines?.length) return;
 
@@ -222,7 +212,8 @@ function applyPlantaRule(rule, byVariant, candidates) {
     !Array.isArray(rule.freeVariantIds) ||
     typeof rule.freeQuantityPerLine !== "number" ||
     rule.freeQuantityPerLine < 1
-  ) return;
+  )
+    return;
 
   for (const requiredId of rule.requiredVariantIds) {
     if (!byVariant.get(requiredId)?.length) return;
@@ -249,7 +240,8 @@ function applyPouchesRule(rule, byProduct, byVariant, candidates) {
     !Array.isArray(rule.freeVariantIds) ||
     typeof rule.freeQuantityPerLine !== "number" ||
     rule.freeQuantityPerLine < 1
-  ) return;
+  )
+    return;
 
   if (!byProduct.get(rule.triggerProductId)?.length) return;
 
@@ -260,7 +252,7 @@ function applyPouchesRule(rule, byProduct, byVariant, candidates) {
   const pct = typeof rule.discountPercentage === "number" ? rule.discountPercentage : 100;
 
   for (const freeId of rule.freeVariantIds) {
-    for (const line of (byVariant.get(freeId) ?? [])) {
+    for (const line of byVariant.get(freeId) ?? []) {
       const qty = Math.min(rule.freeQuantityPerLine, line.quantity);
       addCandidate(candidates, line, qty, pct, rule.message);
     }
@@ -272,11 +264,7 @@ function applyPouchesRule(rule, byProduct, byVariant, candidates) {
  * apply per-target discount % to each configured target product's lines.
  */
 function applyTriggerProductDiscountedTargetsRule(rule, byProduct, candidates) {
-  if (
-    !rule.triggerProductId ||
-    !Array.isArray(rule.targets) ||
-    rule.targets.length === 0
-  ) return;
+  if (!rule.triggerProductId || !Array.isArray(rule.targets) || rule.targets.length === 0) return;
 
   if (!byProduct.get(rule.triggerProductId)?.length) return;
 
@@ -285,9 +273,10 @@ function applyTriggerProductDiscountedTargetsRule(rule, byProduct, candidates) {
       typeof target.productId !== "string" ||
       typeof target.discountPercentage !== "number" ||
       target.discountPercentage < 1
-    ) continue;
+    )
+      continue;
 
-    for (const line of (byProduct.get(target.productId) ?? [])) {
+    for (const line of byProduct.get(target.productId) ?? []) {
       addCandidate(candidates, line, null, target.discountPercentage, rule.message);
     }
   }
@@ -311,7 +300,8 @@ function applySubscriptionBundleGroupRule(rule, lines, candidates) {
     typeof rule.discountPercentage !== "number" ||
     typeof rule.maxUnitsTotal !== "number" ||
     rule.maxUnitsTotal < 1
-  ) return;
+  )
+    return;
 
   const targetProductIds = new Set(rule.targetProductIds);
   let unitsDiscounted = 0;
@@ -327,7 +317,8 @@ function applySubscriptionBundleGroupRule(rule, lines, candidates) {
     if (
       rule.requiredLineAttributeKey === BUNDLE_LINE_ATTRIBUTE_KEY &&
       line.bundleTypeAttribute?.value !== rule.requiredLineAttributeValue
-    ) continue;
+    )
+      continue;
 
     const qtyToDiscount = Math.min(rule.maxUnitsTotal - unitsDiscounted, line.quantity);
     unitsDiscounted += qtyToDiscount;
@@ -343,13 +334,10 @@ function applySubscriptionBundleGroupRule(rule, lines, candidates) {
  * Subscription lines for the same variants are skipped entirely.
  */
 function applyOneTimePurchaseDiscountRule(rule, byVariant, candidates) {
-  if (
-    !Array.isArray(rule.targetVariantIds) ||
-    typeof rule.discountPercentage !== "number"
-  ) return;
+  if (!Array.isArray(rule.targetVariantIds) || typeof rule.discountPercentage !== "number") return;
 
   for (const variantId of rule.targetVariantIds) {
-    for (const line of (byVariant.get(variantId) ?? [])) {
+    for (const line of byVariant.get(variantId) ?? []) {
       if (line.sellingPlanAllocation?.sellingPlan?.id) continue;
       addCandidate(candidates, line, 1, rule.discountPercentage, rule.message);
     }
@@ -361,9 +349,10 @@ function applyOneTimePurchaseDiscountRule(rule, byVariant, candidates) {
 const LANDING_SOURCE_LINE_ATTRIBUTE_KEY = "__landing_source";
 
 function getLandingAnchorQuantity(rule, lines) {
-  const anchorVariantIds = Array.isArray(rule.requiredAnchorVariantIds) && rule.requiredAnchorVariantIds.length > 0
-    ? new Set(rule.requiredAnchorVariantIds)
-    : null;
+  const anchorVariantIds =
+    Array.isArray(rule.requiredAnchorVariantIds) && rule.requiredAnchorVariantIds.length > 0
+      ? new Set(rule.requiredAnchorVariantIds)
+      : null;
 
   return lines.reduce((sum, line) => {
     if (line.landingSourceAttribute?.value !== rule.requiredLineAttributeValue) return sum;
@@ -374,9 +363,7 @@ function getLandingAnchorQuantity(rule, lines) {
 }
 
 function satisfiesLandingAnchorRequirement(rule, lines) {
-  const minQuantity = typeof rule.requiredAnchorMinQuantity === "number"
-    ? rule.requiredAnchorMinQuantity
-    : 1;
+  const minQuantity = typeof rule.requiredAnchorMinQuantity === "number" ? rule.requiredAnchorMinQuantity : 1;
 
   return getLandingAnchorQuantity(rule, lines) >= minQuantity;
 }
@@ -401,7 +388,8 @@ function applyLandingQuantityTierFixedPriceRule(rule, lines, candidates) {
     !rule.requiredLineAttributeValue ||
     !Array.isArray(rule.tiers) ||
     rule.tiers.length === 0
-  ) return;
+  )
+    return;
 
   const targetVariantIds = new Set(rule.targetVariantIds);
   const matchingLines = lines.filter((line) => {
@@ -416,9 +404,7 @@ function applyLandingQuantityTierFixedPriceRule(rule, lines, candidates) {
   if (matchingLines.length === 0) return;
 
   const totalQuantity = matchingLines.reduce((sum, line) => sum + line.quantity, 0);
-  const tier = [...rule.tiers]
-    .sort((a, b) => b.quantity - a.quantity)
-    .find((t) => totalQuantity >= t.quantity);
+  const tier = [...rule.tiers].sort((a, b) => b.quantity - a.quantity).find((t) => totalQuantity >= t.quantity);
   if (!tier) return;
 
   for (const line of matchingLines) {
@@ -465,13 +451,14 @@ function applyLandingScopedProductDiscountRule(rule, byProduct, lines, candidate
     rule.requiredLineAttributeKey !== LANDING_SOURCE_LINE_ATTRIBUTE_KEY ||
     !rule.requiredLineAttributeValue ||
     typeof rule.discountPercentage !== "number"
-  ) return;
+  )
+    return;
 
   if (!satisfiesLandingAnchorRequirement(rule, lines)) return;
 
   for (const productId of rule.targetProductIds) {
     let remainingFreeUnits = 1;
-    for (const line of (byProduct.get(productId) ?? [])) {
+    for (const line of byProduct.get(productId) ?? []) {
       if (remainingFreeUnits <= 0) break;
       if (line.landingSourceAttribute?.value !== rule.requiredLineAttributeValue) continue;
       addCandidate(candidates, line, 1, rule.discountPercentage, rule.message);
@@ -503,9 +490,7 @@ function applyLandingScopedProductDiscountRule(rule, byProduct, lines, candidate
  * this rule never needs its own hardcoded per-bundle price.
  */
 function applyQuizBundlePriceMatchRule(rule, lines, candidates) {
-  const giftPercentage = typeof rule.discountPercentageOnGifts === "number"
-    ? rule.discountPercentageOnGifts
-    : 100;
+  const giftPercentage = typeof rule.discountPercentageOnGifts === "number" ? rule.discountPercentageOnGifts : 100;
 
   const groups = new Map();
   for (const line of lines) {
@@ -513,7 +498,12 @@ function applyQuizBundlePriceMatchRule(rule, lines, candidates) {
     if (!bundleId) continue;
 
     if (!groups.has(bundleId)) {
-      groups.set(bundleId, { paid: [], gifts: [], targetCents: null, expectedPaidCount: null });
+      groups.set(bundleId, {
+        paid: [],
+        gifts: [],
+        targetCents: null,
+        expectedPaidCount: null,
+      });
     }
     const group = groups.get(bundleId);
 
@@ -562,7 +552,9 @@ function applyQuizBundlePriceMatchRule(rule, lines, candidates) {
     // bundle id rather than a single line id (this is the only rule that
     // targets more than one line per candidate).
     candidates.set(`quiz-bundle-price-match:${bundleId}`, {
-      targets: group.paid.map((line) => ({ cartLine: { id: line.id, quantity: line.quantity } })),
+      targets: group.paid.map((line) => ({
+        cartLine: { id: line.id, quantity: line.quantity },
+      })),
       value: {
         fixedAmount: {
           amount: discountNeeded.toFixed(2),
@@ -615,11 +607,7 @@ function applyCartSubtotalFreeGiftRule(rule, cart, byVariant, lines, candidates)
   const activeTiers =
     rule.stackingMode === "cumulative"
       ? qualifyingTiers
-      : [
-          qualifyingTiers.reduce((best, tier) =>
-            tier.minimumSubtotal > best.minimumSubtotal ? tier : best,
-          ),
-        ];
+      : [qualifyingTiers.reduce((best, tier) => (tier.minimumSubtotal > best.minimumSubtotal ? tier : best))];
 
   for (const tier of activeTiers) {
     const maxFreeUnits = typeof tier.maxFreeUnits === "number" ? tier.maxFreeUnits : 1;
@@ -650,8 +638,12 @@ function applyCartSubtotalFreeGiftRule(rule, cart, byVariant, lines, candidates)
  * Shopify integration. These rule entries are kept in the config so the
  * admin UI can track which stores use Swell rewards.
  */
-function applySwellFreeProductRule(_rule, _lines, _candidates) { /* no-op */ }
-function applySwellCartFixedAmountRule(_rule, _lines, _candidates) { /* no-op */ }
+function applySwellFreeProductRule(_rule, _lines, _candidates) {
+  /* no-op */
+}
+function applySwellCartFixedAmountRule(_rule, _lines, _candidates) {
+  /* no-op */
+}
 
 /**
  * Loyalty Tier: applies the highest matching tier discount to target products
@@ -672,7 +664,7 @@ function applyLoyaltyTierRule(rule, byProduct, candidates, buyerIdentity) {
   if (!activeTier) return;
 
   for (const productId of rule.targetProductIds) {
-    for (const line of (byProduct.get(productId) ?? [])) {
+    for (const line of byProduct.get(productId) ?? []) {
       addCandidate(candidates, line, null, activeTier.discountPercentage, rule.message);
     }
   }
@@ -691,20 +683,48 @@ const DELIVERY_DISCOUNT_SELECTION_STRATEGY = "ALL";
 const LANDING_FREE_SHIPPING_RULE_TYPE = "landing_free_shipping";
 const QUIZ_BUNDLE_FREE_SHIPPING_RULE_TYPE = "quiz_bundle_free_shipping";
 
-// One candidate targeting every delivery group at once — not one candidate
-// per group — so checkout shows a single discount label instead of a
-// duplicate "free shipping" line per group (e.g. subscription items and
-// one-time gifts often land in separate groups).
-function freeShippingResult(message, deliveryGroups) {
+// One candidate targets every eligible delivery group at once so checkout
+// shows a single label instead of duplicating it for initial and recurring
+// delivery groups.
+function deliveryDiscountValue(rule) {
+  if (rule.deliveryDiscountType === "fixed_amount") {
+    const amount = Number(rule.shippingDiscountAmount);
+    if (!Number.isFinite(amount) || amount <= 0) return null;
+    return { fixedAmount: { amount: String(amount) } };
+  }
+
+  const percentage = Number(rule.deliveryDiscountPercentage ?? 100);
+  if (![25, 50, 100].includes(percentage)) return null;
+  return { percentage: { value: String(percentage) } };
+}
+
+function targetedDeliveryGroups(rule, deliveryGroups) {
+  const configuredGroupTypes = rule.targetDeliveryGroupTypes;
+  if (configuredGroupTypes == null) return deliveryGroups;
+  if (!Array.isArray(configuredGroupTypes) || configuredGroupTypes.length === 0) return [];
+
+  const allowedGroupTypes = new Set(
+    configuredGroupTypes.filter((groupType) => groupType === "ONE_TIME_PURCHASE" || groupType === "SUBSCRIPTION"),
+  );
+  return deliveryGroups.filter((group) => allowedGroupTypes.has(group.groupType));
+}
+
+function shippingDiscountResult(rule, deliveryGroups) {
+  const discountValue = deliveryDiscountValue(rule);
+  const eligibleDeliveryGroups = targetedDeliveryGroups(rule, deliveryGroups);
+  if (!discountValue || eligibleDeliveryGroups.length === 0) return EMPTY_RESULT;
+
   return {
     operations: [
       {
         deliveryDiscountsAdd: {
           candidates: [
             {
-              message: message ?? "",
-              targets: deliveryGroups.map((group) => ({ deliveryGroup: { id: group.id } })),
-              value: { percentage: { value: "100" } },
+              message: rule.message ?? "",
+              targets: eligibleDeliveryGroups.map((group) => ({
+                deliveryGroup: { id: group.id },
+              })),
+              value: discountValue,
             },
           ],
           selectionStrategy: DELIVERY_DISCOUNT_SELECTION_STRATEGY,
@@ -752,12 +772,12 @@ function hasCompleteQuizBundle(deliveryLines) {
 }
 
 /**
- * Landing Page Free Shipping / Quiz Bundle Free Shipping: whenever the cart
- * satisfies the matching rule's requirement, discounts every delivery group
- * to 100% off — free shipping for the whole order. Independent of the
- * cart-lines target above; reads the same shared config metafield but only
- * acts on these two rule types. `conditions` is intentionally not evaluated
- * here (out of scope for these rules — see validations.ts).
+ * Landing Page / Quiz Bundle shipping discounts: whenever the cart satisfies
+ * the matching rule, applies its configured value to the selected initial or
+ * recurring delivery groups. Independent of the cart-lines target above;
+ * reads the same shared config metafield but only acts on these two rule types.
+ * `conditions` is intentionally not evaluated here (out of scope for these
+ * rules — see validations.ts).
  */
 export function cartDeliveryOptionsDiscountsGenerateRun(input) {
   const discountClasses = input?.discount?.discountClasses ?? [];
@@ -784,12 +804,12 @@ export function cartDeliveryOptionsDiscountsGenerateRun(input) {
     if (rule.type === LANDING_FREE_SHIPPING_RULE_TYPE) {
       if (!rule.requiredLineAttributeKey || !rule.requiredLineAttributeValue) continue;
       if (!satisfiesLandingAnchorRequirement(rule, deliveryLines)) continue;
-      return freeShippingResult(rule.message, deliveryGroups);
+      return shippingDiscountResult(rule, deliveryGroups);
     }
 
     if (rule.type === QUIZ_BUNDLE_FREE_SHIPPING_RULE_TYPE) {
       if (!hasCompleteQuizBundle(deliveryLines)) continue;
-      return freeShippingResult(rule.message, deliveryGroups);
+      return shippingDiscountResult(rule, deliveryGroups);
     }
   }
 

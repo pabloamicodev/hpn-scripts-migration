@@ -1,6 +1,14 @@
 @keyframes b-dot {
-  0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
-  40% { transform: scale(1); opacity: 1; }
+  0%,
+  80%,
+  100% {
+    transform: scale(0.6);
+    opacity: 0.4;
+  }
+  40% {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
 
 :root {
@@ -57,8 +65,7 @@
   --space-8: 40px;
 
   color-scheme: light;
-  font-family: -apple-system, BlinkMacSystemFont, "San Francisco", "Segoe UI",
-    Roboto, "Helvetica Neue", sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "San Francisco", "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
 }
 
 * {
@@ -96,8 +103,7 @@ a {
 
 code,
 pre {
-  font-family: ui-monospace, SFMono-Regular, "SF Mono", Consolas,
-    "Liberation Mono", Menlo, monospace;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace;
 }
 
 .app-shell {
@@ -637,7 +643,9 @@ textarea:focus-visible {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--surface);
-  box-shadow: var(--shadow-raised), 0 24px 70px rgba(0, 0, 0, 0.2);
+  box-shadow:
+    var(--shadow-raised),
+    0 24px 70px rgba(0, 0, 0, 0.2);
 }
 
 .confirm-dialog__mark {
@@ -1008,6 +1016,13 @@ textarea:focus-visible {
   gap: var(--space-2);
 }
 
+.shipping-profile-options {
+  min-inline-size: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
 .form-label {
   color: var(--text);
   font-size: var(--font-size-base);
@@ -1298,8 +1313,7 @@ input[type="radio"] {
   overflow: hidden;
   border: 1px solid var(--border);
   border-radius: var(--radius-small);
-  background:
-    linear-gradient(180deg, #f8fbfa 0%, #eef4f1 100%);
+  background: linear-gradient(180deg, #f8fbfa 0%, #eef4f1 100%);
   color: var(--text-subdued);
   font-size: 13px;
   font-weight: 750;
@@ -1409,8 +1423,7 @@ input[type="radio"] {
   overflow: hidden;
   border: 1px solid var(--border);
   border-radius: var(--radius-small);
-  background:
-    linear-gradient(180deg, #fafafa 0%, #eeeeee 100%);
+  background: linear-gradient(180deg, #fafafa 0%, #eeeeee 100%);
   color: var(--text-subdued);
   font-size: 16px;
   font-weight: 700;
@@ -1497,9 +1510,7 @@ input[type="radio"] {
   display: grid;
   place-items: center;
   padding: 24px;
-  background:
-    radial-gradient(circle at 50% 0%, rgba(255, 255, 255, 0.16), transparent 34%),
-    rgba(20, 22, 23, 0.72);
+  background: radial-gradient(circle at 50% 0%, rgba(255, 255, 255, 0.16), transparent 34%), rgba(20, 22, 23, 0.72);
   backdrop-filter: blur(8px);
 }
 
@@ -1621,7 +1632,7 @@ input[type="radio"] {
   border-style: solid;
   background: #ffffff;
   text-align: start;
-  margin-bottom: 30px
+  margin-bottom: 30px;
 }
 
 .picker-empty strong {
@@ -2283,8 +2294,14 @@ input[type="radio"] {
 /* Tab panel fade-in --------------------------------------- */
 
 @keyframes docs-panel-in {
-  from { opacity: 0; transform: translateY(6px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .docs-rule-panel {
@@ -2308,7 +2325,9 @@ input[type="radio"] {
   padding-inline: 20px;
 }
 
-.docs-tabs::-webkit-scrollbar { display: none; }
+.docs-tabs::-webkit-scrollbar {
+  display: none;
+}
 
 .docs-tab {
   /* button reset */
@@ -2332,7 +2351,9 @@ input[type="radio"] {
   transition: color 0.12s;
 }
 
-.docs-tab:hover { color: var(--text); }
+.docs-tab:hover {
+  color: var(--text);
+}
 
 .docs-tab.is-active {
   color: var(--text);
@@ -2530,7 +2551,9 @@ input[type="radio"] {
   line-height: 1.65;
 }
 
-.docs-row-body strong { color: var(--text); }
+.docs-row-body strong {
+  color: var(--text);
+}
 
 .docs-row-body code {
   font-size: 11px;

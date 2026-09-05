@@ -18,7 +18,11 @@ function lineWithAttribute(value, { quantity = 1, variantId = PROTEIN_VARIANT_ID
 function config(overrides = {}) {
   return {
     version: 1,
-    combinesWith: { orderDiscounts: true, productDiscounts: true, shippingDiscounts: true },
+    combinesWith: {
+      orderDiscounts: true,
+      productDiscounts: true,
+      shippingDiscounts: true,
+    },
     rules: [
       {
         id: "tru-landing-free-shipping",
@@ -58,15 +62,24 @@ describe("cartDeliveryOptionsDiscountsGenerateRun", () => {
   it("returns no operations for missing or invalid config", () => {
     expect(
       cartDeliveryOptionsDiscountsGenerateRun({
-        cart: { lines: [], deliveryGroups: [{ id: "gid://shopify/CartDeliveryGroup/1" }] },
+        cart: {
+          lines: [],
+          deliveryGroups: [{ id: "gid://shopify/CartDeliveryGroup/1" }],
+        },
         discount: { discountClasses: ["SHIPPING"], metafield: null },
       }),
     ).toEqual({ operations: [] });
 
     expect(
       cartDeliveryOptionsDiscountsGenerateRun({
-        cart: { lines: [], deliveryGroups: [{ id: "gid://shopify/CartDeliveryGroup/1" }] },
-        discount: { discountClasses: ["SHIPPING"], metafield: { value: "{bad json" } },
+        cart: {
+          lines: [],
+          deliveryGroups: [{ id: "gid://shopify/CartDeliveryGroup/1" }],
+        },
+        discount: {
+          discountClasses: ["SHIPPING"],
+          metafield: { value: "{bad json" },
+        },
       }),
     ).toEqual({ operations: [] });
   });
@@ -85,8 +98,12 @@ describe("cartDeliveryOptionsDiscountsGenerateRun", () => {
               {
                 message: "Free shipping — Protein Complete bundle",
                 targets: [
-                  { deliveryGroup: { id: "gid://shopify/CartDeliveryGroup/1" } },
-                  { deliveryGroup: { id: "gid://shopify/CartDeliveryGroup/2" } },
+                  {
+                    deliveryGroup: { id: "gid://shopify/CartDeliveryGroup/1" },
+                  },
+                  {
+                    deliveryGroup: { id: "gid://shopify/CartDeliveryGroup/2" },
+                  },
                 ],
                 value: { percentage: { value: "100" } },
               },
@@ -95,6 +112,107 @@ describe("cartDeliveryOptionsDiscountsGenerateRun", () => {
           },
         },
       ],
+    });
+  });
+
+  it("applies a configured percentage only to General / initial checkout groups", () => {
+    const result = runWith(
+      [lineWithAttribute("protein-complete-lp")],
+      [
+        {
+          id: "gid://shopify/CartDeliveryGroup/initial",
+          groupType: "ONE_TIME_PURCHASE",
+        },
+        {
+          id: "gid://shopify/CartDeliveryGroup/recurring",
+          groupType: "SUBSCRIPTION",
+        },
+      ],
+      config({
+        deliveryDiscountType: "percentage",
+        deliveryDiscountPercentage: 25,
+        targetDeliveryGroupTypes: ["ONE_TIME_PURCHASE"],
+      }),
+    );
+
+    expect(result.operations[0].deliveryDiscountsAdd.candidates[0]).toEqual({
+      message: "Free shipping — Protein Complete bundle",
+      targets: [{ deliveryGroup: { id: "gid://shopify/CartDeliveryGroup/initial" } }],
+      value: { percentage: { value: "25" } },
+    });
+  });
+
+  it("can target only SKIO recurring subscription groups", () => {
+    const result = runWith(
+      [lineWithAttribute("protein-complete-lp")],
+      [
+        {
+          id: "gid://shopify/CartDeliveryGroup/initial",
+          groupType: "ONE_TIME_PURCHASE",
+        },
+        {
+          id: "gid://shopify/CartDeliveryGroup/recurring",
+          groupType: "SUBSCRIPTION",
+        },
+      ],
+      config({
+        deliveryDiscountType: "percentage",
+        deliveryDiscountPercentage: 50,
+        targetDeliveryGroupTypes: ["SUBSCRIPTION"],
+      }),
+    );
+
+    expect(result.operations[0].deliveryDiscountsAdd.candidates[0]).toMatchObject({
+      targets: [{ deliveryGroup: { id: "gid://shopify/CartDeliveryGroup/recurring" } }],
+      value: { percentage: { value: "50" } },
+    });
+  });
+
+  it("supports a fixed shipping discount amount", () => {
+    const result = runWith(
+      [lineWithAttribute("protein-complete-lp")],
+      [
+        {
+          id: "gid://shopify/CartDeliveryGroup/initial",
+          groupType: "ONE_TIME_PURCHASE",
+        },
+      ],
+      config({
+        deliveryDiscountType: "fixed_amount",
+        shippingDiscountAmount: 6.99,
+        targetDeliveryGroupTypes: ["ONE_TIME_PURCHASE"],
+      }),
+    );
+
+    expect(result.operations[0].deliveryDiscountsAdd.candidates[0].value).toEqual({
+      fixedAmount: { amount: "6.99" },
+    });
+  });
+
+  it("fails closed for invalid discount values or an empty profile selection", () => {
+    const groups = [
+      {
+        id: "gid://shopify/CartDeliveryGroup/initial",
+        groupType: "ONE_TIME_PURCHASE",
+      },
+    ];
+    const lines = [lineWithAttribute("protein-complete-lp")];
+
+    expect(runWith(lines, groups, config({ deliveryDiscountPercentage: 10 }))).toEqual({
+      operations: [],
+    });
+    expect(
+      runWith(
+        lines,
+        groups,
+        config({
+          deliveryDiscountType: "fixed_amount",
+          shippingDiscountAmount: 0,
+        }),
+      ),
+    ).toEqual({ operations: [] });
+    expect(runWith(lines, groups, config({ targetDeliveryGroupTypes: [] }))).toEqual({
+      operations: [],
     });
   });
 
@@ -149,12 +267,29 @@ describe("cartDeliveryOptionsDiscountsGenerateRun", () => {
   it("ignores non-landing_free_shipping rules in the same shared config", () => {
     const cfg = {
       version: 1,
-      combinesWith: { orderDiscounts: true, productDiscounts: true, shippingDiscounts: true },
+      combinesWith: {
+        orderDiscounts: true,
+        productDiscounts: true,
+        shippingDiscounts: true,
+      },
       rules: [
-        { id: "pa7", type: "pa7_cross_sell", enabled: true, triggerProductId: "x", targetProductIds: ["y"], targetLineQuantityEquals: 1, discountPercentage: 10, message: "irrelevant" },
+        {
+          id: "pa7",
+          type: "pa7_cross_sell",
+          enabled: true,
+          triggerProductId: "x",
+          targetProductIds: ["y"],
+          targetLineQuantityEquals: 1,
+          discountPercentage: 10,
+          message: "irrelevant",
+        },
       ],
     };
-    const result = runWith([lineWithAttribute("protein-complete-lp")], [{ id: "gid://shopify/CartDeliveryGroup/1" }], cfg);
+    const result = runWith(
+      [lineWithAttribute("protein-complete-lp")],
+      [{ id: "gid://shopify/CartDeliveryGroup/1" }],
+      cfg,
+    );
 
     expect(result).toEqual({ operations: [] });
   });
@@ -176,7 +311,11 @@ describe("quiz_bundle_free_shipping", () => {
   function quizShippingConfig(overrides = {}) {
     return {
       version: 1,
-      combinesWith: { orderDiscounts: true, productDiscounts: true, shippingDiscounts: true },
+      combinesWith: {
+        orderDiscounts: true,
+        productDiscounts: true,
+        shippingDiscounts: true,
+      },
       rules: [
         {
           id: "quiz-bundle-free-shipping",
@@ -189,9 +328,7 @@ describe("quiz_bundle_free_shipping", () => {
     };
   }
 
-  function quizDeliveryLine(
-    { bundleId = "pq-1", isGift = false, expectedPaidCount = 1, quantity = 1 } = {},
-  ) {
+  function quizDeliveryLine({ bundleId = "pq-1", isGift = false, expectedPaidCount = 1, quantity = 1 } = {}) {
     return {
       quantity,
       merchandise: { __typename: "ProductVariant", id: PROTEIN_VARIANT_ID },
@@ -286,18 +423,18 @@ describe("quiz_bundle_free_shipping", () => {
       merchandise: { __typename: "ProductVariant", id: PROTEIN_VARIANT_ID },
       // No quizBundleIdAttribute at all — this rule only reads that key.
     };
-    const result = runWith(
-      [bundleBuilderLine],
-      [{ id: "gid://shopify/CartDeliveryGroup/1" }],
-      quizShippingConfig(),
-    );
+    const result = runWith([bundleBuilderLine], [{ id: "gid://shopify/CartDeliveryGroup/1" }], quizShippingConfig());
     expect(result).toEqual({ operations: [] });
   });
 
   it("ignores landing_free_shipping rules and vice versa in the same shared config", () => {
     const cfg = {
       version: 1,
-      combinesWith: { orderDiscounts: true, productDiscounts: true, shippingDiscounts: true },
+      combinesWith: {
+        orderDiscounts: true,
+        productDiscounts: true,
+        shippingDiscounts: true,
+      },
       rules: [
         {
           id: "tru-landing-free-shipping",

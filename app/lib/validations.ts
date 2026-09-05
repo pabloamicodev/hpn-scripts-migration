@@ -1,14 +1,8 @@
 import { z } from "zod";
 
-const productGidSchema = z
-  .string()
-  .trim()
-  .startsWith("gid://shopify/Product/");
+const productGidSchema = z.string().trim().startsWith("gid://shopify/Product/");
 
-const variantGidSchema = z
-  .string()
-  .trim()
-  .startsWith("gid://shopify/ProductVariant/");
+const variantGidSchema = z.string().trim().startsWith("gid://shopify/ProductVariant/");
 
 const ruleIdSchema = z
   .string()
@@ -196,9 +190,22 @@ export const landingScopedProductDiscountRuleSchema = z.object({
 });
 
 // ---------------------------------------------------------------------------
-// Landing page free shipping — evaluated by a separate delivery-options
-// Function target. Free shipping applies to the whole order whenever any
-// cart line carries the configured line item property.
+const deliveryDiscountTypeSchema = z.enum(["percentage", "fixed_amount"]);
+const deliveryDiscountPercentageSchema = z.union([z.literal(25), z.literal(50), z.literal(100)]);
+const deliveryGroupTypeSchema = z.enum(["ONE_TIME_PURCHASE", "SUBSCRIPTION"]);
+
+const deliveryDiscountRuleFields = {
+  deliveryDiscountType: deliveryDiscountTypeSchema.default("percentage"),
+  deliveryDiscountPercentage: deliveryDiscountPercentageSchema.default(100),
+  shippingDiscountAmount: z.number().positive().default(1),
+  targetDeliveryGroupTypes: z
+    .array(deliveryGroupTypeSchema)
+    .min(1, "Choose at least one shipping profile")
+    .default(["ONE_TIME_PURCHASE", "SUBSCRIPTION"]),
+};
+
+// Landing page shipping discount — evaluated by a separate delivery-options
+// Function target. Legacy rules default to 100% across every delivery group.
 // ---------------------------------------------------------------------------
 
 export const landingFreeShippingRuleSchema = z.object({
@@ -209,6 +216,7 @@ export const landingFreeShippingRuleSchema = z.object({
   requiredLineAttributeValue: z.string().min(1),
   requiredAnchorVariantIds: z.array(variantGidSchema).optional(),
   requiredAnchorMinQuantity: z.number().int().positive().optional(),
+  ...deliveryDiscountRuleFields,
   message: z.string().trim().min(1),
   conditions: ruleConditionsSchema,
 });
@@ -236,19 +244,19 @@ export const quizBundlePriceMatchRuleSchema = z.object({
 });
 
 // ---------------------------------------------------------------------------
-// Quiz bundle free shipping — evaluated by the delivery-options Function
+// Quiz bundle shipping discount — evaluated by the delivery-options Function
 // target (see cartDeliveryOptionsDiscountsGenerateRun). Same _quiz_bundle_id
 // grouping and expectedPaidCount abuse guard as quiz_bundle_price_match
-// above, applied to shipping instead of price: free shipping for the whole
-// order whenever at least one quiz bundle group in the cart still has every
-// paid component it originally added. No product IDs configured — fully
-// generic, covers every quiz result/bundle automatically.
+// above, applied to eligible shipping groups instead of product prices.
+// No product IDs configured — fully generic, covers every quiz result/bundle
+// automatically.
 // ---------------------------------------------------------------------------
 
 export const quizBundleFreeShippingRuleSchema = z.object({
   id: ruleIdSchema,
   type: z.literal("quiz_bundle_free_shipping"),
   enabled: z.boolean(),
+  ...deliveryDiscountRuleFields,
   message: z.string().trim().min(1),
   conditions: ruleConditionsSchema,
 });

@@ -23,6 +23,7 @@ query DeliveryRunInput {
     }
     deliveryGroups {
       id
+      groupType
     }
   }
   discount {

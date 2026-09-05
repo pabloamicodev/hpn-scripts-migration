@@ -1,18 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { defaultHpnPromoConfig } from "./hpnPromoDefaults";
-import {
-  createAutomaticDiscount,
-  updateAutomaticDiscount,
-} from "./shopifyDiscounts.server";
+import { createAutomaticDiscount, updateAutomaticDiscount } from "./shopifyDiscounts.server";
 import type { GraphQLProxyFn } from "./shopifyProducts.server";
 
 describe("Shopify discount mutations", () => {
   it("declares PRODUCT when creating a unified discounts API discount", async () => {
     let capturedVariables: Record<string, unknown> | undefined;
-    const proxy: GraphQLProxyFn = async <TData>(
-      _query: string,
-      variables?: Record<string, unknown>,
-    ) => {
+    const proxy: GraphQLProxyFn = async <TData>(_query: string, variables?: Record<string, unknown>) => {
       capturedVariables = variables;
       return {
         data: {
@@ -47,10 +41,7 @@ describe("Shopify discount mutations", () => {
 
   it("preserves PRODUCT when updating the discount configuration", async () => {
     let capturedVariables: Record<string, unknown> | undefined;
-    const proxy: GraphQLProxyFn = async <TData>(
-      _query: string,
-      variables?: Record<string, unknown>,
-    ) => {
+    const proxy: GraphQLProxyFn = async <TData>(_query: string, variables?: Record<string, unknown>) => {
       capturedVariables = variables;
       return {
         data: {
@@ -66,11 +57,7 @@ describe("Shopify discount mutations", () => {
       };
     };
 
-    await updateAutomaticDiscount(
-      proxy,
-      "gid://shopify/DiscountAutomaticNode/1",
-      { config: defaultHpnPromoConfig },
-    );
+    await updateAutomaticDiscount(proxy, "gid://shopify/DiscountAutomaticNode/1", { config: defaultHpnPromoConfig });
 
     expect(capturedVariables).toMatchObject({
       automaticAppDiscount: {
@@ -81,10 +68,7 @@ describe("Shopify discount mutations", () => {
 
   it("adds SHIPPING when the config has a landing_free_shipping rule (create)", async () => {
     let capturedVariables: Record<string, unknown> | undefined;
-    const proxy: GraphQLProxyFn = async <TData>(
-      _query: string,
-      variables?: Record<string, unknown>,
-    ) => {
+    const proxy: GraphQLProxyFn = async <TData>(_query: string, variables?: Record<string, unknown>) => {
       capturedVariables = variables;
       return {
         data: {
@@ -111,6 +95,10 @@ describe("Shopify discount mutations", () => {
           enabled: true,
           requiredLineAttributeKey: "__landing_source",
           requiredLineAttributeValue: "protein-complete-lp",
+          deliveryDiscountType: "percentage" as const,
+          deliveryDiscountPercentage: 100 as const,
+          shippingDiscountAmount: 1,
+          targetDeliveryGroupTypes: ["ONE_TIME_PURCHASE" as const, "SUBSCRIPTION" as const],
           message: "Free shipping",
         },
       ],
@@ -134,10 +122,7 @@ describe("Shopify discount mutations", () => {
 
   it("does not add SHIPPING when updating a config without a shipping rule (no regression for hpn/one-sol)", async () => {
     let capturedVariables: Record<string, unknown> | undefined;
-    const proxy: GraphQLProxyFn = async <TData>(
-      _query: string,
-      variables?: Record<string, unknown>,
-    ) => {
+    const proxy: GraphQLProxyFn = async <TData>(_query: string, variables?: Record<string, unknown>) => {
       capturedVariables = variables;
       return {
         data: {
@@ -153,11 +138,7 @@ describe("Shopify discount mutations", () => {
       };
     };
 
-    await updateAutomaticDiscount(
-      proxy,
-      "gid://shopify/DiscountAutomaticNode/1",
-      { config: defaultHpnPromoConfig },
-    );
+    await updateAutomaticDiscount(proxy, "gid://shopify/DiscountAutomaticNode/1", { config: defaultHpnPromoConfig });
 
     expect(capturedVariables).toMatchObject({
       automaticAppDiscount: {
@@ -185,9 +166,7 @@ describe("Shopify discount mutations", () => {
       };
     };
 
-    const { activateDiscount, deactivateDiscount } = await import(
-      "./shopifyDiscounts.server"
-    );
+    const { activateDiscount, deactivateDiscount } = await import("./shopifyDiscounts.server");
     await activateDiscount(proxy, "gid://shopify/DiscountAutomaticNode/1");
     await deactivateDiscount(proxy, "gid://shopify/DiscountAutomaticNode/1");
 

@@ -7,6 +7,7 @@ import {
   requiredProductWithFreeVariantsRuleSchema,
   triggerProductDiscountedTargetsRuleSchema,
   loyaltyTierRuleSchema,
+  landingFreeShippingRuleSchema,
   ruleConditionsSchema,
 } from "../../app/lib/validations";
 
@@ -82,6 +83,55 @@ describe("GID format validation", () => {
       targetLineQuantityEquals: 1,
       discountPercentage: 10,
       message: "test",
+    });
+  });
+});
+
+describe("landingFreeShippingRuleSchema", () => {
+  const base = {
+    id: "landing-shipping",
+    type: "landing_free_shipping" as const,
+    enabled: true,
+    requiredLineAttributeKey: "__landing_source",
+    requiredLineAttributeValue: "ambrosia",
+    message: "Landing shipping discount",
+  };
+
+  it("keeps legacy rules compatible with safe shipping defaults", () => {
+    const result = ok(landingFreeShippingRuleSchema, base);
+    expect(result).toMatchObject({
+      deliveryDiscountType: "percentage",
+      deliveryDiscountPercentage: 100,
+      shippingDiscountAmount: 1,
+      targetDeliveryGroupTypes: ["ONE_TIME_PURCHASE", "SUBSCRIPTION"],
+    });
+  });
+
+  it.each([25, 50, 100] as const)("accepts the %s%% shipping preset", (percentage) => {
+    ok(landingFreeShippingRuleSchema, {
+      ...base,
+      deliveryDiscountPercentage: percentage,
+    });
+  });
+
+  it("accepts a positive fixed amount and one selected profile", () => {
+    ok(landingFreeShippingRuleSchema, {
+      ...base,
+      deliveryDiscountType: "fixed_amount",
+      shippingDiscountAmount: 6.99,
+      targetDeliveryGroupTypes: ["ONE_TIME_PURCHASE"],
+    });
+  });
+
+  it("rejects unsupported percentages, non-positive amounts, and no profiles", () => {
+    fail(landingFreeShippingRuleSchema, {
+      ...base,
+      deliveryDiscountPercentage: 75,
+    });
+    fail(landingFreeShippingRuleSchema, { ...base, shippingDiscountAmount: 0 });
+    fail(landingFreeShippingRuleSchema, {
+      ...base,
+      targetDeliveryGroupTypes: [],
     });
   });
 });
@@ -173,7 +223,10 @@ describe("requiredVariantsFreeVariantsRuleSchema defaults", () => {
   });
 
   it("accepts explicit discountPercentage", () => {
-    const result = ok(requiredVariantsFreeVariantsRuleSchema, { ...base, discountPercentage: 50 });
+    const result = ok(requiredVariantsFreeVariantsRuleSchema, {
+      ...base,
+      discountPercentage: 50,
+    });
     expect(result.discountPercentage).toBe(50);
   });
 
@@ -192,7 +245,10 @@ describe("requiredVariantsFreeVariantsRuleSchema defaults", () => {
   });
 
   it("rejects freeQuantityPerLine < 1", () => {
-    fail(requiredVariantsFreeVariantsRuleSchema, { ...base, freeQuantityPerLine: 0 });
+    fail(requiredVariantsFreeVariantsRuleSchema, {
+      ...base,
+      freeQuantityPerLine: 0,
+    });
   });
 });
 
@@ -356,7 +412,11 @@ describe("hpnPromoConfigSchema", () => {
     ok(hpnPromoConfigSchema, {
       version: 1,
       rules: [],
-      combinesWith: { orderDiscounts: true, productDiscounts: false, shippingDiscounts: true },
+      combinesWith: {
+        orderDiscounts: true,
+        productDiscounts: false,
+        shippingDiscounts: true,
+      },
     });
   });
 
@@ -364,7 +424,11 @@ describe("hpnPromoConfigSchema", () => {
     fail(hpnPromoConfigSchema, {
       version: 2,
       rules: [],
-      combinesWith: { orderDiscounts: true, productDiscounts: true, shippingDiscounts: true },
+      combinesWith: {
+        orderDiscounts: true,
+        productDiscounts: true,
+        shippingDiscounts: true,
+      },
     });
   });
 
@@ -395,7 +459,11 @@ describe("hpnPromoConfigSchema", () => {
           message: "loyalty",
         },
       ],
-      combinesWith: { orderDiscounts: true, productDiscounts: true, shippingDiscounts: true },
+      combinesWith: {
+        orderDiscounts: true,
+        productDiscounts: true,
+        shippingDiscounts: true,
+      },
     });
   });
 });

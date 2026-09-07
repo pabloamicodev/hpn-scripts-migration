@@ -4,7 +4,10 @@ import { cartDeliveryOptionsDiscountsGenerateRun } from "./index.js";
 
 const PROTEIN_VARIANT_ID = "gid://shopify/ProductVariant/31358533206097";
 
-function lineWithAttribute(value, { quantity = 1, variantId = PROTEIN_VARIANT_ID } = {}) {
+function lineWithAttribute(
+  value,
+  { quantity = 1, variantId = PROTEIN_VARIANT_ID } = {},
+) {
   return {
     quantity,
     landingSourceAttribute: value == null ? null : { value },
@@ -37,9 +40,19 @@ function config(overrides = {}) {
   };
 }
 
-function runWith(lines, deliveryGroups, cfg = config(), discountClasses = ["SHIPPING"]) {
+function runWith(
+  lines,
+  deliveryGroups,
+  cfg = config(),
+  discountClasses = ["SHIPPING"],
+  subtotalAmount = 100,
+) {
   return cartDeliveryOptionsDiscountsGenerateRun({
-    cart: { lines, deliveryGroups },
+    cart: {
+      cost: { subtotalAmount: { amount: String(subtotalAmount) } },
+      lines,
+      deliveryGroups,
+    },
     discount: {
       discountClasses,
       metafield: { value: JSON.stringify(cfg) },
@@ -87,7 +100,10 @@ describe("cartDeliveryOptionsDiscountsGenerateRun", () => {
   it("discounts every delivery group to 100% via a single candidate (one checkout label, not one per group)", () => {
     const result = runWith(
       [lineWithAttribute("protein-complete-lp")],
-      [{ id: "gid://shopify/CartDeliveryGroup/1" }, { id: "gid://shopify/CartDeliveryGroup/2" }],
+      [
+        { id: "gid://shopify/CartDeliveryGroup/1" },
+        { id: "gid://shopify/CartDeliveryGroup/2" },
+      ],
     );
 
     expect(result).toEqual({
@@ -137,8 +153,69 @@ describe("cartDeliveryOptionsDiscountsGenerateRun", () => {
 
     expect(result.operations[0].deliveryDiscountsAdd.candidates[0]).toEqual({
       message: "Free shipping — Protein Complete bundle",
-      targets: [{ deliveryGroup: { id: "gid://shopify/CartDeliveryGroup/initial" } }],
+      targets: [
+        { deliveryGroup: { id: "gid://shopify/CartDeliveryGroup/initial" } },
+      ],
       value: { percentage: { value: "25" } },
+    });
+  });
+
+  it("applies the highest qualifying cart-value shipping tier", () => {
+    const lines = [lineWithAttribute("protein-complete-lp")];
+    const groups = [{ id: "gid://shopify/CartDeliveryGroup/initial" }];
+    const tieredConfig = config({
+      shippingTiers: [
+        { minimumSubtotal: 0, discountPercentage: 0 },
+        { minimumSubtotal: 50, discountPercentage: 25 },
+        { minimumSubtotal: 100, discountPercentage: 50 },
+        { minimumSubtotal: 200, discountPercentage: 100 },
+      ],
+    });
+
+    const result = runWith(lines, groups, tieredConfig, ["SHIPPING"], 125);
+
+    expect(
+      result.operations[0].deliveryDiscountsAdd.candidates[0].value,
+    ).toEqual({
+      percentage: { value: "50" },
+    });
+  });
+
+  it("returns no shipping discount when the qualifying tier is 0%", () => {
+    const result = runWith(
+      [lineWithAttribute("protein-complete-lp")],
+      [{ id: "gid://shopify/CartDeliveryGroup/initial" }],
+      config({
+        shippingTiers: [
+          { minimumSubtotal: 0, discountPercentage: 0 },
+          { minimumSubtotal: 50, discountPercentage: 25 },
+        ],
+      }),
+      ["SHIPPING"],
+      30,
+    );
+
+    expect(result).toEqual({ operations: [] });
+  });
+
+  it("supports a custom two-tier setup", () => {
+    const result = runWith(
+      [lineWithAttribute("protein-complete-lp")],
+      [{ id: "gid://shopify/CartDeliveryGroup/initial" }],
+      config({
+        shippingTiers: [
+          { minimumSubtotal: 50, discountPercentage: 50 },
+          { minimumSubtotal: 90, discountPercentage: 100 },
+        ],
+      }),
+      ["SHIPPING"],
+      95,
+    );
+
+    expect(
+      result.operations[0].deliveryDiscountsAdd.candidates[0].value,
+    ).toEqual({
+      percentage: { value: "100" },
     });
   });
 
@@ -153,7 +230,13 @@ describe("cartDeliveryOptionsDiscountsGenerateRun", () => {
         {
           id: "gid://shopify/CartDeliveryGroup/initial",
           groupType: "ONE_TIME_PURCHASE",
-          cartLines: [{ sellingPlanAllocation: { sellingPlan: { id: "gid://shopify/SellingPlan/1" } } }],
+          cartLines: [
+            {
+              sellingPlanAllocation: {
+                sellingPlan: { id: "gid://shopify/SellingPlan/1" },
+              },
+            },
+          ],
         },
       ],
       config({ targetDeliveryGroupTypes: ["ONE_TIME_PURCHASE"] }),
@@ -185,7 +268,13 @@ describe("cartDeliveryOptionsDiscountsGenerateRun", () => {
         {
           id: "gid://shopify/CartDeliveryGroup/initial",
           groupType: "ONE_TIME_PURCHASE",
-          cartLines: [{ sellingPlanAllocation: { sellingPlan: { id: "gid://shopify/SellingPlan/1" } } }],
+          cartLines: [
+            {
+              sellingPlanAllocation: {
+                sellingPlan: { id: "gid://shopify/SellingPlan/1" },
+              },
+            },
+          ],
         },
       ],
       config({ targetDeliveryGroupTypes: ["SUBSCRIPTION"] }),
@@ -214,8 +303,12 @@ describe("cartDeliveryOptionsDiscountsGenerateRun", () => {
       }),
     );
 
-    expect(result.operations[0].deliveryDiscountsAdd.candidates[0]).toMatchObject({
-      targets: [{ deliveryGroup: { id: "gid://shopify/CartDeliveryGroup/recurring" } }],
+    expect(
+      result.operations[0].deliveryDiscountsAdd.candidates[0],
+    ).toMatchObject({
+      targets: [
+        { deliveryGroup: { id: "gid://shopify/CartDeliveryGroup/recurring" } },
+      ],
       value: { percentage: { value: "50" } },
     });
   });
@@ -236,7 +329,9 @@ describe("cartDeliveryOptionsDiscountsGenerateRun", () => {
       }),
     );
 
-    expect(result.operations[0].deliveryDiscountsAdd.candidates[0].value).toEqual({
+    expect(
+      result.operations[0].deliveryDiscountsAdd.candidates[0].value,
+    ).toEqual({
       fixedAmount: { amount: "6.99" },
     });
   });
@@ -250,7 +345,9 @@ describe("cartDeliveryOptionsDiscountsGenerateRun", () => {
     ];
     const lines = [lineWithAttribute("protein-complete-lp")];
 
-    expect(runWith(lines, groups, config({ deliveryDiscountPercentage: 10 }))).toEqual({
+    expect(
+      runWith(lines, groups, config({ deliveryDiscountPercentage: 10 })),
+    ).toEqual({
       operations: [],
     });
     expect(
@@ -263,7 +360,9 @@ describe("cartDeliveryOptionsDiscountsGenerateRun", () => {
         }),
       ),
     ).toEqual({ operations: [] });
-    expect(runWith(lines, groups, config({ targetDeliveryGroupTypes: [] }))).toEqual({
+    expect(
+      runWith(lines, groups, config({ targetDeliveryGroupTypes: [] })),
+    ).toEqual({
       operations: [],
     });
   });
@@ -380,7 +479,12 @@ describe("quiz_bundle_free_shipping", () => {
     };
   }
 
-  function quizDeliveryLine({ bundleId = "pq-1", isGift = false, expectedPaidCount = 1, quantity = 1 } = {}) {
+  function quizDeliveryLine({
+    bundleId = "pq-1",
+    isGift = false,
+    expectedPaidCount = 1,
+    quantity = 1,
+  } = {}) {
     return {
       quantity,
       merchandise: { __typename: "ProductVariant", id: PROTEIN_VARIANT_ID },
@@ -475,7 +579,11 @@ describe("quiz_bundle_free_shipping", () => {
       merchandise: { __typename: "ProductVariant", id: PROTEIN_VARIANT_ID },
       // No quizBundleIdAttribute at all — this rule only reads that key.
     };
-    const result = runWith([bundleBuilderLine], [{ id: "gid://shopify/CartDeliveryGroup/1" }], quizShippingConfig());
+    const result = runWith(
+      [bundleBuilderLine],
+      [{ id: "gid://shopify/CartDeliveryGroup/1" }],
+      quizShippingConfig(),
+    );
     expect(result).toEqual({ operations: [] });
   });
 

@@ -32,24 +32,63 @@
       </h2>
       <p id="cart-gift-tiers-modal-subtitle" class="cart-gift-tiers-subtitle"></p>
       <p id="cart-gift-tiers-modal-description" class="cart-gift-tiers-description"></p>
-      <div class="cart-gift-tiers-options" data-cart-gift-tiers-options></div>
+      <div class="cart-gift-tiers-products" data-cart-gift-tiers-products></div>
   </dialog>
 </template>
 
-<template id="cart-gift-tiers-option-template">
-  <button type="button" class="cart-gift-tiers-option">
-    <span class="cart-gift-tiers-option__media">
-      <img class="cart-gift-tiers-option__image" alt="" width="320" height="320" loading="lazy">
-    </span>
-    <span class="cart-gift-tiers-option__content">
-      <span class="cart-gift-tiers-option__variant-label"></span>
-      <strong class="cart-gift-tiers-option__title"></strong>
-      <span class="cart-gift-tiers-option__price-row">
-        <s class="cart-gift-tiers-option__price"></s>
-        <span class="cart-gift-tiers-option__free-badge">Free</span>
+{% comment %} One "mini PDP" per gift product: gallery on the left, name/description/variant picker on the right. {% endcomment %}
+<template id="cart-gift-tiers-product-template">
+  <div class="cart-gift-tiers-product">
+    <div class="cart-gift-tiers-gallery">
+      <div class="cart-gift-tiers-gallery__main">
+        <img class="cart-gift-tiers-gallery__main-image" alt="" width="480" height="480" loading="lazy">
+      </div>
+      <div class="cart-gift-tiers-gallery__thumbs-row" data-cart-gift-tiers-thumbs-row hidden>
+        <button
+          type="button"
+          class="cart-gift-tiers-gallery__arrow cart-gift-tiers-gallery__arrow--prev"
+          data-cart-gift-tiers-thumb-prev
+          aria-label="Scroll photos left"
+        >&#8249;</button>
+        <div class="cart-gift-tiers-gallery__thumbs" data-cart-gift-tiers-thumbs></div>
+        <button
+          type="button"
+          class="cart-gift-tiers-gallery__arrow cart-gift-tiers-gallery__arrow--next"
+          data-cart-gift-tiers-thumb-next
+          aria-label="Scroll photos right"
+        >&#8250;</button>
+      </div>
+    </div>
+
+    <div class="cart-gift-tiers-info">
+      <h3 class="cart-gift-tiers-info__title"></h3>
+      <p class="cart-gift-tiers-info__description"></p>
+
+      <div class="cart-gift-tiers-info__picker" data-cart-gift-tiers-picker>
+        <span class="cart-gift-tiers-info__picker-label" data-cart-gift-tiers-picker-label></span>
+        <div class="cart-gift-tiers-pills" data-cart-gift-tiers-pills></div>
+      </div>
+
+      <span class="cart-gift-tiers-info__price-row">
+        <s class="cart-gift-tiers-info__price" data-cart-gift-tiers-price></s>
+        <span class="cart-gift-tiers-info__free-badge">Free</span>
       </span>
-    </span>
+
+      <button type="button" class="cart-gift-tiers-add-button" data-cart-gift-tiers-add>
+        Add to cart
+      </button>
+    </div>
+  </div>
+</template>
+
+<template id="cart-gift-tiers-thumb-template">
+  <button type="button" class="cart-gift-tiers-gallery__thumb">
+    <img alt="" width="72" height="72" loading="lazy">
   </button>
+</template>
+
+<template id="cart-gift-tiers-pill-template">
+  <button type="button" class="cart-gift-tiers-pill"></button>
 </template>
 
 {{ 'cart-gift-tiers.css' | asset_url | stylesheet_tag }}

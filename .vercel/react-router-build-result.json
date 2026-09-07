@@ -25,6 +25,7 @@
       "routes/auth.login": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/auth.$": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/webhooks": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/apps.cart-gift-tiers": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/debug.sessions": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0"
     },
     "routes": {
@@ -176,6 +177,15 @@
           "runtime": "nodejs"
         }
       },
+      "routes/apps.cart-gift-tiers": {
+        "id": "routes/apps.cart-gift-tiers",
+        "parentId": "root",
+        "file": "app/routes/apps.cart-gift-tiers.tsx",
+        "path": "apps/cart-gift-tiers",
+        "config": {
+          "runtime": "nodejs"
+        }
+      },
       "routes/debug.sessions": {
         "id": "routes/debug.sessions",
         "parentId": "root",
@@ -302,6 +312,12 @@
         "file": "routes/webhooks.tsx",
         "path": "webhooks"
       },
+      "routes/apps.cart-gift-tiers": {
+        "id": "routes/apps.cart-gift-tiers",
+        "parentId": "root",
+        "file": "routes/apps.cart-gift-tiers.tsx",
+        "path": "apps/cart-gift-tiers"
+      },
       "routes/debug.sessions": {
         "id": "routes/debug.sessions",
         "parentId": "root",
@@ -389,6 +405,10 @@
           {
             "file": "routes/webhooks.tsx",
             "path": "webhooks"
+          },
+          {
+            "file": "routes/apps.cart-gift-tiers.tsx",
+            "path": "apps/cart-gift-tiers"
           },
           {
             "file": "routes/debug.sessions.tsx",

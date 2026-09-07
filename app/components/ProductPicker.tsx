@@ -24,6 +24,7 @@ interface ProductNode {
   title: string;
   handle: string;
   vendor?: string | null;
+  description?: string | null;
   featuredImage?: ProductImage | null;
   variants: {
     nodes: ProductVariantNode[];
@@ -83,7 +84,10 @@ function isDefaultVariantTitle(title: string) {
 
 function formatVariantName(variant: ProductVariantNode, index = 0) {
   const optionValues =
-    variant.selectedOptions?.map((option) => option.value.trim()).filter((value) => value && value.toLowerCase() !== "default title") ?? [];
+    variant.selectedOptions
+      ?.map((option) => option.value.trim())
+      .filter((value) => value && value.toLowerCase() !== "default title") ??
+    [];
 
   if (optionValues.length > 0) {
     return optionValues.join(" / ");
@@ -111,12 +115,181 @@ function formatVariantOptionLabel(variant: ProductVariantNode, index: number) {
     .join(" - ");
 }
 
-export function ProductPicker({ onSelect, onClose, selectionMode = "variant" }: ProductPickerProps) {
+function getProductImages(product: ProductNode) {
+  const images = [
+    product.featuredImage,
+    ...product.variants.nodes.map((variant) => variant.image),
+  ];
+  const seenUrls = new Set<string>();
+
+  return images.filter((image): image is ProductImage => {
+    if (!image?.url || seenUrls.has(image.url)) return false;
+    seenUrls.add(image.url);
+    return true;
+  });
+}
+
+function getProductOptions(variants: ProductVariantNode[]) {
+  const options = new Map<string, string[]>();
+
+  for (const variant of variants) {
+    for (const option of variant.selectedOptions ?? []) {
+      if (
+        !option.name ||
+        !option.value ||
+        option.value.toLowerCase() === "default title"
+      )
+        continue;
+      const values = options.get(option.name) ?? [];
+      if (!values.includes(option.value)) values.push(option.value);
+      options.set(option.name, values);
+    }
+  }
+
+  return Array.from(options, ([name, values]) => ({ name, values }));
+}
+
+function ProductGallery({
+  product,
+  selectedVariant,
+}: {
+  product: ProductNode;
+  selectedVariant: ProductVariantNode | null;
+}) {
+  const images = getProductImages(product);
+  const selectedImage = getProductImage(product, selectedVariant ?? undefined);
+  const initialImageIndex = Math.max(
+    0,
+    images.findIndex((image) => image.url === selectedImage?.url),
+  );
+  const [activeImageIndex, setActiveImageIndex] = useState(initialImageIndex);
+  const [scrollState, setScrollState] = useState({
+    canScrollLeft: false,
+    canScrollRight: false,
+  });
+  const carouselRef = useRef<HTMLUListElement>(null);
+  const activeImage = images[activeImageIndex] ?? selectedImage;
+
+  useEffect(() => {
+    const carousel = carouselRef.current;
+    if (!carousel) return;
+
+    function updateScrollState() {
+      if (!carousel) return;
+      const maxScrollLeft = carousel.scrollWidth - carousel.clientWidth;
+      setScrollState({
+        canScrollLeft: carousel.scrollLeft > 2,
+        canScrollRight: carousel.scrollLeft < maxScrollLeft - 2,
+      });
+    }
+
+    updateScrollState();
+    const resizeObserver = new ResizeObserver(updateScrollState);
+    resizeObserver.observe(carousel);
+    carousel.addEventListener("scroll", updateScrollState, { passive: true });
+
+    return () => {
+      resizeObserver.disconnect();
+      carousel.removeEventListener("scroll", updateScrollState);
+    };
+  }, [images.length]);
+
+  function scrollCarousel(direction: -1 | 1) {
+    carouselRef.current?.scrollBy({
+      left: direction * 220,
+      behavior: "smooth",
+    });
+  }
+
+  return (
+    <div className="product-gallery">
+      <div className="product-gallery__main">
+        {activeImage?.url ? (
+          <img
+            src={activeImage.url}
+            alt={activeImage.altText || `${product.title} product image`}
+            width={900}
+            height={900}
+            loading="lazy"
+          />
+        ) : (
+          <span aria-hidden="true">
+            {product.title.slice(0, 2).toUpperCase()}
+          </span>
+        )}
+      </div>
+
+      {images.length > 1 ? (
+        <div className="product-gallery__carousel">
+          {scrollState.canScrollLeft ? (
+            <button
+              type="button"
+              className="product-gallery__arrow product-gallery__arrow--left"
+              aria-label={`Show previous images for ${product.title}`}
+              onClick={() => scrollCarousel(-1)}
+            >
+              <svg viewBox="0 0 20 20" aria-hidden="true">
+                <path d="m12.5 4-6 6 6 6" />
+              </svg>
+            </button>
+          ) : null}
+
+          <ul
+            ref={carouselRef}
+            className="product-gallery__thumbnails"
+            aria-label={`Images for ${product.title}`}
+          >
+            {images.map((image, index) => (
+              <li key={image.url}>
+                <button
+                  type="button"
+                  className={`product-gallery__thumbnail${index === activeImageIndex ? " is-active" : ""}`}
+                  aria-label={`View image ${index + 1} of ${images.length}`}
+                  aria-pressed={index === activeImageIndex}
+                  onClick={() => setActiveImageIndex(index)}
+                >
+                  <img
+                    src={image.url}
+                    alt=""
+                    width={112}
+                    height={112}
+                    loading="lazy"
+                  />
+                </button>
+              </li>
+            ))}
+          </ul>
+
+          {scrollState.canScrollRight ? (
+            <button
+              type="button"
+              className="product-gallery__arrow product-gallery__arrow--right"
+              aria-label={`Show more images for ${product.title}`}
+              onClick={() => scrollCarousel(1)}
+            >
+              <svg viewBox="0 0 20 20" aria-hidden="true">
+                <path d="m7.5 4 6 6-6 6" />
+              </svg>
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+export function ProductPicker({
+  onSelect,
+  onClose,
+  selectionMode = "variant",
+}: ProductPickerProps) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<ProductNode[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [selectedVariantByProductId, setSelectedVariantByProductId] = useState<Record<string, string>>({});
+  const [selectedVariantByProductId, setSelectedVariantByProductId] = useState<
+    Record<string, string>
+  >({});
   const searchInputRef = useRef<HTMLInputElement>(null);
   const previouslyFocusedElement = useRef<Element | null>(null);
 
@@ -158,7 +331,9 @@ export function ProductPicker({ onSelect, onClose, selectionMode = "variant" }: 
         setResults(data.products || []);
       } catch (err) {
         if (err instanceof DOMException && err.name === "AbortError") return;
-        setError(err instanceof Error ? err.message : "Failed to search products.");
+        setError(
+          err instanceof Error ? err.message : "Failed to search products.",
+        );
         setResults([]);
       } finally {
         setLoading(false);
@@ -186,7 +361,10 @@ export function ProductPicker({ onSelect, onClose, selectionMode = "variant" }: 
   }, [onClose]);
 
   const resultCount = useMemo(() => {
-    return results.reduce((count, product) => count + (product.variants?.nodes?.length ?? 0), 0);
+    return results.reduce(
+      (count, product) => count + (product.variants?.nodes?.length ?? 0),
+      0,
+    );
   }, [results]);
 
   const liveStatus = loading
@@ -197,7 +375,8 @@ export function ProductPicker({ onSelect, onClose, selectionMode = "variant" }: 
 
   function selectVariant(product: ProductNode, variant: ProductVariantNode) {
     const image = getProductImage(product, variant);
-    const variantIndex = product.variants?.nodes?.findIndex((node) => node.id === variant.id) ?? 0;
+    const variantIndex =
+      product.variants?.nodes?.findIndex((node) => node.id === variant.id) ?? 0;
 
     onSelect({
       productId: product.id,
@@ -228,14 +407,20 @@ export function ProductPicker({ onSelect, onClose, selectionMode = "variant" }: 
     const variants = product.variants?.nodes ?? [];
     const selectedVariantId = selectedVariantByProductId[product.id];
 
-    return variants.find((variant) => variant.id === selectedVariantId) ?? variants[0] ?? null;
+    return (
+      variants.find((variant) => variant.id === selectedVariantId) ??
+      variants[0] ??
+      null
+    );
   }
 
   function handleDialogKeyDown(event: ReactKeyboardEvent<HTMLElement>) {
     if (event.key !== "Tab") return;
 
     const focusable = Array.from(
-      event.currentTarget.querySelectorAll<HTMLElement>('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'),
+      event.currentTarget.querySelectorAll<HTMLElement>(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+      ),
     ).filter((element) => !element.hasAttribute("disabled"));
 
     if (focusable.length === 0) return;
@@ -276,7 +461,12 @@ export function ProductPicker({ onSelect, onClose, selectionMode = "variant" }: 
             </p>
           </div>
 
-          <button type="button" onClick={onClose} className="btn btn--small" aria-label="Close product picker">
+          <button
+            type="button"
+            onClick={onClose}
+            className="btn btn--small"
+            aria-label="Close product picker"
+          >
             Close
           </button>
         </header>
@@ -308,7 +498,9 @@ export function ProductPicker({ onSelect, onClose, selectionMode = "variant" }: 
           {!loading && normalizedQuery.length === 0 && (
             <div className="picker-empty picker-empty--inline">
               <strong>Showing recent products.</strong>
-              <span>Search by title, handle, SKU, or keyword to narrow the list.</span>
+              <span>
+                Search by title, handle, SKU, or keyword to narrow the list.
+              </span>
             </div>
           )}
 
@@ -326,12 +518,17 @@ export function ProductPicker({ onSelect, onClose, selectionMode = "variant" }: 
             </div>
           )}
 
-          {!loading && !error && normalizedQuery.length > 0 && results.length === 0 && (
-            <div className="picker-empty">
-              <strong>No products found.</strong>
-              <span>Try a different title, handle, SKU, or product keyword.</span>
-            </div>
-          )}
+          {!loading &&
+            !error &&
+            normalizedQuery.length > 0 &&
+            results.length === 0 && (
+              <div className="picker-empty">
+                <strong>No products found.</strong>
+                <span>
+                  Try a different title, handle, SKU, or product keyword.
+                </span>
+              </div>
+            )}
 
           {!loading && results.length > 0 && (
             <div className="picker-results">
@@ -340,45 +537,124 @@ export function ProductPicker({ onSelect, onClose, selectionMode = "variant" }: 
                   <strong>{results.length} products</strong>
                   <span>{resultCount} variants available</span>
                 </div>
-                {normalizedQuery && <span className="picker-results__query">"{normalizedQuery}"</span>}
+                {normalizedQuery && (
+                  <span className="picker-results__query">
+                    "{normalizedQuery}"
+                  </span>
+                )}
               </div>
 
               <div className="product-picker-grid">
                 {results.map((product) => {
                   const variants = product.variants?.nodes ?? [];
                   const selectedVariant = getSelectedVariant(product);
-                  const image = getProductImage(product, selectedVariant ?? variants[0]);
+                  const productOptions = getProductOptions(variants);
                   const variantSelectId = `product-variant-${getGidTail(product.id)}`;
 
                   return (
                     <article key={product.id} className="product-picker-card">
-                      <div className="product-picker-card__top">
-                        <div className="product-picker-card__media">
-                          {image?.url ? (
-                            <img src={image.url} alt={image.altText || product.title} loading="lazy" />
-                          ) : (
-                            <span>{product.title.slice(0, 2).toUpperCase()}</span>
-                          )}
-                        </div>
+                      <ProductGallery
+                        key={selectedVariant?.id ?? product.id}
+                        product={product}
+                        selectedVariant={selectedVariant}
+                      />
 
+                      <div className="product-picker-card__details">
                         <div className="product-picker-card__summary">
+                          {product.vendor ? (
+                            <span className="product-picker-card__vendor">
+                              {product.vendor}
+                            </span>
+                          ) : null}
                           <h3>{product.title}</h3>
-                          <div className="product-picker-meta">
-                            {product.vendor && <span>{product.vendor}</span>}
-                            <span>/{product.handle}</span>
-                            <span>ID {getGidTail(product.id)}</span>
-                          </div>
-                          <p className="product-picker-card__variant-count">
-                            {variants.length} variant
-                            {variants.length === 1 ? "" : "s"}
+                          <p className="product-picker-card__description">
+                            {product.description?.trim() ||
+                              "No product description has been added in Shopify yet."}
                           </p>
+                          <div className="product-picker-meta">
+                            <span>/{product.handle}</span>
+                            <span>
+                              {variants.length} variant
+                              {variants.length === 1 ? "" : "s"}
+                            </span>
+                          </div>
                         </div>
-                      </div>
 
-                      <div className="variant-choice-panel">
-                        {selectionMode === "variant" && (
+                        <div className="variant-choice-panel">
+                          {productOptions.map((option) => {
+                            const optionSelectId = `product-option-${getGidTail(product.id)}-${option.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
+                            const selectedValue =
+                              selectedVariant?.selectedOptions?.find(
+                                (selectedOption) =>
+                                  selectedOption.name === option.name,
+                              )?.value ?? option.values[0];
+
+                            return (
+                              <div
+                                className="variant-select-field"
+                                key={option.name}
+                              >
+                                <label htmlFor={optionSelectId}>
+                                  Choose your {option.name}
+                                </label>
+                                <select
+                                  id={optionSelectId}
+                                  value={selectedValue}
+                                  onChange={(event) => {
+                                    const nextValue = event.target.value;
+                                    const currentOptions = new Map(
+                                      selectedVariant?.selectedOptions?.map(
+                                        (selectedOption) => [
+                                          selectedOption.name,
+                                          selectedOption.value,
+                                        ],
+                                      ),
+                                    );
+                                    currentOptions.set(option.name, nextValue);
+                                    const nextVariant =
+                                      variants.find((variant) =>
+                                        Array.from(currentOptions).every(
+                                          ([name, value]) =>
+                                            variant.selectedOptions?.some(
+                                              (selectedOption) =>
+                                                selectedOption.name === name &&
+                                                selectedOption.value === value,
+                                            ),
+                                        ),
+                                      ) ??
+                                      variants.find((variant) =>
+                                        variant.selectedOptions?.some(
+                                          (selectedOption) =>
+                                            selectedOption.name ===
+                                              option.name &&
+                                            selectedOption.value === nextValue,
+                                        ),
+                                      );
+
+                                    if (nextVariant) {
+                                      setSelectedVariantByProductId(
+                                        (current) => ({
+                                          ...current,
+                                          [product.id]: nextVariant.id,
+                                        }),
+                                      );
+                                    }
+                                  }}
+                                >
+                                  {option.values.map((value) => (
+                                    <option key={value} value={value}>
+                                      {value}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                            );
+                          })}
+
                           <div className="variant-select-field">
-                            <label htmlFor={variantSelectId}>Variant</label>
+                            <label htmlFor={variantSelectId}>
+                              Select variant
+                            </label>
                             <select
                               id={variantSelectId}
                               value={selectedVariant?.id ?? ""}
@@ -397,29 +673,36 @@ export function ProductPicker({ onSelect, onClose, selectionMode = "variant" }: 
                               ))}
                             </select>
                           </div>
-                        )}
 
-                        <div className="variant-choice-summary">
-                          <div>
-                            <strong>{selectedVariant ? `$${selectedVariant.price}` : "No variant"}</strong>
-                            <span>
-                              {selectedVariant
-                                ? formatInventory(selectedVariant.inventoryQuantity)
-                                : "This product has no variants available"}
-                            </span>
+                          <div className="variant-choice-summary">
+                            <div>
+                              <strong>
+                                {selectedVariant
+                                  ? `$${selectedVariant.price}`
+                                  : "No variant"}
+                              </strong>
+                              <span>
+                                {selectedVariant
+                                  ? formatInventory(
+                                      selectedVariant.inventoryQuantity,
+                                    )
+                                  : "This product has no variants available"}
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              className="btn btn--primary"
+                              disabled={!selectedVariant}
+                              onClick={() => {
+                                if (selectedVariant)
+                                  selectVariant(product, selectedVariant);
+                              }}
+                            >
+                              {selectionMode === "product"
+                                ? "Select product"
+                                : "Select variant"}
+                            </button>
                           </div>
-                          <button
-                            type="button"
-                            className="btn btn--primary"
-                            disabled={!selectedVariant}
-                            onClick={() => {
-                              if (selectedVariant) {
-                                selectVariant(product, selectedVariant);
-                              }
-                            }}
-                          >
-                            {selectionMode === "product" ? "Select product" : "Select"}
-                          </button>
                         </div>
                       </div>
                     </article>

@@ -2,7 +2,11 @@ import type { LoaderFunctionArgs } from "react-router";
 
 import { authenticate } from "~/shopify.server";
 import { makeGraphqlProxy } from "~/lib/graphqlProxy.server";
-import { getVariantById } from "~/lib/shopifyProducts.server";
+import {
+  getVariantById,
+  type GraphQLProxyFn,
+  type ProductVariantWithProductNode,
+} from "~/lib/shopifyProducts.server";
 import { loadActiveDiscount } from "~/lib/hpnPromoConfig.server";
 import type { CartSubtotalFreeGiftRule } from "~/lib/validations";
 
@@ -41,6 +45,63 @@ const EMPTY_RESPONSE = { stackingMode: "highest_tier_only", tiers: [] };
 const RESPONSE_CACHE_TTL_MS = 60_000;
 const responseCache = new Map<string, { expiresAt: number; body: unknown }>();
 
+interface ProductMedia {
+  description: string;
+  images: Array<{ url: string; altText: string | null }>;
+}
+
+const GET_PRODUCTS_MEDIA_QUERY = `
+  query GetProductsMedia($ids: [ID!]!) {
+    nodes(ids: $ids) {
+      ... on Product {
+        id
+        description
+        images(first: 8) {
+          nodes {
+            url
+            altText
+          }
+        }
+      }
+    }
+  }
+`;
+
+interface GetProductsMediaData {
+  nodes: Array<{
+    id: string;
+    description?: string;
+    images?: { nodes: Array<{ url: string; altText: string | null }> };
+  } | null>;
+}
+
+async function loadProductMedia(
+  graphqlProxy: GraphQLProxyFn,
+  productIds: string[],
+): Promise<Map<string, ProductMedia>> {
+  const media = new Map<string, ProductMedia>();
+  if (productIds.length === 0) return media;
+
+  const result = await graphqlProxy<GetProductsMediaData>(GET_PRODUCTS_MEDIA_QUERY, {
+    ids: productIds,
+  });
+  if (result.errors?.length) return media;
+
+  for (const node of result.data?.nodes ?? []) {
+    if (!node) continue;
+    media.set(node.id, {
+      description: node.description ?? "",
+      images: node.images?.nodes ?? [],
+    });
+  }
+  return media;
+}
+
+function variantDisplayTitle(v: ProductVariantWithProductNode) {
+  if (v.title === "Default Title" || v.product.title === v.title) return v.product.title;
+  return `${v.product.title} — ${v.title}`;
+}
+
 export async function loader({ request }: LoaderFunctionArgs) {
   const { session, admin } = await authenticate.public.appProxy(request);
 
@@ -66,24 +127,53 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
     const tiers = await Promise.all(
       rule.tiers.map(async (tier) => {
-        const variants = await Promise.all(tier.giftVariantIds.map((id) => getVariantById(graphqlProxy, id)));
+        const resolved = await Promise.all(tier.giftVariantIds.map((id) => getVariantById(graphqlProxy, id)));
+        const available = resolved.filter(
+          (v): v is NonNullable<typeof v> => v !== null && v.availableForSale !== false,
+        );
+
+        // Group by product — a gift is usually one product with several
+        // size/flavor variants to choose from, occasionally several
+        // distinct products a merchant listed as alternatives.
+        const byProductId = new Map<string, ProductVariantWithProductNode[]>();
+        for (const v of available) {
+          const list = byProductId.get(v.product.id) ?? [];
+          list.push(v);
+          byProductId.set(v.product.id, list);
+        }
+
+        const media = await loadProductMedia(graphqlProxy, Array.from(byProductId.keys()));
+
+        const products = Array.from(byProductId.entries()).map(([productId, variants]) => {
+          const productMedia = media.get(productId);
+          const fallbackImage = variants[0]?.image?.url ?? variants[0]?.product.featuredImage?.url ?? null;
+          const images = productMedia?.images?.length
+            ? productMedia.images
+            : fallbackImage
+              ? [{ url: fallbackImage, altText: variants[0].product.title }]
+              : [];
+
+          return {
+            id: productId,
+            title: variants[0].product.title,
+            description: productMedia?.description ?? "",
+            images,
+            variants: variants.map((v) => ({
+              id: v.legacyResourceId ?? v.id.split("/").pop() ?? v.id,
+              title: variantDisplayTitle(v),
+              options: v.selectedOptions ?? [],
+              image: v.image?.url ?? null,
+              price: v.price,
+            })),
+          };
+        });
 
         return {
           id: tier.id,
           minimumSubtotal: tier.minimumSubtotal,
           maxFreeUnits: tier.maxFreeUnits,
           discountPercentage: tier.discountPercentage,
-          variants: variants
-            .filter((v): v is NonNullable<typeof v> => v !== null && v.availableForSale !== false)
-            .map((v) => ({
-              id: v.legacyResourceId ?? v.id.split("/").pop() ?? v.id,
-              productTitle: v.product.title,
-              variantTitle: v.title,
-              options: v.selectedOptions ?? [],
-              title: v.title === "Default Title" || v.product.title === v.title ? v.product.title : `${v.product.title} — ${v.title}`,
-              image: v.image?.url ?? v.product.featuredImage?.url ?? null,
-              price: v.price,
-            })),
+          products,
         };
       }),
     );
@@ -91,7 +181,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     const body = {
       stackingMode: rule.stackingMode,
       message: rule.message,
-      tiers: tiers.filter((tier) => tier.variants.length > 0),
+      tiers: tiers.filter((tier) => tier.products.length > 0),
     };
     responseCache.set(session.shop, {
       expiresAt: Date.now() + RESPONSE_CACHE_TTL_MS,

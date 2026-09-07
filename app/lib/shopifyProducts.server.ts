@@ -22,6 +22,7 @@ const SEARCH_PRODUCTS_QUERY = `
         title
         handle
         vendor
+        description
         featuredImage {
           url
           altText
@@ -56,6 +57,7 @@ const LIST_PRODUCTS_QUERY = `
         title
         handle
         vendor
+        description
         featuredImage {
           url
           altText
@@ -89,6 +91,7 @@ const GET_PRODUCT_BY_ID_QUERY = `
       title
       handle
       vendor
+      description
       featuredImage {
         url
         altText
@@ -165,6 +168,7 @@ export interface ProductNode {
   title: string;
   handle: string;
   vendor?: string | null;
+  description?: string | null;
   featuredImage?: {
     url: string;
     altText?: string | null;

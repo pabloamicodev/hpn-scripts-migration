@@ -27,7 +27,9 @@ export function cartLinesDiscountsGenerateRun(input) {
   const cartAttributes = deriveCartAttributes(cart);
 
   // --- Index cart lines by product ID and variant ID ---
-  const lines = (cart.lines ?? []).filter((l) => l.merchandise?.__typename === "ProductVariant");
+  const lines = (cart.lines ?? []).filter(
+    (l) => l.merchandise?.__typename === "ProductVariant",
+  );
 
   const byProduct = new Map();
   const byVariant = new Map();
@@ -48,7 +50,8 @@ export function cartLinesDiscountsGenerateRun(input) {
 
   for (const rule of config.rules) {
     // Skip malformed entries (null, non-object, missing type) that could crash downstream.
-    if (!rule || typeof rule !== "object" || typeof rule.type !== "string") continue;
+    if (!rule || typeof rule !== "object" || typeof rule.type !== "string")
+      continue;
     if (!rule.enabled) continue;
 
     // Check global conditions before dispatching to the specific rule handler.
@@ -61,7 +64,11 @@ export function cartLinesDiscountsGenerateRun(input) {
     } else if (rule.type === "required_product_with_free_variants") {
       applyPouchesRule(rule, byProduct, byVariant, candidatesByLine);
     } else if (rule.type === "trigger_product_discounted_targets") {
-      applyTriggerProductDiscountedTargetsRule(rule, byProduct, candidatesByLine);
+      applyTriggerProductDiscountedTargetsRule(
+        rule,
+        byProduct,
+        candidatesByLine,
+      );
     } else if (rule.type === "loyalty_tier") {
       applyLoyaltyTierRule(rule, byProduct, candidatesByLine, buyerIdentity);
     } else if (rule.type === "subscription_bundle_group") {
@@ -75,11 +82,22 @@ export function cartLinesDiscountsGenerateRun(input) {
     } else if (rule.type === "landing_quantity_tier_fixed_price") {
       applyLandingQuantityTierFixedPriceRule(rule, lines, candidatesByLine);
     } else if (rule.type === "landing_scoped_product_discount") {
-      applyLandingScopedProductDiscountRule(rule, byProduct, lines, candidatesByLine);
+      applyLandingScopedProductDiscountRule(
+        rule,
+        byProduct,
+        lines,
+        candidatesByLine,
+      );
     } else if (rule.type === "quiz_bundle_price_match") {
       applyQuizBundlePriceMatchRule(rule, lines, candidatesByLine);
     } else if (rule.type === "cart_subtotal_free_gift") {
-      applyCartSubtotalFreeGiftRule(rule, cart, byVariant, lines, candidatesByLine);
+      applyCartSubtotalFreeGiftRule(
+        rule,
+        cart,
+        byVariant,
+        lines,
+        candidatesByLine,
+      );
     }
   }
 
@@ -100,7 +118,11 @@ export function cartLinesDiscountsGenerateRun(input) {
 
 function addCandidate(candidatesByLine, line, quantity, percentage, message) {
   const candidate = {
-    targets: [quantity === null ? { cartLine: { id: line.id } } : { cartLine: { id: line.id, quantity } }],
+    targets: [
+      quantity === null
+        ? { cartLine: { id: line.id } }
+        : { cartLine: { id: line.id, quantity } },
+    ],
     value: {
       percentage: { value: percentage === 100 ? "100.0" : String(percentage) },
     },
@@ -113,9 +135,13 @@ function addCandidate(candidatesByLine, line, quantity, percentage, message) {
   }
 
   const existingPercentage = Number(existing.value.percentage.value);
-  const existingQuantity = existing.targets[0].cartLine.quantity ?? Number.POSITIVE_INFINITY;
+  const existingQuantity =
+    existing.targets[0].cartLine.quantity ?? Number.POSITIVE_INFINITY;
   const candidateQuantity = quantity ?? Number.POSITIVE_INFINITY;
-  if (percentage > existingPercentage || (percentage === existingPercentage && candidateQuantity > existingQuantity)) {
+  if (
+    percentage > existingPercentage ||
+    (percentage === existingPercentage && candidateQuantity > existingQuantity)
+  ) {
     candidatesByLine.set(line.id, candidate);
   }
 }
@@ -157,17 +183,27 @@ function checkGlobalConditions(rule, cart, cartAttributes) {
   }
 
   // Required cart attribute (e.g. landing-page source set via Storefront API)
-  if (typeof c.requiredCartAttributeKey === "string" && c.requiredCartAttributeKey) {
-    const attr = cartAttributes.find((a) => a.key === c.requiredCartAttributeKey);
+  if (
+    typeof c.requiredCartAttributeKey === "string" &&
+    c.requiredCartAttributeKey
+  ) {
+    const attr = cartAttributes.find(
+      (a) => a.key === c.requiredCartAttributeKey,
+    );
     if (!attr) return false;
-    if (c.requiredCartAttributeValue != null && attr.value !== c.requiredCartAttributeValue) {
+    if (
+      c.requiredCartAttributeValue != null &&
+      attr.value !== c.requiredCartAttributeValue
+    ) {
       return false;
     }
   }
 
   // Requires at least one subscription item
   if (c.requiresSubscriptionInCart === true) {
-    const hasSub = (cart.lines ?? []).some((l) => l.sellingPlanAllocation != null);
+    const hasSub = (cart.lines ?? []).some(
+      (l) => l.sellingPlanAllocation != null,
+    );
     if (!hasSub) return false;
   }
 
@@ -197,7 +233,13 @@ function applyPa7Rule(rule, byProduct, candidates) {
     const targetLines = byProduct.get(targetProductId) ?? [];
     for (const line of targetLines) {
       if (line.quantity !== rule.targetLineQuantityEquals) continue;
-      addCandidate(candidates, line, null, rule.discountPercentage, rule.message);
+      addCandidate(
+        candidates,
+        line,
+        null,
+        rule.discountPercentage,
+        rule.message,
+      );
     }
   }
 }
@@ -219,7 +261,8 @@ function applyPlantaRule(rule, byVariant, candidates) {
     if (!byVariant.get(requiredId)?.length) return;
   }
 
-  const pct = typeof rule.discountPercentage === "number" ? rule.discountPercentage : 100;
+  const pct =
+    typeof rule.discountPercentage === "number" ? rule.discountPercentage : 100;
 
   for (const freeId of rule.freeVariantIds) {
     const line = (byVariant.get(freeId) ?? [])[0];
@@ -249,7 +292,8 @@ function applyPouchesRule(rule, byProduct, byVariant, candidates) {
     if (!byVariant.get(requiredId)?.length) return;
   }
 
-  const pct = typeof rule.discountPercentage === "number" ? rule.discountPercentage : 100;
+  const pct =
+    typeof rule.discountPercentage === "number" ? rule.discountPercentage : 100;
 
   for (const freeId of rule.freeVariantIds) {
     for (const line of byVariant.get(freeId) ?? []) {
@@ -264,7 +308,12 @@ function applyPouchesRule(rule, byProduct, byVariant, candidates) {
  * apply per-target discount % to each configured target product's lines.
  */
 function applyTriggerProductDiscountedTargetsRule(rule, byProduct, candidates) {
-  if (!rule.triggerProductId || !Array.isArray(rule.targets) || rule.targets.length === 0) return;
+  if (
+    !rule.triggerProductId ||
+    !Array.isArray(rule.targets) ||
+    rule.targets.length === 0
+  )
+    return;
 
   if (!byProduct.get(rule.triggerProductId)?.length) return;
 
@@ -277,7 +326,13 @@ function applyTriggerProductDiscountedTargetsRule(rule, byProduct, candidates) {
       continue;
 
     for (const line of byProduct.get(target.productId) ?? []) {
-      addCandidate(candidates, line, null, target.discountPercentage, rule.message);
+      addCandidate(
+        candidates,
+        line,
+        null,
+        target.discountPercentage,
+        rule.message,
+      );
     }
   }
 }
@@ -320,9 +375,18 @@ function applySubscriptionBundleGroupRule(rule, lines, candidates) {
     )
       continue;
 
-    const qtyToDiscount = Math.min(rule.maxUnitsTotal - unitsDiscounted, line.quantity);
+    const qtyToDiscount = Math.min(
+      rule.maxUnitsTotal - unitsDiscounted,
+      line.quantity,
+    );
     unitsDiscounted += qtyToDiscount;
-    addCandidate(candidates, line, qtyToDiscount, rule.discountPercentage, rule.message);
+    addCandidate(
+      candidates,
+      line,
+      qtyToDiscount,
+      rule.discountPercentage,
+      rule.message,
+    );
   }
 }
 
@@ -334,7 +398,11 @@ function applySubscriptionBundleGroupRule(rule, lines, candidates) {
  * Subscription lines for the same variants are skipped entirely.
  */
 function applyOneTimePurchaseDiscountRule(rule, byVariant, candidates) {
-  if (!Array.isArray(rule.targetVariantIds) || typeof rule.discountPercentage !== "number") return;
+  if (
+    !Array.isArray(rule.targetVariantIds) ||
+    typeof rule.discountPercentage !== "number"
+  )
+    return;
 
   for (const variantId of rule.targetVariantIds) {
     for (const line of byVariant.get(variantId) ?? []) {
@@ -350,20 +418,30 @@ const LANDING_SOURCE_LINE_ATTRIBUTE_KEY = "__landing_source";
 
 function getLandingAnchorQuantity(rule, lines) {
   const anchorVariantIds =
-    Array.isArray(rule.requiredAnchorVariantIds) && rule.requiredAnchorVariantIds.length > 0
+    Array.isArray(rule.requiredAnchorVariantIds) &&
+    rule.requiredAnchorVariantIds.length > 0
       ? new Set(rule.requiredAnchorVariantIds)
       : null;
 
   return lines.reduce((sum, line) => {
-    if (line.landingSourceAttribute?.value !== rule.requiredLineAttributeValue) return sum;
-    if (anchorVariantIds && !anchorVariantIds.has(line.merchandise?.id)) return sum;
-    if (rule.requiresAnchorSubscription && !line.sellingPlanAllocation?.sellingPlan?.id) return sum;
+    if (line.landingSourceAttribute?.value !== rule.requiredLineAttributeValue)
+      return sum;
+    if (anchorVariantIds && !anchorVariantIds.has(line.merchandise?.id))
+      return sum;
+    if (
+      rule.requiresAnchorSubscription &&
+      !line.sellingPlanAllocation?.sellingPlan?.id
+    )
+      return sum;
     return sum + (line.quantity || 0);
   }, 0);
 }
 
 function satisfiesLandingAnchorRequirement(rule, lines) {
-  const minQuantity = typeof rule.requiredAnchorMinQuantity === "number" ? rule.requiredAnchorMinQuantity : 1;
+  const minQuantity =
+    typeof rule.requiredAnchorMinQuantity === "number"
+      ? rule.requiredAnchorMinQuantity
+      : 1;
 
   return getLandingAnchorQuantity(rule, lines) >= minQuantity;
 }
@@ -394,21 +472,31 @@ function applyLandingQuantityTierFixedPriceRule(rule, lines, candidates) {
   const targetVariantIds = new Set(rule.targetVariantIds);
   const matchingLines = lines.filter((line) => {
     if (!targetVariantIds.has(line.merchandise?.id)) return false;
-    if (line.landingSourceAttribute?.value !== rule.requiredLineAttributeValue) return false;
+    if (line.landingSourceAttribute?.value !== rule.requiredLineAttributeValue)
+      return false;
     if (typeof rule.requiresSubscription === "boolean") {
-      const isSubscription = Boolean(line.sellingPlanAllocation?.sellingPlan?.id);
+      const isSubscription = Boolean(
+        line.sellingPlanAllocation?.sellingPlan?.id,
+      );
       if (isSubscription !== rule.requiresSubscription) return false;
     }
     return true;
   });
   if (matchingLines.length === 0) return;
 
-  const totalQuantity = matchingLines.reduce((sum, line) => sum + line.quantity, 0);
-  const tier = [...rule.tiers].sort((a, b) => b.quantity - a.quantity).find((t) => totalQuantity >= t.quantity);
+  const totalQuantity = matchingLines.reduce(
+    (sum, line) => sum + line.quantity,
+    0,
+  );
+  const tier = [...rule.tiers]
+    .sort((a, b) => b.quantity - a.quantity)
+    .find((t) => totalQuantity >= t.quantity);
   if (!tier) return;
 
   for (const line of matchingLines) {
-    const currentPerUnit = parseFloat(line.cost?.amountPerQuantity?.amount ?? "");
+    const currentPerUnit = parseFloat(
+      line.cost?.amountPerQuantity?.amount ?? "",
+    );
     if (isNaN(currentPerUnit)) continue;
     const discountPerUnit = currentPerUnit - tier.targetPricePerUnit;
     if (discountPerUnit <= 0) continue;
@@ -419,7 +507,12 @@ function applyLandingQuantityTierFixedPriceRule(rule, lines, candidates) {
 // Sets (rather than merges) the candidate for the line — safe because this
 // rule only ever matches lines gated by LANDING_SOURCE_LINE_ATTRIBUTE_KEY, so
 // no other rule is expected to also target the same line.
-function addFixedAmountCandidate(candidatesByLine, line, amountPerUnit, message) {
+function addFixedAmountCandidate(
+  candidatesByLine,
+  line,
+  amountPerUnit,
+  message,
+) {
   candidatesByLine.set(line.id, {
     targets: [{ cartLine: { id: line.id, quantity: line.quantity } }],
     value: {
@@ -444,7 +537,12 @@ function addFixedAmountCandidate(candidatesByLine, line, amountPerUnit, message)
  * bundled with) is still in the cart — removing the anchor line reverts the
  * gift to full price instead of leaving it free forever.
  */
-function applyLandingScopedProductDiscountRule(rule, byProduct, lines, candidates) {
+function applyLandingScopedProductDiscountRule(
+  rule,
+  byProduct,
+  lines,
+  candidates,
+) {
   if (
     !Array.isArray(rule.targetProductIds) ||
     rule.targetProductIds.length === 0 ||
@@ -460,7 +558,10 @@ function applyLandingScopedProductDiscountRule(rule, byProduct, lines, candidate
     let remainingFreeUnits = 1;
     for (const line of byProduct.get(productId) ?? []) {
       if (remainingFreeUnits <= 0) break;
-      if (line.landingSourceAttribute?.value !== rule.requiredLineAttributeValue) continue;
+      if (
+        line.landingSourceAttribute?.value !== rule.requiredLineAttributeValue
+      )
+        continue;
       addCandidate(candidates, line, 1, rule.discountPercentage, rule.message);
       remainingFreeUnits -= 1;
     }
@@ -490,7 +591,10 @@ function applyLandingScopedProductDiscountRule(rule, byProduct, lines, candidate
  * this rule never needs its own hardcoded per-bundle price.
  */
 function applyQuizBundlePriceMatchRule(rule, lines, candidates) {
-  const giftPercentage = typeof rule.discountPercentageOnGifts === "number" ? rule.discountPercentageOnGifts : 100;
+  const giftPercentage =
+    typeof rule.discountPercentageOnGifts === "number"
+      ? rule.discountPercentageOnGifts
+      : 100;
 
   const groups = new Map();
   for (const line of lines) {
@@ -532,10 +636,20 @@ function applyQuizBundlePriceMatchRule(rule, lines, candidates) {
     // shopper could remove the paid lines and keep the free gifts free, or
     // remove just one paid line and have the remaining ones discounted all
     // the way down to the full bundle price instead of a prorated amount.
-    if (group.expectedPaidCount == null || group.paid.length < group.expectedPaidCount) continue;
+    if (
+      group.expectedPaidCount == null ||
+      group.paid.length < group.expectedPaidCount
+    )
+      continue;
 
     for (const line of group.gifts) {
-      addCandidate(candidates, line, line.quantity, giftPercentage, rule.message);
+      addCandidate(
+        candidates,
+        line,
+        line.quantity,
+        giftPercentage,
+        rule.message,
+      );
     }
 
     if (group.paid.length === 0 || group.targetCents == null) continue;
@@ -581,7 +695,13 @@ function applyQuizBundlePriceMatchRule(rule, lines, candidates) {
  * automatically on the next recalculation — same as every other
  * anchor-gated rule in this file.
  */
-function applyCartSubtotalFreeGiftRule(rule, cart, byVariant, lines, candidates) {
+function applyCartSubtotalFreeGiftRule(
+  rule,
+  cart,
+  byVariant,
+  lines,
+  candidates,
+) {
   if (!Array.isArray(rule.tiers) || rule.tiers.length === 0) return;
 
   const rawSubtotal = parseFloat(cart.cost?.subtotalAmount?.amount ?? "0");
@@ -607,11 +727,19 @@ function applyCartSubtotalFreeGiftRule(rule, cart, byVariant, lines, candidates)
   const activeTiers =
     rule.stackingMode === "cumulative"
       ? qualifyingTiers
-      : [qualifyingTiers.reduce((best, tier) => (tier.minimumSubtotal > best.minimumSubtotal ? tier : best))];
+      : [
+          qualifyingTiers.reduce((best, tier) =>
+            tier.minimumSubtotal > best.minimumSubtotal ? tier : best,
+          ),
+        ];
 
   for (const tier of activeTiers) {
-    const maxFreeUnits = typeof tier.maxFreeUnits === "number" ? tier.maxFreeUnits : 1;
-    const pct = typeof tier.discountPercentage === "number" ? tier.discountPercentage : 100;
+    const maxFreeUnits =
+      typeof tier.maxFreeUnits === "number" ? tier.maxFreeUnits : 1;
+    const pct =
+      typeof tier.discountPercentage === "number"
+        ? tier.discountPercentage
+        : 100;
     let remainingFreeUnits = maxFreeUnits;
 
     for (const variantId of tier.giftVariantIds) {
@@ -650,14 +778,23 @@ function applySwellCartFixedAmountRule(_rule, _lines, _candidates) {
  * based on the logged-in customer's order count. Skipped for guests.
  */
 function applyLoyaltyTierRule(rule, byProduct, candidates, buyerIdentity) {
-  if (!Array.isArray(rule.targetProductIds) || !Array.isArray(rule.tiers) || rule.tiers.length === 0) return;
+  if (
+    !Array.isArray(rule.targetProductIds) ||
+    !Array.isArray(rule.tiers) ||
+    rule.tiers.length === 0
+  )
+    return;
 
   const numberOfOrders = buyerIdentity?.customer?.numberOfOrders;
   if (numberOfOrders == null || typeof numberOfOrders !== "number") return;
 
   // Sort tiers highest-first and pick first where customer qualifies
   const sorted = [...rule.tiers]
-    .filter((t) => typeof t.minOrders === "number" && typeof t.discountPercentage === "number")
+    .filter(
+      (t) =>
+        typeof t.minOrders === "number" &&
+        typeof t.discountPercentage === "number",
+    )
     .sort((a, b) => b.minOrders - a.minOrders);
 
   const activeTier = sorted.find((t) => numberOfOrders >= t.minOrders);
@@ -665,7 +802,13 @@ function applyLoyaltyTierRule(rule, byProduct, candidates, buyerIdentity) {
 
   for (const productId of rule.targetProductIds) {
     for (const line of byProduct.get(productId) ?? []) {
-      addCandidate(candidates, line, null, activeTier.discountPercentage, rule.message);
+      addCandidate(
+        candidates,
+        line,
+        null,
+        activeTier.discountPercentage,
+        rule.message,
+      );
     }
   }
 }
@@ -698,6 +841,38 @@ function deliveryDiscountValue(rule) {
   return { percentage: { value: String(percentage) } };
 }
 
+function tieredDeliveryDiscountValue(rule, cartSubtotalAmount) {
+  if (!Array.isArray(rule.shippingTiers) || rule.shippingTiers.length === 0) {
+    return deliveryDiscountValue(rule);
+  }
+
+  const subtotal = Number(cartSubtotalAmount);
+  if (!Number.isFinite(subtotal) || subtotal < 0) return null;
+
+  let matchingTier = null;
+  for (const tier of rule.shippingTiers) {
+    const minimumSubtotal = Number(tier?.minimumSubtotal);
+    const discountPercentage = Number(tier?.discountPercentage);
+    if (
+      !Number.isFinite(minimumSubtotal) ||
+      minimumSubtotal < 0 ||
+      !Number.isFinite(discountPercentage) ||
+      discountPercentage < 0 ||
+      discountPercentage > 100 ||
+      subtotal < minimumSubtotal
+    ) {
+      continue;
+    }
+
+    if (!matchingTier || minimumSubtotal > matchingTier.minimumSubtotal) {
+      matchingTier = { minimumSubtotal, discountPercentage };
+    }
+  }
+
+  if (!matchingTier || matchingTier.discountPercentage === 0) return null;
+  return { percentage: { value: String(matchingTier.discountPercentage) } };
+}
+
 // Shopify's own CartDeliveryGroupType.ONE_TIME_PURCHASE covers "a one time
 // purchase OR A FIRST DELIVERY OF SUBSCRIPTION MERCHANDISE" — only
 // SUBSCRIPTION is exclusively recurring shipments. So a rule scoped to
@@ -706,16 +881,22 @@ function deliveryDiscountValue(rule) {
 // still get discounted as if no subscription were involved. Check the
 // group's own cart lines for a selling plan to tell the two apart.
 function deliveryGroupHasSubscriptionLine(group) {
-  return (group.cartLines ?? []).some((line) => Boolean(line.sellingPlanAllocation?.sellingPlan?.id));
+  return (group.cartLines ?? []).some((line) =>
+    Boolean(line.sellingPlanAllocation?.sellingPlan?.id),
+  );
 }
 
 function targetedDeliveryGroups(rule, deliveryGroups) {
   const configuredGroupTypes = rule.targetDeliveryGroupTypes;
   if (configuredGroupTypes == null) return deliveryGroups;
-  if (!Array.isArray(configuredGroupTypes) || configuredGroupTypes.length === 0) return [];
+  if (!Array.isArray(configuredGroupTypes) || configuredGroupTypes.length === 0)
+    return [];
 
   const allowedGroupTypes = new Set(
-    configuredGroupTypes.filter((groupType) => groupType === "ONE_TIME_PURCHASE" || groupType === "SUBSCRIPTION"),
+    configuredGroupTypes.filter(
+      (groupType) =>
+        groupType === "ONE_TIME_PURCHASE" || groupType === "SUBSCRIPTION",
+    ),
   );
   const includeOneTime = allowedGroupTypes.has("ONE_TIME_PURCHASE");
   const includeSubscription = allowedGroupTypes.has("SUBSCRIPTION");
@@ -723,14 +904,17 @@ function targetedDeliveryGroups(rule, deliveryGroups) {
   return deliveryGroups.filter((group) => {
     if (group.groupType === "SUBSCRIPTION") return includeSubscription;
     // group.groupType === "ONE_TIME_PURCHASE" (or unspecified in a test fixture)
-    return deliveryGroupHasSubscriptionLine(group) ? includeSubscription : includeOneTime;
+    return deliveryGroupHasSubscriptionLine(group)
+      ? includeSubscription
+      : includeOneTime;
   });
 }
 
-function shippingDiscountResult(rule, deliveryGroups) {
-  const discountValue = deliveryDiscountValue(rule);
+function shippingDiscountResult(rule, deliveryGroups, cartSubtotalAmount) {
+  const discountValue = tieredDeliveryDiscountValue(rule, cartSubtotalAmount);
   const eligibleDeliveryGroups = targetedDeliveryGroups(rule, deliveryGroups);
-  if (!discountValue || eligibleDeliveryGroups.length === 0) return EMPTY_RESULT;
+  if (!discountValue || eligibleDeliveryGroups.length === 0)
+    return EMPTY_RESULT;
 
   return {
     operations: [
@@ -782,7 +966,10 @@ function hasCompleteQuizBundle(deliveryLines) {
   }
 
   for (const group of groups.values()) {
-    if (group.expectedPaidCount != null && group.paidLineCount >= group.expectedPaidCount) {
+    if (
+      group.expectedPaidCount != null &&
+      group.paidLineCount >= group.expectedPaidCount
+    ) {
       return true;
     }
   }
@@ -810,19 +997,22 @@ export function cartDeliveryOptionsDiscountsGenerateRun(input) {
     return EMPTY_RESULT;
   }
 
-  if (!Array.isArray(config?.rules) || config.rules.length === 0) return EMPTY_RESULT;
+  if (!Array.isArray(config?.rules) || config.rules.length === 0)
+    return EMPTY_RESULT;
 
   const deliveryLines = input?.cart?.lines ?? [];
   const deliveryGroups = input?.cart?.deliveryGroups ?? [];
+  const cartSubtotalAmount = input?.cart?.cost?.subtotalAmount?.amount;
   if (deliveryGroups.length === 0) return EMPTY_RESULT;
 
   for (const rule of config.rules) {
     if (!rule || typeof rule !== "object" || !rule.enabled) continue;
 
     if (rule.type === LANDING_FREE_SHIPPING_RULE_TYPE) {
-      if (!rule.requiredLineAttributeKey || !rule.requiredLineAttributeValue) continue;
+      if (!rule.requiredLineAttributeKey || !rule.requiredLineAttributeValue)
+        continue;
       if (!satisfiesLandingAnchorRequirement(rule, deliveryLines)) continue;
-      return shippingDiscountResult(rule, deliveryGroups);
+      return shippingDiscountResult(rule, deliveryGroups, cartSubtotalAmount);
     }
 
     if (rule.type === QUIZ_BUNDLE_FREE_SHIPPING_RULE_TYPE) {

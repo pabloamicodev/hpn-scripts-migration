@@ -2,13 +2,19 @@ import { z } from "zod";
 
 const productGidSchema = z.string().trim().startsWith("gid://shopify/Product/");
 
-const variantGidSchema = z.string().trim().startsWith("gid://shopify/ProductVariant/");
+const variantGidSchema = z
+  .string()
+  .trim()
+  .startsWith("gid://shopify/ProductVariant/");
 
 const ruleIdSchema = z
   .string()
   .trim()
   .min(1)
-  .regex(/^[a-z0-9][a-z0-9-]*$/, "Use lowercase letters, numbers, and hyphens.");
+  .regex(
+    /^[a-z0-9][a-z0-9-]*$/,
+    "Use lowercase letters, numbers, and hyphens.",
+  );
 
 // ---------------------------------------------------------------------------
 // Global conditions — optional on every rule type
@@ -191,8 +197,16 @@ export const landingScopedProductDiscountRuleSchema = z.object({
 
 // ---------------------------------------------------------------------------
 const deliveryDiscountTypeSchema = z.enum(["percentage", "fixed_amount"]);
-const deliveryDiscountPercentageSchema = z.union([z.literal(25), z.literal(50), z.literal(100)]);
+const deliveryDiscountPercentageSchema = z.union([
+  z.literal(25),
+  z.literal(50),
+  z.literal(100),
+]);
 const deliveryGroupTypeSchema = z.enum(["ONE_TIME_PURCHASE", "SUBSCRIPTION"]);
+const shippingDiscountTierSchema = z.object({
+  minimumSubtotal: z.number().min(0),
+  discountPercentage: z.number().min(0).max(100),
+});
 
 const deliveryDiscountRuleFields = {
   deliveryDiscountType: deliveryDiscountTypeSchema.default("percentage"),
@@ -216,6 +230,7 @@ export const landingFreeShippingRuleSchema = z.object({
   requiredLineAttributeValue: z.string().min(1),
   requiredAnchorVariantIds: z.array(variantGidSchema).optional(),
   requiredAnchorMinQuantity: z.number().int().positive().optional(),
+  shippingTiers: z.array(shippingDiscountTierSchema).min(1).optional(),
   ...deliveryDiscountRuleFields,
   message: z.string().trim().min(1),
   conditions: ruleConditionsSchema,
@@ -305,7 +320,9 @@ export const cartSubtotalFreeGiftRuleSchema = z.object({
   type: z.literal("cart_subtotal_free_gift"),
   enabled: z.boolean(),
   tiers: z.array(cartSubtotalGiftTierSchema).min(1),
-  stackingMode: z.enum(["highest_tier_only", "cumulative"]).default("highest_tier_only"),
+  stackingMode: z
+    .enum(["highest_tier_only", "cumulative"])
+    .default("highest_tier_only"),
   message: z.string().trim().min(1),
   conditions: ruleConditionsSchema,
 });
@@ -347,24 +364,48 @@ export const hpnPromoConfigSchema = z.object({
 // ---------------------------------------------------------------------------
 
 export type Pa7CrossSellRule = z.infer<typeof pa7CrossSellRuleSchema>;
-export type RequiredVariantsFreeVariantsRule = z.infer<typeof requiredVariantsFreeVariantsRuleSchema>;
-export type RequiredProductWithFreeVariantsRule = z.infer<typeof requiredProductWithFreeVariantsRuleSchema>;
-export type TriggerProductDiscountedTargetsRule = z.infer<typeof triggerProductDiscountedTargetsRuleSchema>;
+export type RequiredVariantsFreeVariantsRule = z.infer<
+  typeof requiredVariantsFreeVariantsRuleSchema
+>;
+export type RequiredProductWithFreeVariantsRule = z.infer<
+  typeof requiredProductWithFreeVariantsRuleSchema
+>;
+export type TriggerProductDiscountedTargetsRule = z.infer<
+  typeof triggerProductDiscountedTargetsRuleSchema
+>;
 export type LoyaltyTierRule = z.infer<typeof loyaltyTierRuleSchema>;
 export type LoyaltyTierEntry = z.infer<typeof loyaltyTierEntrySchema>;
 export type DiscountTarget = z.infer<typeof discountTargetSchema>;
-export type SubscriptionBundleGroupRule = z.infer<typeof subscriptionBundleGroupRuleSchema>;
-export type OneTimePurchaseDiscountRule = z.infer<typeof oneTimePurchaseDiscountRuleSchema>;
+export type SubscriptionBundleGroupRule = z.infer<
+  typeof subscriptionBundleGroupRuleSchema
+>;
+export type OneTimePurchaseDiscountRule = z.infer<
+  typeof oneTimePurchaseDiscountRuleSchema
+>;
 export type SwellFreeProductRule = z.infer<typeof swellFreeProductRuleSchema>;
-export type SwellCartFixedAmountRule = z.infer<typeof swellCartFixedAmountRuleSchema>;
+export type SwellCartFixedAmountRule = z.infer<
+  typeof swellCartFixedAmountRuleSchema
+>;
 export type QuantityTierPrice = z.infer<typeof quantityTierPriceSchema>;
-export type LandingQuantityTierFixedPriceRule = z.infer<typeof landingQuantityTierFixedPriceRuleSchema>;
-export type LandingScopedProductDiscountRule = z.infer<typeof landingScopedProductDiscountRuleSchema>;
-export type LandingFreeShippingRule = z.infer<typeof landingFreeShippingRuleSchema>;
-export type QuizBundlePriceMatchRule = z.infer<typeof quizBundlePriceMatchRuleSchema>;
-export type QuizBundleFreeShippingRule = z.infer<typeof quizBundleFreeShippingRuleSchema>;
+export type LandingQuantityTierFixedPriceRule = z.infer<
+  typeof landingQuantityTierFixedPriceRuleSchema
+>;
+export type LandingScopedProductDiscountRule = z.infer<
+  typeof landingScopedProductDiscountRuleSchema
+>;
+export type LandingFreeShippingRule = z.infer<
+  typeof landingFreeShippingRuleSchema
+>;
+export type QuizBundlePriceMatchRule = z.infer<
+  typeof quizBundlePriceMatchRuleSchema
+>;
+export type QuizBundleFreeShippingRule = z.infer<
+  typeof quizBundleFreeShippingRuleSchema
+>;
 export type CartSubtotalGiftTier = z.infer<typeof cartSubtotalGiftTierSchema>;
-export type CartSubtotalFreeGiftRule = z.infer<typeof cartSubtotalFreeGiftRuleSchema>;
+export type CartSubtotalFreeGiftRule = z.infer<
+  typeof cartSubtotalFreeGiftRuleSchema
+>;
 
 export type HpnPromoRule =
   | Pa7CrossSellRule

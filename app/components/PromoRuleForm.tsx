@@ -3,7 +3,11 @@ import { useForm } from "react-hook-form";
 
 import { hpnPromoRuleSchema, type HpnPromoRule } from "../lib/validations";
 import { ProductPicker, type ProductPickerSelection } from "./ProductPicker";
-import { HPN_PRODUCTS, HPN_PROMO_MESSAGES, HPN_VARIANTS } from "../lib/hpnPromoConstants";
+import {
+  HPN_PRODUCTS,
+  HPN_PROMO_MESSAGES,
+  HPN_VARIANTS,
+} from "../lib/hpnPromoConstants";
 import type { ActionError } from "../lib/actionError.server";
 import { DevErrorBanner } from "./DevErrorBanner";
 
@@ -53,6 +57,11 @@ interface CartSubtotalGiftTierFormValue {
   discountPercentage: number;
 }
 
+interface ShippingDiscountTierFormValue {
+  minimumSubtotal: number;
+  discountPercentage: number;
+}
+
 interface RuleConditionsFormValues {
   minimumCartSubtotal?: number;
   requiredCartAttributeKey?: string;
@@ -88,6 +97,7 @@ interface PromoRuleFormValues {
   deliveryDiscountType?: "percentage" | "fixed_amount";
   deliveryDiscountPercentage?: 25 | 50 | 100;
   shippingDiscountAmount?: number;
+  shippingTiers?: ShippingDiscountTierFormValue[];
   targetDeliveryGroupTypes?: Array<"ONE_TIME_PURCHASE" | "SUBSCRIPTION">;
   conditions?: RuleConditionsFormValues;
 }
@@ -135,7 +145,10 @@ const DEFAULT_RULES: Record<PromoRuleType, PromoRuleFormValues> = {
       HPN_VARIANTS.PLANTA_SAMPLE_VARIANT_ID_1,
       HPN_VARIANTS.PLANTA_SAMPLE_VARIANT_ID_2,
     ],
-    freeVariantIds: [HPN_VARIANTS.PLANTA_SAMPLE_VARIANT_ID_1, HPN_VARIANTS.PLANTA_SAMPLE_VARIANT_ID_2],
+    freeVariantIds: [
+      HPN_VARIANTS.PLANTA_SAMPLE_VARIANT_ID_1,
+      HPN_VARIANTS.PLANTA_SAMPLE_VARIANT_ID_2,
+    ],
     freeQuantityPerLine: 1,
     discountPercentage: 100,
     message: HPN_PROMO_MESSAGES.PLANTA_SAMPLES,
@@ -146,8 +159,14 @@ const DEFAULT_RULES: Record<PromoRuleType, PromoRuleFormValues> = {
     type: "required_product_with_free_variants",
     enabled: true,
     triggerProductId: HPN_PRODUCTS.NAD3_240_PRODUCT_ID,
-    requiredVariantIds: [HPN_VARIANTS.S9_1WK_POUCH_VARIANT_ID, HPN_VARIANTS.N4_1WK_POUCH_VARIANT_ID],
-    freeVariantIds: [HPN_VARIANTS.S9_1WK_POUCH_VARIANT_ID, HPN_VARIANTS.N4_1WK_POUCH_VARIANT_ID],
+    requiredVariantIds: [
+      HPN_VARIANTS.S9_1WK_POUCH_VARIANT_ID,
+      HPN_VARIANTS.N4_1WK_POUCH_VARIANT_ID,
+    ],
+    freeVariantIds: [
+      HPN_VARIANTS.S9_1WK_POUCH_VARIANT_ID,
+      HPN_VARIANTS.N4_1WK_POUCH_VARIANT_ID,
+    ],
     freeQuantityPerLine: 1,
     discountPercentage: 100,
     message: HPN_PROMO_MESSAGES.FREE_POUCHES,
@@ -221,6 +240,7 @@ const DEFAULT_RULES: Record<PromoRuleType, PromoRuleFormValues> = {
     deliveryDiscountType: "percentage",
     deliveryDiscountPercentage: 100,
     shippingDiscountAmount: 1,
+    shippingTiers: [{ minimumSubtotal: 0, discountPercentage: 100 }],
     targetDeliveryGroupTypes: ["ONE_TIME_PURCHASE", "SUBSCRIPTION"],
     message: "",
   },
@@ -262,7 +282,9 @@ const DEFAULT_RULES: Record<PromoRuleType, PromoRuleFormValues> = {
   },
 };
 
-function normalizeDefaultValues(defaultValues?: HpnPromoRule): PromoRuleFormValues {
+function normalizeDefaultValues(
+  defaultValues?: HpnPromoRule,
+): PromoRuleFormValues {
   if (!defaultValues) {
     return makeDefaultRule("pa7_cross_sell");
   }
@@ -272,7 +294,12 @@ function normalizeDefaultValues(defaultValues?: HpnPromoRule): PromoRuleFormValu
     return {
       ...rest,
       quantityTiers: tiers,
-      requiresSubscriptionOption: requiresSubscription === true ? "true" : requiresSubscription === false ? "false" : "any",
+      requiresSubscriptionOption:
+        requiresSubscription === true
+          ? "true"
+          : requiresSubscription === false
+            ? "false"
+            : "any",
     };
   }
 
@@ -284,13 +311,36 @@ function normalizeDefaultValues(defaultValues?: HpnPromoRule): PromoRuleFormValu
     };
   }
 
-  if (defaultValues.type === "landing_free_shipping" || defaultValues.type === "quiz_bundle_free_shipping") {
+  if (
+    defaultValues.type === "landing_free_shipping" ||
+    defaultValues.type === "quiz_bundle_free_shipping"
+  ) {
+    const legacyPercentageTier =
+      defaultValues.type === "landing_free_shipping" &&
+      defaultValues.deliveryDiscountType !== "fixed_amount"
+        ? [
+            {
+              minimumSubtotal: 0,
+              discountPercentage:
+                defaultValues.deliveryDiscountPercentage ?? 100,
+            },
+          ]
+        : undefined;
+
     return {
       ...defaultValues,
       deliveryDiscountType: defaultValues.deliveryDiscountType ?? "percentage",
-      deliveryDiscountPercentage: defaultValues.deliveryDiscountPercentage ?? 100,
+      deliveryDiscountPercentage:
+        defaultValues.deliveryDiscountPercentage ?? 100,
       shippingDiscountAmount: defaultValues.shippingDiscountAmount ?? 1,
-      targetDeliveryGroupTypes: defaultValues.targetDeliveryGroupTypes ?? ["ONE_TIME_PURCHASE", "SUBSCRIPTION"],
+      targetDeliveryGroupTypes: defaultValues.targetDeliveryGroupTypes ?? [
+        "ONE_TIME_PURCHASE",
+        "SUBSCRIPTION",
+      ],
+      shippingTiers:
+        defaultValues.type === "landing_free_shipping"
+          ? (defaultValues.shippingTiers ?? legacyPercentageTier)
+          : undefined,
     };
   }
 
@@ -303,19 +353,31 @@ function makeRuleId(type: PromoRuleType) {
   const suffix = Date.now().toString(36);
 
   if (type === "pa7_cross_sell") return `pa7-cross-sell-${suffix}`;
-  if (type === "required_variants_free_variants") return `required-variants-free-variants-${suffix}`;
-  if (type === "required_product_with_free_variants") return `required-product-free-variants-${suffix}`;
-  if (type === "trigger_product_discounted_targets") return `trigger-discounted-targets-${suffix}`;
-  if (type === "subscription_bundle_group") return `subscription-bundle-${suffix}`;
-  if (type === "one_time_purchase_discount") return `one-time-purchase-discount-${suffix}`;
+  if (type === "required_variants_free_variants")
+    return `required-variants-free-variants-${suffix}`;
+  if (type === "required_product_with_free_variants")
+    return `required-product-free-variants-${suffix}`;
+  if (type === "trigger_product_discounted_targets")
+    return `trigger-discounted-targets-${suffix}`;
+  if (type === "subscription_bundle_group")
+    return `subscription-bundle-${suffix}`;
+  if (type === "one_time_purchase_discount")
+    return `one-time-purchase-discount-${suffix}`;
   if (type === "swell_free_product") return `swell-free-product-${suffix}`;
-  if (type === "swell_cart_fixed_amount") return `swell-cart-fixed-amount-${suffix}`;
-  if (type === "landing_quantity_tier_fixed_price") return `landing-quantity-tier-${suffix}`;
-  if (type === "landing_scoped_product_discount") return `landing-scoped-product-${suffix}`;
-  if (type === "landing_free_shipping") return `landing-free-shipping-${suffix}`;
-  if (type === "quiz_bundle_price_match") return `quiz-bundle-price-match-${suffix}`;
-  if (type === "quiz_bundle_free_shipping") return `quiz-bundle-free-shipping-${suffix}`;
-  if (type === "cart_subtotal_free_gift") return `cart-subtotal-free-gift-${suffix}`;
+  if (type === "swell_cart_fixed_amount")
+    return `swell-cart-fixed-amount-${suffix}`;
+  if (type === "landing_quantity_tier_fixed_price")
+    return `landing-quantity-tier-${suffix}`;
+  if (type === "landing_scoped_product_discount")
+    return `landing-scoped-product-${suffix}`;
+  if (type === "landing_free_shipping")
+    return `landing-free-shipping-${suffix}`;
+  if (type === "quiz_bundle_price_match")
+    return `quiz-bundle-price-match-${suffix}`;
+  if (type === "quiz_bundle_free_shipping")
+    return `quiz-bundle-free-shipping-${suffix}`;
+  if (type === "cart_subtotal_free_gift")
+    return `cart-subtotal-free-gift-${suffix}`;
   return `loyalty-tier-${suffix}`;
 }
 
@@ -330,7 +392,9 @@ function getGidTail(gid: string) {
   return gid.split("/").pop() ?? gid;
 }
 
-function buildConditions(c: RuleConditionsFormValues | undefined): Record<string, unknown> | undefined {
+function buildConditions(
+  c: RuleConditionsFormValues | undefined,
+): Record<string, unknown> | undefined {
   if (!c) return undefined;
   const out: Record<string, unknown> = {};
   if (c.minimumCartSubtotal) out.minimumCartSubtotal = c.minimumCartSubtotal;
@@ -431,7 +495,8 @@ function buildRulePayload(values: PromoRuleFormValues): unknown {
       discountPercentage: values.discountPercentage ?? 10,
       maxUnitsTotal: values.maxUnitsTotal ?? 2,
       requiredLineAttributeKey: values.requiredLineAttributeKey || undefined,
-      requiredLineAttributeValue: values.requiredLineAttributeValue || undefined,
+      requiredLineAttributeValue:
+        values.requiredLineAttributeValue || undefined,
       message: values.message,
       conditions,
     };
@@ -458,7 +523,11 @@ function buildRulePayload(values: PromoRuleFormValues): unknown {
       requiredLineAttributeKey: values.requiredLineAttributeKey ?? "",
       requiredLineAttributeValue: values.requiredLineAttributeValue ?? "",
       requiresSubscription:
-        values.requiresSubscriptionOption === "true" ? true : values.requiresSubscriptionOption === "false" ? false : undefined,
+        values.requiresSubscriptionOption === "true"
+          ? true
+          : values.requiresSubscriptionOption === "false"
+            ? false
+            : undefined,
       tiers: values.quantityTiers ?? [],
       message: values.message,
       conditions,
@@ -474,7 +543,10 @@ function buildRulePayload(values: PromoRuleFormValues): unknown {
       requiredLineAttributeKey: values.requiredLineAttributeKey ?? "",
       requiredLineAttributeValue: values.requiredLineAttributeValue ?? "",
       requiredAnchorVariantIds:
-        values.requiredAnchorVariantIds && values.requiredAnchorVariantIds.length > 0 ? values.requiredAnchorVariantIds : undefined,
+        values.requiredAnchorVariantIds &&
+        values.requiredAnchorVariantIds.length > 0
+          ? values.requiredAnchorVariantIds
+          : undefined,
       requiredAnchorMinQuantity: values.requiredAnchorMinQuantity || undefined,
       discountPercentage: values.discountPercentage ?? 100,
       message: values.message,
@@ -490,11 +562,18 @@ function buildRulePayload(values: PromoRuleFormValues): unknown {
       requiredLineAttributeKey: values.requiredLineAttributeKey ?? "",
       requiredLineAttributeValue: values.requiredLineAttributeValue ?? "",
       requiredAnchorVariantIds:
-        values.requiredAnchorVariantIds && values.requiredAnchorVariantIds.length > 0 ? values.requiredAnchorVariantIds : undefined,
+        values.requiredAnchorVariantIds &&
+        values.requiredAnchorVariantIds.length > 0
+          ? values.requiredAnchorVariantIds
+          : undefined,
       requiredAnchorMinQuantity: values.requiredAnchorMinQuantity || undefined,
       deliveryDiscountType: values.deliveryDiscountType ?? "percentage",
       deliveryDiscountPercentage: values.deliveryDiscountPercentage ?? 100,
       shippingDiscountAmount: values.shippingDiscountAmount ?? 1,
+      shippingTiers:
+        values.shippingTiers && values.shippingTiers.length > 0
+          ? values.shippingTiers
+          : undefined,
       targetDeliveryGroupTypes: values.targetDeliveryGroupTypes ?? [],
       message: values.message,
       conditions,
@@ -550,7 +629,12 @@ function buildRulePayload(values: PromoRuleFormValues): unknown {
 }
 
 function formatZodError(error: unknown) {
-  if (typeof error === "object" && error !== null && "issues" in error && Array.isArray(error.issues)) {
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "issues" in error &&
+    Array.isArray(error.issues)
+  ) {
     return error.issues
       .map((issue) => {
         const path = Array.isArray(issue.path) ? issue.path.join(".") : "field";
@@ -563,7 +647,12 @@ function formatZodError(error: unknown) {
   return "Invalid promo rule configuration.";
 }
 
-export function PromoRuleForm({ defaultValues, submissionError, onSubmit, onCancel }: PromoRuleFormProps) {
+export function PromoRuleForm({
+  defaultValues,
+  submissionError,
+  onSubmit,
+  onCancel,
+}: PromoRuleFormProps) {
   const [schemaError, setSchemaError] = useState<string | null>(null);
   const [productPickerMode, setProductPickerMode] = useState<
     | "crossSellTriggerProduct"
@@ -582,8 +671,12 @@ export function PromoRuleForm({ defaultValues, submissionError, onSubmit, onCanc
     | "cartGiftTierVariant"
     | null
   >(null);
-  const [activeGiftTierIndex, setActiveGiftTierIndex] = useState<number | null>(null);
-  const [selectionMetaById, setSelectionMetaById] = useState<Record<string, SelectedProductMeta>>({});
+  const [activeGiftTierIndex, setActiveGiftTierIndex] = useState<number | null>(
+    null,
+  );
+  const [selectionMetaById, setSelectionMetaById] = useState<
+    Record<string, SelectedProductMeta>
+  >({});
 
   const {
     register,
@@ -607,7 +700,38 @@ export function PromoRuleForm({ defaultValues, submissionError, onSubmit, onCanc
   const tiers = watch("tiers");
   const quantityTiers = watch("quantityTiers");
   const giftTiers = watch("giftTiers");
+  const shippingTiers = watch("shippingTiers");
   const deliveryDiscountType = watch("deliveryDiscountType");
+
+  const shippingProfileFields = (
+    <fieldset className="form-group shipping-profile-options">
+      <legend className="form-label">Apply to shipping profiles</legend>
+      <p id="shippingProfileHint" className="field-hint">
+        Shopify Functions exposes delivery groups rather than Admin shipping
+        profile IDs. These options map General to the initial checkout group and
+        SKIO to recurring subscription groups.
+      </p>
+      <label className="checkbox-row">
+        <input
+          type="checkbox"
+          value="ONE_TIME_PURCHASE"
+          aria-describedby="shippingProfileHint"
+          {...register("targetDeliveryGroupTypes")}
+        />
+        General / initial checkout
+      </label>
+      <label className="checkbox-row">
+        <input
+          type="checkbox"
+          value="SUBSCRIPTION"
+          aria-describedby="shippingProfileHint"
+          {...register("targetDeliveryGroupTypes")}
+        />
+        SKIO subscription / recurring shipments
+      </label>
+    </fieldset>
+  );
+
   const shippingDiscountFields = (
     <>
       <div className="form-group">
@@ -626,7 +750,8 @@ export function PromoRuleForm({ defaultValues, submissionError, onSubmit, onCanc
             Fixed amount
           </label>
           <p id="shippingDiscountAmountHint" className="field-hint">
-            Enter the amount in the checkout currency. Shopify caps the discount at the eligible shipping charge.
+            Enter the amount in the checkout currency. Shopify caps the discount
+            at the eligible shipping charge.
           </p>
           <input
             type="number"
@@ -644,7 +769,10 @@ export function PromoRuleForm({ defaultValues, submissionError, onSubmit, onCanc
           <label htmlFor="deliveryDiscountPercentage" className="form-label">
             Shipping discount percentage
           </label>
-          <select id="deliveryDiscountPercentage" {...register("deliveryDiscountPercentage", { valueAsNumber: true })}>
+          <select
+            id="deliveryDiscountPercentage"
+            {...register("deliveryDiscountPercentage", { valueAsNumber: true })}
+          >
             <option value={25}>25%</option>
             <option value={50}>50%</option>
             <option value={100}>100% — free shipping</option>
@@ -652,26 +780,7 @@ export function PromoRuleForm({ defaultValues, submissionError, onSubmit, onCanc
         </div>
       )}
 
-      <fieldset className="form-group shipping-profile-options">
-        <legend className="form-label">Apply to shipping profiles</legend>
-        <p id="shippingProfileHint" className="field-hint">
-          Shopify Functions exposes delivery groups rather than Admin shipping profile IDs. These options map General to the initial
-          checkout group and SKIO to recurring subscription groups.
-        </p>
-        <label className="checkbox-row">
-          <input
-            type="checkbox"
-            value="ONE_TIME_PURCHASE"
-            aria-describedby="shippingProfileHint"
-            {...register("targetDeliveryGroupTypes")}
-          />
-          General / initial checkout
-        </label>
-        <label className="checkbox-row">
-          <input type="checkbox" value="SUBSCRIPTION" aria-describedby="shippingProfileHint" {...register("targetDeliveryGroupTypes")} />
-          SKIO subscription / recurring shipments
-        </label>
-      </fieldset>
+      {shippingProfileFields}
     </>
   );
   const selectedIds = useMemo(() => {
@@ -710,22 +819,31 @@ export function PromoRuleForm({ defaultValues, submissionError, onSubmit, onCanc
 
     async function loadSelectionMeta() {
       try {
-        const response = await fetch(`/app/api/products?ids=${encodeURIComponent(idsToLoad.join(","))}`, {
-          signal: controller.signal,
-        });
+        const response = await fetch(
+          `/app/api/products?ids=${encodeURIComponent(idsToLoad.join(","))}`,
+          {
+            signal: controller.signal,
+          },
+        );
         const data = await response.json();
 
         if (!response.ok) {
           throw new Error(data?.error || "Product lookup failed.");
         }
 
-        const nextMeta = (data.selections ?? []).reduce((acc: Record<string, SelectedProductMeta>, selection: SelectedProductMeta) => {
-          if (selection.id) {
-            acc[selection.id] = selection;
-          }
+        const nextMeta = (data.selections ?? []).reduce(
+          (
+            acc: Record<string, SelectedProductMeta>,
+            selection: SelectedProductMeta,
+          ) => {
+            if (selection.id) {
+              acc[selection.id] = selection;
+            }
 
-          return acc;
-        }, {});
+            return acc;
+          },
+          {},
+        );
 
         if (Object.keys(nextMeta).length > 0) {
           setSelectionMetaById((current) => ({
@@ -734,7 +852,8 @@ export function PromoRuleForm({ defaultValues, submissionError, onSubmit, onCanc
           }));
         }
       } catch (error) {
-        if (error instanceof DOMException && error.name === "AbortError") return;
+        if (error instanceof DOMException && error.name === "AbortError")
+          return;
       }
     }
 
@@ -794,7 +913,10 @@ export function PromoRuleForm({ defaultValues, submissionError, onSubmit, onCanc
       });
     }
 
-    if (productPickerMode === "crossSellTargetProduct" || productPickerMode === "landingScopedProduct") {
+    if (
+      productPickerMode === "crossSellTargetProduct" ||
+      productPickerMode === "landingScopedProduct"
+    ) {
       const currentIds = targetProductIds ?? [];
 
       if (!currentIds.includes(selection.productId)) {
@@ -809,7 +931,10 @@ export function PromoRuleForm({ defaultValues, submissionError, onSubmit, onCanc
       }
     }
 
-    if (productPickerMode === "requiredVariant" || productPickerMode === "bundleRequiredVariant") {
+    if (
+      productPickerMode === "requiredVariant" ||
+      productPickerMode === "bundleRequiredVariant"
+    ) {
       const currentIds = requiredVariantIds ?? [];
 
       if (!currentIds.includes(selection.variantId)) {
@@ -824,7 +949,10 @@ export function PromoRuleForm({ defaultValues, submissionError, onSubmit, onCanc
       }
     }
 
-    if (productPickerMode === "freeVariant" || productPickerMode === "bundleFreeVariant") {
+    if (
+      productPickerMode === "freeVariant" ||
+      productPickerMode === "bundleFreeVariant"
+    ) {
       const currentIds = freeVariantIds ?? [];
 
       if (!currentIds.includes(selection.variantId)) {
@@ -839,7 +967,10 @@ export function PromoRuleForm({ defaultValues, submissionError, onSubmit, onCanc
       }
     }
 
-    if (productPickerMode === "oneTimeVariant" || productPickerMode === "landingTierVariant") {
+    if (
+      productPickerMode === "oneTimeVariant" ||
+      productPickerMode === "landingTierVariant"
+    ) {
       const currentIds = targetVariantIds ?? [];
 
       if (!currentIds.includes(selection.variantId)) {
@@ -862,19 +993,28 @@ export function PromoRuleForm({ defaultValues, submissionError, onSubmit, onCanc
           ...current,
           [selection.variantId]: selectedProductMeta,
         }));
-        setValue("requiredAnchorVariantIds", [...currentIds, selection.variantId], {
-          shouldDirty: true,
-          shouldValidate: false,
-        });
+        setValue(
+          "requiredAnchorVariantIds",
+          [...currentIds, selection.variantId],
+          {
+            shouldDirty: true,
+            shouldValidate: false,
+          },
+        );
       }
     }
 
-    if (productPickerMode === "cartGiftTierVariant" && activeGiftTierIndex !== null) {
+    if (
+      productPickerMode === "cartGiftTierVariant" &&
+      activeGiftTierIndex !== null
+    ) {
       const currentTiers = giftTiers ?? [];
       const tier = currentTiers[activeGiftTierIndex];
 
       if (tier) {
-        const giftVariantIds = selection.productVariants.map((variant) => variant.id);
+        const giftVariantIds = selection.productVariants.map(
+          (variant) => variant.id,
+        );
         setSelectionMetaById((current) => ({
           ...current,
           ...Object.fromEntries(
@@ -915,10 +1055,17 @@ export function PromoRuleForm({ defaultValues, submissionError, onSubmit, onCanc
           ...current,
           [selection.productId]: selectedProductMeta,
         }));
-        setValue("targets", [...currentTargets, { productId: selection.productId, discountPercentage: 10 }], {
-          shouldDirty: true,
-          shouldValidate: false,
-        });
+        setValue(
+          "targets",
+          [
+            ...currentTargets,
+            { productId: selection.productId, discountPercentage: 10 },
+          ],
+          {
+            shouldDirty: true,
+            shouldValidate: false,
+          },
+        );
       }
     }
 
@@ -926,7 +1073,12 @@ export function PromoRuleForm({ defaultValues, submissionError, onSubmit, onCanc
   }
 
   function removeListValue(
-    fieldName: "targetProductIds" | "requiredVariantIds" | "freeVariantIds" | "targetVariantIds" | "requiredAnchorVariantIds",
+    fieldName:
+      | "targetProductIds"
+      | "requiredVariantIds"
+      | "freeVariantIds"
+      | "targetVariantIds"
+      | "requiredAnchorVariantIds",
     value: string,
   ) {
     const values = watch(fieldName) ?? [];
@@ -942,11 +1094,19 @@ export function PromoRuleForm({ defaultValues, submissionError, onSubmit, onCanc
   }
 
   return (
-    <form onSubmit={handleSubmit(handleValidSubmit)} className="promo-rule-form">
+    <form
+      onSubmit={handleSubmit(handleValidSubmit)}
+      className="promo-rule-form"
+    >
       <header className="page-header">
         <div>
-          <h1 className="page-title">{defaultValues ? "Edit promo rule" : "Create promo rule"}</h1>
-          <p className="page-subtitle">Define trigger products, eligible variants, and customer-facing discount messaging.</p>
+          <h1 className="page-title">
+            {defaultValues ? "Edit promo rule" : "Create promo rule"}
+          </h1>
+          <p className="page-subtitle">
+            Define trigger products, eligible variants, and customer-facing
+            discount messaging.
+          </p>
         </div>
       </header>
 
@@ -967,7 +1127,13 @@ export function PromoRuleForm({ defaultValues, submissionError, onSubmit, onCanc
             Rule ID
           </label>
 
-          <input type="text" id="id" disabled={Boolean(defaultValues)} {...register("id")} placeholder="pa7-cross-sell" />
+          <input
+            type="text"
+            id="id"
+            disabled={Boolean(defaultValues)}
+            {...register("id")}
+            placeholder="pa7-cross-sell"
+          />
         </div>
 
         <div className="form-group">
@@ -979,31 +1145,57 @@ export function PromoRuleForm({ defaultValues, submissionError, onSubmit, onCanc
             id="type"
             value={ruleType}
             disabled={Boolean(defaultValues)}
-            onChange={(event) => handleRuleTypeChange(event.target.value as PromoRuleType)}
+            onChange={(event) =>
+              handleRuleTypeChange(event.target.value as PromoRuleType)
+            }
           >
-            <option value="trigger_product_discounted_targets">Trigger Product → Discounted Targets (per-product %)</option>
+            <option value="trigger_product_discounted_targets">
+              Trigger Product → Discounted Targets (per-product %)
+            </option>
 
-            <option value="pa7_cross_sell">Trigger Product → Same % off targets (exact qty)</option>
+            <option value="pa7_cross_sell">
+              Trigger Product → Same % off targets (exact qty)
+            </option>
 
-            <option value="required_variants_free_variants">Required Variants → Discounted Variants</option>
+            <option value="required_variants_free_variants">
+              Required Variants → Discounted Variants
+            </option>
 
-            <option value="required_product_with_free_variants">Required Product + Variants → Discounted Variants</option>
+            <option value="required_product_with_free_variants">
+              Required Product + Variants → Discounted Variants
+            </option>
 
-            <option value="loyalty_tier">Loyalty Tier — discount by customer order count</option>
+            <option value="loyalty_tier">
+              Loyalty Tier — discount by customer order count
+            </option>
 
-            <option value="one_time_purchase_discount">One-Time Purchase Discount (% off, non-subscription only)</option>
+            <option value="one_time_purchase_discount">
+              One-Time Purchase Discount (% off, non-subscription only)
+            </option>
 
-            <option value="landing_quantity_tier_fixed_price">Landing Page → Quantity-Tier Fixed Price</option>
+            <option value="landing_quantity_tier_fixed_price">
+              Landing Page → Quantity-Tier Fixed Price
+            </option>
 
-            <option value="landing_scoped_product_discount">Landing Page → Scoped Product Discount (e.g. free gift)</option>
+            <option value="landing_scoped_product_discount">
+              Landing Page → Scoped Product Discount (e.g. free gift)
+            </option>
 
-            <option value="landing_free_shipping">Landing Page → Free Shipping</option>
+            <option value="landing_free_shipping">
+              Landing Page → Free Shipping
+            </option>
 
-            <option value="quiz_bundle_price_match">Product Quiz → Bundle Price Match + Free Gifts</option>
+            <option value="quiz_bundle_price_match">
+              Product Quiz → Bundle Price Match + Free Gifts
+            </option>
 
-            <option value="quiz_bundle_free_shipping">Product Quiz → Bundle Free Shipping</option>
+            <option value="quiz_bundle_free_shipping">
+              Product Quiz → Bundle Free Shipping
+            </option>
 
-            <option value="cart_subtotal_free_gift">Cart Subtotal → Free Gift Tiers</option>
+            <option value="cart_subtotal_free_gift">
+              Cart Subtotal → Free Gift Tiers
+            </option>
           </select>
         </div>
 
@@ -1019,7 +1211,12 @@ export function PromoRuleForm({ defaultValues, submissionError, onSubmit, onCanc
             Discount Message
           </label>
 
-          <input type="text" id="message" {...register("message")} placeholder="e.g. Congratulations! 10% Off" />
+          <input
+            type="text"
+            id="message"
+            {...register("message")}
+            placeholder="e.g. Congratulations! 10% Off"
+          />
         </div>
       </section>
 
@@ -1031,7 +1228,11 @@ export function PromoRuleForm({ defaultValues, submissionError, onSubmit, onCanc
 
             <ProductIdSelector
               productId={triggerProductId}
-              meta={triggerProductId ? selectionMetaById[triggerProductId] : undefined}
+              meta={
+                triggerProductId
+                  ? selectionMetaById[triggerProductId]
+                  : undefined
+              }
               emptyText="Choose the product that unlocks the cross-sell."
               onPick={() => setProductPickerMode("crossSellTriggerProduct")}
               onClear={() =>
@@ -1052,7 +1253,9 @@ export function PromoRuleForm({ defaultValues, submissionError, onSubmit, onCanc
               emptyText="Choose one or more products that receive the discount."
               itemLabel="Product"
               onPick={() => setProductPickerMode("crossSellTargetProduct")}
-              onRemove={(productId) => removeListValue("targetProductIds", productId)}
+              onRemove={(productId) =>
+                removeListValue("targetProductIds", productId)
+              }
             />
           </div>
 
@@ -1104,7 +1307,9 @@ export function PromoRuleForm({ defaultValues, submissionError, onSubmit, onCanc
               itemLabel="Variant"
               addLabel="Add required variant"
               onPick={() => setProductPickerMode("requiredVariant")}
-              onRemove={(variantId) => removeListValue("requiredVariantIds", variantId)}
+              onRemove={(variantId) =>
+                removeListValue("requiredVariantIds", variantId)
+              }
             />
           </div>
 
@@ -1118,7 +1323,9 @@ export function PromoRuleForm({ defaultValues, submissionError, onSubmit, onCanc
               itemLabel="Variant"
               addLabel="Add free variant"
               onPick={() => setProductPickerMode("freeVariant")}
-              onRemove={(variantId) => removeListValue("freeVariantIds", variantId)}
+              onRemove={(variantId) =>
+                removeListValue("freeVariantIds", variantId)
+              }
             />
           </div>
 
@@ -1165,7 +1372,11 @@ export function PromoRuleForm({ defaultValues, submissionError, onSubmit, onCanc
 
             <ProductIdSelector
               productId={triggerProductId}
-              meta={triggerProductId ? selectionMetaById[triggerProductId] : undefined}
+              meta={
+                triggerProductId
+                  ? selectionMetaById[triggerProductId]
+                  : undefined
+              }
               emptyText="Choose the product that unlocks the bundle."
               onPick={() => setProductPickerMode("bundleTriggerProduct")}
               onClear={() =>
@@ -1187,7 +1398,9 @@ export function PromoRuleForm({ defaultValues, submissionError, onSubmit, onCanc
               itemLabel="Variant"
               addLabel="Add required variant"
               onPick={() => setProductPickerMode("bundleRequiredVariant")}
-              onRemove={(variantId) => removeListValue("requiredVariantIds", variantId)}
+              onRemove={(variantId) =>
+                removeListValue("requiredVariantIds", variantId)
+              }
             />
           </div>
 
@@ -1201,7 +1414,9 @@ export function PromoRuleForm({ defaultValues, submissionError, onSubmit, onCanc
               itemLabel="Variant"
               addLabel="Add free variant"
               onPick={() => setProductPickerMode("bundleFreeVariant")}
-              onRemove={(variantId) => removeListValue("freeVariantIds", variantId)}
+              onRemove={(variantId) =>
+                removeListValue("freeVariantIds", variantId)
+              }
             />
           </div>
 
@@ -1249,7 +1464,11 @@ export function PromoRuleForm({ defaultValues, submissionError, onSubmit, onCanc
 
             <ProductIdSelector
               productId={triggerProductId}
-              meta={triggerProductId ? selectionMetaById[triggerProductId] : undefined}
+              meta={
+                triggerProductId
+                  ? selectionMetaById[triggerProductId]
+                  : undefined
+              }
               emptyText="When this product is in the cart, targets get discounted."
               onPick={() => setProductPickerMode("discountedTriggerProduct")}
               onClear={() =>
@@ -1263,9 +1482,16 @@ export function PromoRuleForm({ defaultValues, submissionError, onSubmit, onCanc
 
           <div className="form-group">
             <span className="form-label">Discounted targets</span>
-            <p className="field-hint">Each target product gets its own discount %. Add as many as you need.</p>
+            <p className="field-hint">
+              Each target product gets its own discount %. Add as many as you
+              need.
+            </p>
 
-            <button type="button" onClick={() => setProductPickerMode("discountedTarget")} className="product-picker-trigger">
+            <button
+              type="button"
+              onClick={() => setProductPickerMode("discountedTarget")}
+              className="product-picker-trigger"
+            >
               <span className="product-picker-trigger__icon">+</span>
               <span>
                 <strong>Add target product</strong>
@@ -1277,7 +1503,11 @@ export function PromoRuleForm({ defaultValues, submissionError, onSubmit, onCanc
               <div className="product-id-list">
                 {(targets ?? []).map((target, idx) => (
                   <div key={target.productId} className="product-id-chip">
-                    <SelectionSummary id={target.productId} itemLabel="Product" meta={selectionMetaById[target.productId]} />
+                    <SelectionSummary
+                      id={target.productId}
+                      itemLabel="Product"
+                      meta={selectionMetaById[target.productId]}
+                    />
 
                     <div className="target-discount-row">
                       <label className="form-label">Discount %</label>
@@ -1328,7 +1558,9 @@ export function PromoRuleForm({ defaultValues, submissionError, onSubmit, onCanc
 
           <div className="form-group">
             <span className="form-label">Target products</span>
-            <p className="field-hint">Products to discount based on the customer's loyalty tier.</p>
+            <p className="field-hint">
+              Products to discount based on the customer's loyalty tier.
+            </p>
 
             <ProductIdListSelector
               productIds={targetProductIds ?? []}
@@ -1343,7 +1575,10 @@ export function PromoRuleForm({ defaultValues, submissionError, onSubmit, onCanc
 
           <div className="form-group">
             <span className="form-label">Discount tiers</span>
-            <p className="field-hint">The highest matching tier is applied. Customer must be logged in — guests are skipped.</p>
+            <p className="field-hint">
+              The highest matching tier is applied. Customer must be logged in —
+              guests are skipped.
+            </p>
 
             {(tiers ?? []).length > 0 && (
               <div className="product-id-list">
@@ -1356,7 +1591,11 @@ export function PromoRuleForm({ defaultValues, submissionError, onSubmit, onCanc
                         min={0}
                         value={tier.minOrders}
                         onChange={(e) => {
-                          const next = (tiers ?? []).map((t, i) => (i === idx ? { ...t, minOrders: Number(e.target.value) } : t));
+                          const next = (tiers ?? []).map((t, i) =>
+                            i === idx
+                              ? { ...t, minOrders: Number(e.target.value) }
+                              : t,
+                          );
                           setValue("tiers", next, { shouldDirty: true });
                         }}
                         className="number-field"
@@ -1401,7 +1640,13 @@ export function PromoRuleForm({ defaultValues, submissionError, onSubmit, onCanc
 
             <button
               type="button"
-              onClick={() => setValue("tiers", [...(tiers ?? []), { minOrders: 0, discountPercentage: 10 }], { shouldDirty: true })}
+              onClick={() =>
+                setValue(
+                  "tiers",
+                  [...(tiers ?? []), { minOrders: 0, discountPercentage: 10 }],
+                  { shouldDirty: true },
+                )
+              }
               className="btn btn--small"
             >
               + Add tier
@@ -1412,13 +1657,16 @@ export function PromoRuleForm({ defaultValues, submissionError, onSubmit, onCanc
 
       {ruleType === "one_time_purchase_discount" && (
         <section className="form-section">
-          <h2 className="form-section__title">One-time purchase discount configuration</h2>
+          <h2 className="form-section__title">
+            One-time purchase discount configuration
+          </h2>
 
           <div className="form-group">
             <span className="form-label">Target variants</span>
             <p className="field-hint">
-              Each variant discounts independently — no other variant needs to be in the cart, and the whole line quantity gets the
-              discount. Subscription lines for these variants are skipped.
+              Each variant discounts independently — no other variant needs to
+              be in the cart, and the whole line quantity gets the discount.
+              Subscription lines for these variants are skipped.
             </p>
 
             <ProductIdListSelector
@@ -1428,7 +1676,9 @@ export function PromoRuleForm({ defaultValues, submissionError, onSubmit, onCanc
               itemLabel="Variant"
               addLabel="Add eligible variant"
               onPick={() => setProductPickerMode("oneTimeVariant")}
-              onRemove={(variantId) => removeListValue("targetVariantIds", variantId)}
+              onRemove={(variantId) =>
+                removeListValue("targetVariantIds", variantId)
+              }
             />
           </div>
 
@@ -1453,10 +1703,12 @@ export function PromoRuleForm({ defaultValues, submissionError, onSubmit, onCanc
 
       {ruleType === "landing_quantity_tier_fixed_price" && (
         <section className="form-section">
-          <h2 className="form-section__title">Landing page quantity-tier pricing</h2>
+          <h2 className="form-section__title">
+            Landing page quantity-tier pricing
+          </h2>
           <p className="field-hint">
-            Only applies to cart lines carrying the required line item property below — the same variant added from its own PDP is
-            unaffected.
+            Only applies to cart lines carrying the required line item property
+            below — the same variant added from its own PDP is unaffected.
           </p>
 
           <div className="form-group">
@@ -1468,24 +1720,40 @@ export function PromoRuleForm({ defaultValues, submissionError, onSubmit, onCanc
               itemLabel="Variant"
               addLabel="Add variant"
               onPick={() => setProductPickerMode("landingTierVariant")}
-              onRemove={(variantId) => removeListValue("targetVariantIds", variantId)}
+              onRemove={(variantId) =>
+                removeListValue("targetVariantIds", variantId)
+              }
             />
           </div>
 
           <div className="form-group">
             <span className="form-label">Required line item property</span>
             <div className="target-discount-row">
-              <input type="text" placeholder="key (e.g. __landing_source)" {...register("requiredLineAttributeKey")} />
-              <input type="text" placeholder="value (e.g. protein-complete-lp)" {...register("requiredLineAttributeValue")} />
+              <input
+                type="text"
+                placeholder="key (e.g. __landing_source)"
+                {...register("requiredLineAttributeKey")}
+              />
+              <input
+                type="text"
+                placeholder="value (e.g. protein-complete-lp)"
+                {...register("requiredLineAttributeValue")}
+              />
             </div>
-            <p className="field-hint">The landing page's add-to-cart form must set this exact property on every line it adds.</p>
+            <p className="field-hint">
+              The landing page's add-to-cart form must set this exact property
+              on every line it adds.
+            </p>
           </div>
 
           <div className="form-group">
             <label htmlFor="requiresSubscriptionOption" className="form-label">
               Applies to
             </label>
-            <select id="requiresSubscriptionOption" {...register("requiresSubscriptionOption")}>
+            <select
+              id="requiresSubscriptionOption"
+              {...register("requiresSubscriptionOption")}
+            >
               <option value="any">Any (subscription or one-time)</option>
               <option value="true">Subscription lines only</option>
               <option value="false">One-time purchase lines only</option>
@@ -1493,9 +1761,12 @@ export function PromoRuleForm({ defaultValues, submissionError, onSubmit, onCanc
           </div>
 
           <div className="form-group">
-            <span className="form-label">Quantity tiers (fixed price per unit)</span>
+            <span className="form-label">
+              Quantity tiers (fixed price per unit)
+            </span>
             <p className="field-hint">
-              The combined quantity across all matching lines must exactly match a tier's quantity — no partial matches.
+              The combined quantity across all matching lines must exactly match
+              a tier's quantity — no partial matches.
             </p>
 
             {(quantityTiers ?? []).length > 0 && (
@@ -1509,7 +1780,11 @@ export function PromoRuleForm({ defaultValues, submissionError, onSubmit, onCanc
                         min={1}
                         value={tier.quantity}
                         onChange={(e) => {
-                          const next = (quantityTiers ?? []).map((t, i) => (i === idx ? { ...t, quantity: Number(e.target.value) } : t));
+                          const next = (quantityTiers ?? []).map((t, i) =>
+                            i === idx
+                              ? { ...t, quantity: Number(e.target.value) }
+                              : t,
+                          );
                           setValue("quantityTiers", next, {
                             shouldDirty: true,
                           });
@@ -1559,9 +1834,16 @@ export function PromoRuleForm({ defaultValues, submissionError, onSubmit, onCanc
             <button
               type="button"
               onClick={() =>
-                setValue("quantityTiers", [...(quantityTiers ?? []), { quantity: 1, targetPricePerUnit: 0 }], {
-                  shouldDirty: true,
-                })
+                setValue(
+                  "quantityTiers",
+                  [
+                    ...(quantityTiers ?? []),
+                    { quantity: 1, targetPricePerUnit: 0 },
+                  ],
+                  {
+                    shouldDirty: true,
+                  },
+                )
               }
               className="btn btn--small"
             >
@@ -1573,9 +1855,12 @@ export function PromoRuleForm({ defaultValues, submissionError, onSubmit, onCanc
 
       {ruleType === "landing_scoped_product_discount" && (
         <section className="form-section">
-          <h2 className="form-section__title">Landing page scoped product discount</h2>
+          <h2 className="form-section__title">
+            Landing page scoped product discount
+          </h2>
           <p className="field-hint">
-            Discounts these products only on lines carrying the required line item property below — e.g. a free gift bundled with a specific
+            Discounts these products only on lines carrying the required line
+            item property below — e.g. a free gift bundled with a specific
             landing page.
           </p>
 
@@ -1595,17 +1880,29 @@ export function PromoRuleForm({ defaultValues, submissionError, onSubmit, onCanc
           <div className="form-group">
             <span className="form-label">Required line item property</span>
             <div className="target-discount-row">
-              <input type="text" placeholder="key (e.g. __landing_source)" {...register("requiredLineAttributeKey")} />
-              <input type="text" placeholder="value (e.g. protein-complete-lp)" {...register("requiredLineAttributeValue")} />
+              <input
+                type="text"
+                placeholder="key (e.g. __landing_source)"
+                {...register("requiredLineAttributeKey")}
+              />
+              <input
+                type="text"
+                placeholder="value (e.g. protein-complete-lp)"
+                {...register("requiredLineAttributeValue")}
+              />
             </div>
           </div>
 
           <div className="form-group">
-            <span className="form-label">Required anchor variants (optional)</span>
+            <span className="form-label">
+              Required anchor variants (optional)
+            </span>
             <p className="field-hint">
-              If set, this discount only applies while at least one tagged line for one of these variants is still in the cart — e.g. the
-              protein purchase this gift is bundled with. Removing the anchor from the cart reverts the gift to full price instead of
-              leaving it free forever.
+              If set, this discount only applies while at least one tagged line
+              for one of these variants is still in the cart — e.g. the protein
+              purchase this gift is bundled with. Removing the anchor from the
+              cart reverts the gift to full price instead of leaving it free
+              forever.
             </p>
             <ProductIdListSelector
               productIds={requiredAnchorVariantIds ?? []}
@@ -1614,16 +1911,22 @@ export function PromoRuleForm({ defaultValues, submissionError, onSubmit, onCanc
               itemLabel="Variant"
               addLabel="Add anchor variant"
               onPick={() => setProductPickerMode("landingScopedAnchorVariant")}
-              onRemove={(variantId) => removeListValue("requiredAnchorVariantIds", variantId)}
+              onRemove={(variantId) =>
+                removeListValue("requiredAnchorVariantIds", variantId)
+              }
             />
           </div>
 
           <div className="form-group">
-            <label htmlFor="landingScopedAnchorMinQuantity" className="form-label">
+            <label
+              htmlFor="landingScopedAnchorMinQuantity"
+              className="form-label"
+            >
               Required anchor minimum quantity
             </label>
             <p className="field-hint">
-              Optional. When set, the tagged anchor lines must add up to at least this quantity before the product discount applies.
+              Optional. When set, the tagged anchor lines must add up to at
+              least this quantity before the product discount applies.
             </p>
             <input
               type="number"
@@ -1639,7 +1942,10 @@ export function PromoRuleForm({ defaultValues, submissionError, onSubmit, onCanc
           </div>
 
           <div className="form-group">
-            <label htmlFor="landingScopedDiscountPercentage" className="form-label">
+            <label
+              htmlFor="landingScopedDiscountPercentage"
+              className="form-label"
+            >
               Discount Percentage
             </label>
 
@@ -1659,24 +1965,162 @@ export function PromoRuleForm({ defaultValues, submissionError, onSubmit, onCanc
 
       {ruleType === "landing_free_shipping" && (
         <section className="form-section">
-          <h2 className="form-section__title">Landing page shipping discount</h2>
-          <p className="field-hint">Discount eligible shipping whenever any cart line carries the required line item property below.</p>
+          <h2 className="form-section__title">
+            Landing page shipping discount
+          </h2>
+          <p className="field-hint">
+            Discount eligible shipping whenever any cart line carries the
+            required line item property below.
+          </p>
 
-          {shippingDiscountFields}
+          <div className="form-group">
+            <span className="form-label">Cart value shipping tiers</span>
+            <p id="shippingTiersHint" className="field-hint">
+              The highest qualifying cart subtotal tier is applied. Use 0% for a
+              tier that gives no shipping discount.
+            </p>
+
+            <div
+              className="shipping-tier-list"
+              aria-describedby="shippingTiersHint"
+            >
+              {(shippingTiers ?? []).map((tier, index) => (
+                <div className="shipping-tier-row" key={index}>
+                  <div>
+                    <label htmlFor={`shippingTierMinimum-${index}`}>
+                      Minimum cart value
+                    </label>
+                    <input
+                      id={`shippingTierMinimum-${index}`}
+                      type="number"
+                      min={0}
+                      step={0.01}
+                      inputMode="decimal"
+                      value={tier.minimumSubtotal}
+                      onChange={(event) =>
+                        setValue(
+                          "shippingTiers",
+                          (shippingTiers ?? []).map((currentTier, tierIndex) =>
+                            tierIndex === index
+                              ? {
+                                  ...currentTier,
+                                  minimumSubtotal: Number(event.target.value),
+                                }
+                              : currentTier,
+                          ),
+                          { shouldDirty: true },
+                        )
+                      }
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor={`shippingTierPercentage-${index}`}>
+                      Shipping discount
+                    </label>
+                    <div className="shipping-tier-percentage">
+                      <input
+                        id={`shippingTierPercentage-${index}`}
+                        type="number"
+                        min={0}
+                        max={100}
+                        step={1}
+                        inputMode="numeric"
+                        value={tier.discountPercentage}
+                        onChange={(event) =>
+                          setValue(
+                            "shippingTiers",
+                            (shippingTiers ?? []).map(
+                              (currentTier, tierIndex) =>
+                                tierIndex === index
+                                  ? {
+                                      ...currentTier,
+                                      discountPercentage: Number(
+                                        event.target.value,
+                                      ),
+                                    }
+                                  : currentTier,
+                            ),
+                            { shouldDirty: true },
+                          )
+                        }
+                      />
+                      <span aria-hidden="true">%</span>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    className="btn btn--small btn--danger"
+                    disabled={(shippingTiers ?? []).length <= 1}
+                    onClick={() =>
+                      setValue(
+                        "shippingTiers",
+                        (shippingTiers ?? []).filter(
+                          (_, tierIndex) => tierIndex !== index,
+                        ),
+                        { shouldDirty: true },
+                      )
+                    }
+                  >
+                    Remove
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            <button
+              type="button"
+              className="btn btn--small"
+              onClick={() => {
+                const currentTiers = shippingTiers ?? [];
+                const lastTier = currentTiers[currentTiers.length - 1];
+                setValue(
+                  "shippingTiers",
+                  [
+                    ...currentTiers,
+                    {
+                      minimumSubtotal: (lastTier?.minimumSubtotal ?? -50) + 50,
+                      discountPercentage: Math.min(
+                        (lastTier?.discountPercentage ?? 0) + 25,
+                        100,
+                      ),
+                    },
+                  ],
+                  { shouldDirty: true },
+                );
+              }}
+            >
+              + Add shipping tier
+            </button>
+          </div>
+
+          {shippingProfileFields}
 
           <div className="form-group">
             <span className="form-label">Required line item property</span>
             <div className="target-discount-row">
-              <input type="text" placeholder="key (e.g. __landing_source)" {...register("requiredLineAttributeKey")} />
-              <input type="text" placeholder="value (e.g. protein-complete-lp)" {...register("requiredLineAttributeValue")} />
+              <input
+                type="text"
+                placeholder="key (e.g. __landing_source)"
+                {...register("requiredLineAttributeKey")}
+              />
+              <input
+                type="text"
+                placeholder="value (e.g. protein-complete-lp)"
+                {...register("requiredLineAttributeValue")}
+              />
             </div>
           </div>
 
           <div className="form-group">
-            <span className="form-label">Required anchor variants (optional)</span>
+            <span className="form-label">
+              Required anchor variants (optional)
+            </span>
             <p className="field-hint">
-              If set, the shipping discount only applies while tagged lines for these variants are in the cart. Use this with the minimum
-              quantity to gate landing shipping on the real qualifying product quantity.
+              If set, the shipping discount only applies while tagged lines for
+              these variants are in the cart. Use this with the minimum quantity
+              to gate landing shipping on the real qualifying product quantity.
             </p>
             <ProductIdListSelector
               productIds={requiredAnchorVariantIds ?? []}
@@ -1685,16 +2129,22 @@ export function PromoRuleForm({ defaultValues, submissionError, onSubmit, onCanc
               itemLabel="Variant"
               addLabel="Add anchor variant"
               onPick={() => setProductPickerMode("landingScopedAnchorVariant")}
-              onRemove={(variantId) => removeListValue("requiredAnchorVariantIds", variantId)}
+              onRemove={(variantId) =>
+                removeListValue("requiredAnchorVariantIds", variantId)
+              }
             />
           </div>
 
           <div className="form-group">
-            <label htmlFor="landingShippingAnchorMinQuantity" className="form-label">
+            <label
+              htmlFor="landingShippingAnchorMinQuantity"
+              className="form-label"
+            >
               Required anchor minimum quantity
             </label>
             <p className="field-hint">
-              Optional. When set, tagged anchor lines must add up to at least this quantity before the shipping discount applies.
+              Optional. When set, tagged anchor lines must add up to at least
+              this quantity before the shipping discount applies.
             </p>
             <input
               type="number"
@@ -1713,12 +2163,17 @@ export function PromoRuleForm({ defaultValues, submissionError, onSubmit, onCanc
 
       {ruleType === "quiz_bundle_price_match" && (
         <section className="form-section">
-          <h2 className="form-section__title">Product Quiz bundle price match + free gifts</h2>
+          <h2 className="form-section__title">
+            Product Quiz bundle price match + free gifts
+          </h2>
           <p className="field-hint">
-            OneSol-specific. No product IDs to configure — this rule is fully generic and only ever touches cart lines the Product Quiz's
-            own bulk add-to-cart tags with a shared "_quiz_bundle_id" property. Paid lines in each group are discounted down to the
-            "_quiz_target_cents" value the theme already computed for that quiz result; lines flagged "_quiz_free_gift" get the percentage
-            below. Enable at most one of these rules per shop.
+            OneSol-specific. No product IDs to configure — this rule is fully
+            generic and only ever touches cart lines the Product Quiz's own bulk
+            add-to-cart tags with a shared "_quiz_bundle_id" property. Paid
+            lines in each group are discounted down to the "_quiz_target_cents"
+            value the theme already computed for that quiz result; lines flagged
+            "_quiz_free_gift" get the percentage below. Enable at most one of
+            these rules per shop.
           </p>
 
           <div className="form-group">
@@ -1742,12 +2197,16 @@ export function PromoRuleForm({ defaultValues, submissionError, onSubmit, onCanc
 
       {ruleType === "quiz_bundle_free_shipping" && (
         <section className="form-section">
-          <h2 className="form-section__title">Product Quiz bundle shipping discount</h2>
+          <h2 className="form-section__title">
+            Product Quiz bundle shipping discount
+          </h2>
           <p className="field-hint">
-            This rule is fully generic and discounts eligible shipping whenever a cart line carries a "_quiz_bundle_id" property whose group
-            still has every paid component the Product Quiz originally added (same abuse guard as the price match + free gifts rule above,
-            applied to shipping instead of price). Evaluated by a separate delivery-options Function target, independent of the cart-lines
-            rule above.
+            This rule is fully generic and discounts eligible shipping whenever
+            a cart line carries a "_quiz_bundle_id" property whose group still
+            has every paid component the Product Quiz originally added (same
+            abuse guard as the price match + free gifts rule above, applied to
+            shipping instead of price). Evaluated by a separate delivery-options
+            Function target, independent of the cart-lines rule above.
           </p>
 
           {shippingDiscountFields}
@@ -1758,8 +2217,9 @@ export function PromoRuleForm({ defaultValues, submissionError, onSubmit, onCanc
         <section className="form-section">
           <h2 className="form-section__title">Cart subtotal free gift tiers</h2>
           <p className="field-hint">
-            The storefront adds each qualifying tier's gift automatically. If the selected gift product has flavors, sizes, or other
-            variants, the customer chooses one from a visual card picker first.
+            The storefront adds each qualifying tier's gift automatically. If
+            the selected gift product has flavors, sizes, or other variants, the
+            customer chooses one from a visual card picker first.
           </p>
 
           <div className="form-group">
@@ -1767,8 +2227,12 @@ export function PromoRuleForm({ defaultValues, submissionError, onSubmit, onCanc
               When multiple tiers qualify at once
             </label>
             <select id="cartGiftStackingMode" {...register("stackingMode")}>
-              <option value="highest_tier_only">Only the highest tier's gift applies</option>
-              <option value="cumulative">Every qualifying tier's gift applies</option>
+              <option value="highest_tier_only">
+                Only the highest tier's gift applies
+              </option>
+              <option value="cumulative">
+                Every qualifying tier's gift applies
+              </option>
             </select>
           </div>
 
@@ -1778,14 +2242,20 @@ export function PromoRuleForm({ defaultValues, submissionError, onSubmit, onCanc
             {(giftTiers ?? []).map((tier, idx) => (
               <div key={tier.id} className="product-id-chip">
                 <div className="target-discount-row">
-                  <label className="form-label">Minimum cart subtotal ($)</label>
+                  <label className="form-label">
+                    Minimum cart subtotal ($)
+                  </label>
                   <input
                     type="number"
                     min={0}
                     step="0.01"
                     value={tier.minimumSubtotal}
                     onChange={(e) => {
-                      const next = (giftTiers ?? []).map((t, i) => (i === idx ? { ...t, minimumSubtotal: Number(e.target.value) } : t));
+                      const next = (giftTiers ?? []).map((t, i) =>
+                        i === idx
+                          ? { ...t, minimumSubtotal: Number(e.target.value) }
+                          : t,
+                      );
                       setValue("giftTiers", next, { shouldDirty: true });
                     }}
                     className="number-field"
@@ -1797,7 +2267,11 @@ export function PromoRuleForm({ defaultValues, submissionError, onSubmit, onCanc
                     min={1}
                     value={tier.maxFreeUnits}
                     onChange={(e) => {
-                      const next = (giftTiers ?? []).map((t, i) => (i === idx ? { ...t, maxFreeUnits: Number(e.target.value) } : t));
+                      const next = (giftTiers ?? []).map((t, i) =>
+                        i === idx
+                          ? { ...t, maxFreeUnits: Number(e.target.value) }
+                          : t,
+                      );
                       setValue("giftTiers", next, { shouldDirty: true });
                     }}
                     className="number-field"
@@ -1810,7 +2284,11 @@ export function PromoRuleForm({ defaultValues, submissionError, onSubmit, onCanc
                     max={100}
                     value={tier.discountPercentage}
                     onChange={(e) => {
-                      const next = (giftTiers ?? []).map((t, i) => (i === idx ? { ...t, discountPercentage: Number(e.target.value) } : t));
+                      const next = (giftTiers ?? []).map((t, i) =>
+                        i === idx
+                          ? { ...t, discountPercentage: Number(e.target.value) }
+                          : t,
+                      );
                       setValue("giftTiers", next, { shouldDirty: true });
                     }}
                     className="number-field"
@@ -1834,14 +2312,20 @@ export function PromoRuleForm({ defaultValues, submissionError, onSubmit, onCanc
                 <div className="form-group">
                   <span className="form-label">
                     Gift product
-                    {tier.giftVariantIds.length > 1 ? " (customer chooses a variant)" : ""}
+                    {tier.giftVariantIds.length > 1
+                      ? " (customer chooses a variant)"
+                      : ""}
                   </span>
                   <ProductIdListSelector
                     productIds={tier.giftVariantIds}
                     metaById={selectionMetaById}
                     emptyText="Choose the gift product for this tier."
                     itemLabel="Variant"
-                    addLabel={tier.giftVariantIds.length ? "Replace gift product" : "Choose gift product"}
+                    addLabel={
+                      tier.giftVariantIds.length
+                        ? "Replace gift product"
+                        : "Choose gift product"
+                    }
                     onPick={() => {
                       setActiveGiftTierIndex(idx);
                       setProductPickerMode("cartGiftTierVariant");
@@ -1851,7 +2335,9 @@ export function PromoRuleForm({ defaultValues, submissionError, onSubmit, onCanc
                         i === idx
                           ? {
                               ...t,
-                              giftVariantIds: t.giftVariantIds.filter((id) => id !== variantId),
+                              giftVariantIds: t.giftVariantIds.filter(
+                                (id) => id !== variantId,
+                              ),
                             }
                           : t,
                       );
@@ -1889,8 +2375,13 @@ export function PromoRuleForm({ defaultValues, submissionError, onSubmit, onCanc
       )}
 
       <section className="form-section">
-        <h2 className="form-section__title">Additional conditions (optional)</h2>
-        <p className="field-hint">These conditions are evaluated before applying the rule. Leave blank to apply unconditionally.</p>
+        <h2 className="form-section__title">
+          Additional conditions (optional)
+        </h2>
+        <p className="field-hint">
+          These conditions are evaluated before applying the rule. Leave blank
+          to apply unconditionally.
+        </p>
 
         <div className="form-group">
           <label htmlFor="cond-subtotal" className="form-label">
@@ -1912,26 +2403,43 @@ export function PromoRuleForm({ defaultValues, submissionError, onSubmit, onCanc
         <div className="form-group">
           <span className="form-label">Required cart attribute</span>
           <div className="target-discount-row">
-            <input type="text" placeholder="key (e.g. source)" {...register("conditions.requiredCartAttributeKey")} />
-            <input type="text" placeholder="value (e.g. landing-page-x)" {...register("conditions.requiredCartAttributeValue")} />
+            <input
+              type="text"
+              placeholder="key (e.g. source)"
+              {...register("conditions.requiredCartAttributeKey")}
+            />
+            <input
+              type="text"
+              placeholder="value (e.g. landing-page-x)"
+              {...register("conditions.requiredCartAttributeValue")}
+            />
           </div>
           <p className="field-hint">
-            Set from a landing page via the Storefront API: <code>cart.updateAttributes([&#123; key, value &#125;])</code>. Only{" "}
-            <code>source</code> is currently wired into the discount function — other keys are saved but never evaluated until a developer
-            adds them to the function&apos;s query.
+            Set from a landing page via the Storefront API:{" "}
+            <code>cart.updateAttributes([&#123; key, value &#125;])</code>. Only{" "}
+            <code>source</code> is currently wired into the discount function —
+            other keys are saved but never evaluated until a developer adds them
+            to the function&apos;s query.
           </p>
         </div>
 
         <div className="form-group">
           <label className="checkbox-row">
-            <input type="checkbox" {...register("conditions.requiresSubscriptionInCart")} />
+            <input
+              type="checkbox"
+              {...register("conditions.requiresSubscriptionInCart")}
+            />
             <span>Requires at least one subscription item in cart</span>
           </label>
         </div>
       </section>
 
       <div className="btn-row">
-        <button type="submit" disabled={isSubmitting} className="btn btn--primary">
+        <button
+          type="submit"
+          disabled={isSubmitting}
+          className="btn btn--primary"
+        >
           {isSubmitting ? "Saving…" : "Save Rule"}
         </button>
 
@@ -1942,7 +2450,9 @@ export function PromoRuleForm({ defaultValues, submissionError, onSubmit, onCanc
 
       {productPickerMode && (
         <ProductPicker
-          selectionMode={productPickerMode === "cartGiftTierVariant" ? "product" : "variant"}
+          selectionMode={
+            productPickerMode === "cartGiftTierVariant" ? "product" : "variant"
+          }
           onSelect={handlePickerSelect}
           onClose={() => setProductPickerMode(null)}
         />
@@ -1974,13 +2484,21 @@ function ProductIdSelector({
             <button type="button" onClick={onPick} className="btn btn--small">
               Change
             </button>
-            <button type="button" onClick={onClear} className="btn btn--small btn--danger">
+            <button
+              type="button"
+              onClick={onClear}
+              className="btn btn--small btn--danger"
+            >
               Clear
             </button>
           </div>
         </div>
       ) : (
-        <button type="button" onClick={onPick} className="product-picker-trigger">
+        <button
+          type="button"
+          onClick={onPick}
+          className="product-picker-trigger"
+        >
           <span className="product-picker-trigger__icon">+</span>
           <span>
             <strong>Select product</strong>
@@ -2023,9 +2541,17 @@ function ProductIdListSelector({
         <div className="product-id-list">
           {productIds.map((productId) => (
             <div key={productId} className="product-id-chip">
-              <SelectionSummary id={productId} itemLabel={itemLabel} meta={metaById?.[productId]} />
+              <SelectionSummary
+                id={productId}
+                itemLabel={itemLabel}
+                meta={metaById?.[productId]}
+              />
 
-              <button type="button" onClick={() => onRemove(productId)} className="btn btn--small btn--danger">
+              <button
+                type="button"
+                onClick={() => onRemove(productId)}
+                className="btn btn--small btn--danger"
+              >
                 Remove
               </button>
             </div>
@@ -2036,7 +2562,15 @@ function ProductIdListSelector({
   );
 }
 
-function SelectionSummary({ id, itemLabel, meta }: { id: string; itemLabel: string; meta?: SelectedProductMeta }) {
+function SelectionSummary({
+  id,
+  itemLabel,
+  meta,
+}: {
+  id: string;
+  itemLabel: string;
+  meta?: SelectedProductMeta;
+}) {
   const title = meta?.productTitle ?? `${itemLabel} ${getGidTail(id)}`;
   const variantTitle = meta?.variantTitle;
   const imageAlt = meta?.imageAlt || meta?.productTitle || title;
@@ -2044,7 +2578,11 @@ function SelectionSummary({ id, itemLabel, meta }: { id: string; itemLabel: stri
   return (
     <div className="selection-summary">
       <div className="selection-summary__media">
-        {meta?.imageUrl ? <img src={meta.imageUrl} alt={imageAlt} loading="lazy" /> : <span>{title.slice(0, 2).toUpperCase()}</span>}
+        {meta?.imageUrl ? (
+          <img src={meta.imageUrl} alt={imageAlt} loading="lazy" />
+        ) : (
+          <span>{title.slice(0, 2).toUpperCase()}</span>
+        )}
       </div>
 
       <div className="selection-summary__body">
@@ -2053,9 +2591,13 @@ function SelectionSummary({ id, itemLabel, meta }: { id: string; itemLabel: stri
           <span>
             {itemLabel} ID {getGidTail(id)}
           </span>
-          {meta?.productId && id !== meta.productId && <span>Product ID {getGidTail(meta.productId)}</span>}
+          {meta?.productId && id !== meta.productId && (
+            <span>Product ID {getGidTail(meta.productId)}</span>
+          )}
           {variantTitle && <span>Variant {variantTitle}</span>}
-          {meta?.variantId && <span>Variant ID {getGidTail(meta.variantId)}</span>}
+          {meta?.variantId && (
+            <span>Variant ID {getGidTail(meta.variantId)}</span>
+          )}
           {meta?.sku && <span>SKU {meta.sku}</span>}
         </div>
         <span className="mono">{id}</span>

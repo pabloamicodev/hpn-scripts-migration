@@ -1,5 +1,10 @@
 query DeliveryRunInput {
   cart {
+    cost {
+      subtotalAmount {
+        amount
+      }
+    }
     lines {
       quantity
       landingSourceAttribute: attribute(key: "__landing_source") {
@@ -11,7 +16,9 @@ query DeliveryRunInput {
       quizFreeGiftAttribute: attribute(key: "_quiz_free_gift") {
         value
       }
-      quizExpectedPaidCountAttribute: attribute(key: "_quiz_expected_paid_count") {
+      quizExpectedPaidCountAttribute: attribute(
+        key: "_quiz_expected_paid_count"
+      ) {
         value
       }
       merchandise {

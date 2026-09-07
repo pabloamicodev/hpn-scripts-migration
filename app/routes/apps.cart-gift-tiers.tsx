@@ -90,6 +90,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
     const body = {
       stackingMode: rule.stackingMode,
+      message: rule.message,
       tiers: tiers.filter((tier) => tier.variants.length > 0),
     };
     responseCache.set(session.shop, {

@@ -75,12 +75,13 @@
       .then(function (data) {
         tierConfig = {
           stackingMode: data.stackingMode === "cumulative" ? "cumulative" : "highest_tier_only",
+          message: typeof data.message === "string" ? data.message : "",
           tiers: Array.isArray(data.tiers) ? data.tiers : [],
         };
         configLoaded = true;
       })
       .catch(function () {
-        tierConfig = { stackingMode: "highest_tier_only", tiers: [] };
+        tierConfig = { stackingMode: "highest_tier_only", message: "", tiers: [] };
         configLoaded = true;
       });
   }
@@ -167,9 +168,16 @@
     var dialog = fragment.querySelector("[data-cart-gift-tiers-dialog]");
     var optionsContainer = fragment.querySelector("[data-cart-gift-tiers-options]");
     var closeBtn = fragment.querySelector("[data-cart-gift-tiers-close]");
+    var subtitle = fragment.querySelector("#cart-gift-tiers-modal-subtitle");
     var description = fragment.querySelector("#cart-gift-tiers-modal-description");
     var giftProductTitle = tier.variants[0] && tier.variants[0].productTitle;
     var variantChosen = false;
+
+    if (tierConfig.message) {
+      subtitle.textContent = tierConfig.message;
+    } else {
+      subtitle.style.display = "none";
+    }
 
     description.textContent = giftProductTitle
       ? "Select the " + giftProductTitle + " flavor, size, or option you want as your gift."

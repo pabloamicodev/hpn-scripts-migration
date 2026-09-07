@@ -114,6 +114,7 @@ const GET_VARIANT_BY_ID_QUERY = `
   query GetVariant($id: ID!) {
     productVariant(id: $id) {
       id
+      legacyResourceId
       title
       sku
       price
@@ -143,6 +144,7 @@ const GET_VARIANT_BY_ID_QUERY = `
 
 export interface ProductVariantNode {
   id: string;
+  legacyResourceId?: string;
   title: string;
   sku?: string | null;
   price: string;

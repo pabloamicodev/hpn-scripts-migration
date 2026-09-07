@@ -3,23 +3,28 @@
   "version": "1.0.0",
   "type": "module",
   "dependencies": {
-    "@shopify/shopify_function": "^2.0.0"
+    "@shopify/shopify_function": "^2.0.1"
   },
   "devDependencies": {
-    "@graphql-codegen/cli": "^5.0.0",
-    "@graphql-codegen/typescript": "^4.0.0",
-    "@graphql-codegen/typescript-operations": "^4.0.0"
+    "@graphql-codegen/cli": "^5.0.7",
+    "@graphql-codegen/typescript": "^4.1.6",
+    "@graphql-codegen/typescript-operations": "^4.6.1"
   },
   "graphql": {
     "projects": {
       "default": {
         "schema": "schema.graphql",
-        "documents": ["./src/**/*.graphql"],
+        "documents": [
+          "./src/**/*.graphql"
+        ],
         "extensions": {
           "codegen": {
             "generates": {
               "./src/types.d.ts": {
-                "plugins": ["typescript", "typescript-operations"]
+                "plugins": [
+                  "typescript",
+                  "typescript-operations"
+                ]
               }
             }
           }

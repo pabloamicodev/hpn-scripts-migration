@@ -3,7 +3,7 @@ import type { LoaderFunctionArgs } from "react-router";
 import { authenticate } from "~/shopify.server";
 import { makeGraphqlProxy } from "~/lib/graphqlProxy.server";
 import { getVariantById } from "~/lib/shopifyProducts.server";
-import { getStorePreset } from "~/lib/hpnPromoDefaults";
+import { loadActiveDiscount } from "~/lib/hpnPromoConfig.server";
 import type { CartSubtotalFreeGiftRule } from "~/lib/validations";
 
 // Storefront-facing app proxy endpoint (Shopify signs and forwards
@@ -54,24 +54,19 @@ export async function loader({ request }: LoaderFunctionArgs) {
     return json(cached.body);
   }
 
-  const config = getStorePreset(session.shop);
-  const rule = config.rules.find(
-    (r): r is CartSubtotalFreeGiftRule =>
-      r.type === "cart_subtotal_free_gift" && r.enabled,
-  );
-
-  if (!rule) {
-    return json(EMPTY_RESPONSE);
-  }
-
   const graphqlProxy = makeGraphqlProxy(admin);
 
   try {
+    const loaded = await loadActiveDiscount(graphqlProxy, session.shop);
+    const rule = loaded.config.rules.find((r): r is CartSubtotalFreeGiftRule => r.type === "cart_subtotal_free_gift" && r.enabled);
+
+    if (!rule) {
+      return json(EMPTY_RESPONSE);
+    }
+
     const tiers = await Promise.all(
       rule.tiers.map(async (tier) => {
-        const variants = await Promise.all(
-          tier.giftVariantIds.map((id) => getVariantById(graphqlProxy, id)),
-        );
+        const variants = await Promise.all(tier.giftVariantIds.map((id) => getVariantById(graphqlProxy, id)));
 
         return {
           id: tier.id,
@@ -81,11 +76,11 @@ export async function loader({ request }: LoaderFunctionArgs) {
           variants: variants
             .filter((v): v is NonNullable<typeof v> => v !== null && v.availableForSale !== false)
             .map((v) => ({
-              id: v.id,
-              title:
-                v.title === "Default Title" || v.product.title === v.title
-                  ? v.product.title
-                  : `${v.product.title} — ${v.title}`,
+              id: v.legacyResourceId ?? v.id.split("/").pop() ?? v.id,
+              productTitle: v.product.title,
+              variantTitle: v.title,
+              options: v.selectedOptions ?? [],
+              title: v.title === "Default Title" || v.product.title === v.title ? v.product.title : `${v.product.title} — ${v.title}`,
               image: v.image?.url ?? v.product.featuredImage?.url ?? null,
               price: v.price,
             })),
@@ -97,7 +92,10 @@ export async function loader({ request }: LoaderFunctionArgs) {
       stackingMode: rule.stackingMode,
       tiers: tiers.filter((tier) => tier.variants.length > 0),
     };
-    responseCache.set(session.shop, { expiresAt: Date.now() + RESPONSE_CACHE_TTL_MS, body });
+    responseCache.set(session.shop, {
+      expiresAt: Date.now() + RESPONSE_CACHE_TTL_MS,
+      body,
+    });
     return json(body);
   } catch (error) {
     console.error("[apps/cart-gift-tiers] failed to resolve gift tier variants", error);

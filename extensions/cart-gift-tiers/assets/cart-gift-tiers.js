@@ -103,9 +103,17 @@
 
     return fetch("/cart/add.js", {
       method: "POST",
-      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
       credentials: "same-origin",
-      body: JSON.stringify({ items: [{ id: Number(variantId), quantity: 1, properties: properties }] }),
+      body: JSON.stringify({
+        items: [{ id: String(variantId), quantity: 1, properties: properties }],
+      }),
+    }).then(function (response) {
+      if (!response.ok) throw new Error("Shopify rejected the gift variant.");
+      return response;
     });
   }
 
@@ -114,7 +122,10 @@
     updates[lineKey] = 0;
     return fetch("/cart/update.js", {
       method: "POST",
-      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
       credentials: "same-origin",
       body: JSON.stringify({ updates: updates }),
     });
@@ -141,26 +152,36 @@
     }
 
     var fragment = modalTemplate.content.cloneNode(true);
-    var overlay = fragment.querySelector("[data-cart-gift-tiers-overlay]");
+    var dialog = fragment.querySelector("[data-cart-gift-tiers-dialog]");
     var optionsContainer = fragment.querySelector("[data-cart-gift-tiers-options]");
     var closeBtn = fragment.querySelector("[data-cart-gift-tiers-close]");
+    var description = fragment.querySelector("#cart-gift-tiers-modal-description");
+    var giftProductTitle = tier.variants[0] && tier.variants[0].productTitle;
+    var variantChosen = false;
+
+    description.textContent = giftProductTitle
+      ? "Select the " + giftProductTitle + " flavor, size, or option you want as your gift."
+      : "Select the flavor, size, or option you want as your gift.";
 
     function closeModal() {
-      if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+      if (!variantChosen) dismissedTierIds.add(tier.id);
+      if (dialog.open) dialog.close();
+    }
+
+    function cleanUpModal() {
+      if (dialog.parentNode) dialog.parentNode.removeChild(dialog);
       modalOpen = false;
-      document.removeEventListener("keydown", handleKeydown);
       processModalQueue();
     }
 
-    function handleKeydown(event) {
-      if (event.key === "Escape") closeModal();
-    }
-
     closeBtn.addEventListener("click", closeModal);
-    overlay.addEventListener("click", function (event) {
-      if (event.target === overlay) closeModal();
+    dialog.addEventListener("cancel", function () {
+      dismissedTierIds.add(tier.id);
     });
-    document.addEventListener("keydown", handleKeydown);
+    dialog.addEventListener("close", cleanUpModal, { once: true });
+    dialog.addEventListener("click", function (event) {
+      if (event.target === dialog) closeModal();
+    });
 
     tier.variants.forEach(function (variant) {
       var optionFragment = optionTemplate.content.cloneNode(true);
@@ -175,14 +196,15 @@
       } else {
         image.style.display = "none";
       }
-      title.textContent = variant.title;
-      price.textContent = formatMoney(variant.price);
+      title.textContent = variant.variantTitle && variant.variantTitle !== "Default Title" ? variant.variantTitle : variant.title;
+      price.textContent = "Free · " + formatMoney(variant.price) + " value";
 
       button.addEventListener("click", function () {
         button.disabled = true;
         pendingTierIds.add(tier.id);
         addGiftVariant(variant.id, tier.id)
           .then(function () {
+            variantChosen = true;
             fulfilledTierIds.add(tier.id);
             notifyThemeCartChanged();
           })
@@ -196,7 +218,10 @@
       optionsContainer.appendChild(optionFragment);
     });
 
-    document.body.appendChild(overlay);
+    document.body.appendChild(dialog);
+    dialog.showModal();
+    var firstOption = optionsContainer.querySelector("button");
+    if (firstOption) firstOption.focus();
   }
 
   function processModalQueue() {
@@ -205,7 +230,12 @@
   }
 
   function enqueueModal(tier) {
-    if (modalQueue.some(function (t) { return t.id === tier.id; })) return;
+    if (
+      modalQueue.some(function (t) {
+        return t.id === tier.id;
+      })
+    )
+      return;
     modalQueue.push(tier);
     processModalQueue();
   }
@@ -239,7 +269,9 @@
     fetchCart()
       .then(function (cart) {
         var active = activeTiers(cart);
-        var activeIds = active.map(function (t) { return t.id; });
+        var activeIds = active.map(function (t) {
+          return t.id;
+        });
 
         tierConfig.tiers.forEach(function (tier) {
           var line = cart.items.find(function (item) {
@@ -283,7 +315,9 @@
             fulfilledTierIds.delete(tier.id);
 
             if (line) {
-              removeLine(line.key).then(notifyThemeCartChanged).catch(function () {});
+              removeLine(line.key)
+                .then(notifyThemeCartChanged)
+                .catch(function () {});
             }
           }
         });

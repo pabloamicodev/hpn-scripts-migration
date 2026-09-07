@@ -15,13 +15,12 @@
 ></div>
 
 <template id="cart-gift-tiers-modal-template">
-  <div class="cart-gift-tiers-overlay" data-cart-gift-tiers-overlay>
-    <div
-      class="cart-gift-tiers-dialog"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="cart-gift-tiers-modal-title"
-    >
+  <dialog
+    class="cart-gift-tiers-dialog"
+    data-cart-gift-tiers-dialog
+    aria-labelledby="cart-gift-tiers-modal-title"
+    aria-describedby="cart-gift-tiers-modal-description"
+  >
       <button
         type="button"
         class="cart-gift-tiers-close"
@@ -29,18 +28,22 @@
         aria-label="Close"
       >&times;</button>
       <h2 id="cart-gift-tiers-modal-title" class="cart-gift-tiers-title">
-        Choose your free gift
+        Choose your option
       </h2>
+      <p id="cart-gift-tiers-modal-description" class="cart-gift-tiers-description"></p>
       <div class="cart-gift-tiers-options" data-cart-gift-tiers-options></div>
-    </div>
-  </div>
+  </dialog>
 </template>
 
 <template id="cart-gift-tiers-option-template">
   <button type="button" class="cart-gift-tiers-option">
-    <img class="cart-gift-tiers-option__image" alt="" width="44" height="44" loading="lazy">
-    <span class="cart-gift-tiers-option__title"></span>
-    <span class="cart-gift-tiers-option__price"></span>
+    <span class="cart-gift-tiers-option__media">
+      <img class="cart-gift-tiers-option__image" alt="" width="240" height="240" loading="lazy">
+    </span>
+    <span class="cart-gift-tiers-option__content">
+      <strong class="cart-gift-tiers-option__title"></strong>
+      <span class="cart-gift-tiers-option__price"></span>
+    </span>
   </button>
 </template>
 

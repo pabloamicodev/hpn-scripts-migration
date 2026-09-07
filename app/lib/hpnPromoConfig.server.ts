@@ -4,11 +4,7 @@ import { logger } from "./logger";
 import { getStorePreset, getDiscountTitle } from "./hpnPromoDefaults";
 import { searchDiscounts, updateAutomaticDiscount } from "./shopifyDiscounts.server";
 import { withDatabaseLock } from "./databaseLock.server";
-import {
-  validateProductIds,
-  validateVariantIds,
-  type GraphQLProxyFn,
-} from "./shopifyProducts.server";
+import { validateProductIds, validateVariantIds, type GraphQLProxyFn } from "./shopifyProducts.server";
 
 export type GraphQLProxy = GraphQLProxyFn;
 
@@ -42,18 +38,11 @@ export function getConfigRevision(config: HpnPromoConfig): string {
   return createHash("sha256").update(JSON.stringify(config)).digest("hex");
 }
 
-export async function loadActiveDiscount(
-  graphqlProxy: GraphQLProxy,
-  shop: string,
-): Promise<LoadedDiscount> {
+export async function loadActiveDiscount(graphqlProxy: GraphQLProxy, shop: string): Promise<LoadedDiscount> {
   const nodes = await searchDiscounts(graphqlProxy, getDiscountTitle(shop));
 
-  const hpnAppDiscounts = nodes.filter(
-    (node) => node.type === "DiscountAutomaticApp",
-  );
-  const active =
-    hpnAppDiscounts.find((node) => node.status === "ACTIVE") ??
-    hpnAppDiscounts[0];
+  const hpnAppDiscounts = nodes.filter((node) => node.type === "DiscountAutomaticApp");
+  const active = hpnAppDiscounts.find((node) => node.status === "ACTIVE") ?? hpnAppDiscounts[0];
 
   if (!active) {
     return {
@@ -83,21 +72,18 @@ export async function loadActiveDiscount(
         configError = "The stored discount configuration failed validation.";
         logger.warn(
           "[hpnPromoConfig] Metafield failed Zod validation, using defaults.",
-          "discountId:", active.discountId,
-          "issues:", parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`)
+          "discountId:",
+          active.discountId,
+          "issues:",
+          parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`),
         );
       }
     } catch (err) {
       configValid = false;
       configError = "The stored discount configuration is not valid JSON.";
-      logger.warn(
-        "[hpnPromoConfig] Metafield is not valid JSON, using defaults.",
-        "discountId:", active.discountId,
-        err
-      );
+      logger.warn("[hpnPromoConfig] Metafield is not valid JSON, using defaults.", "discountId:", active.discountId, err);
     }
-  }
-  else {
+  } else {
     configValid = false;
     configError = "The automatic discount is missing its configuration metafield.";
   }
@@ -105,12 +91,7 @@ export async function loadActiveDiscount(
   return {
     discountId: active.discountId ?? null,
     config,
-    status:
-      active.status === "ACTIVE" ||
-      active.status === "EXPIRED" ||
-      active.status === "SCHEDULED"
-        ? active.status
-        : null,
+    status: active.status === "ACTIVE" || active.status === "EXPIRED" || active.status === "SCHEDULED" ? active.status : null,
     title: active.title ?? null,
     startsAt: active.startsAt ?? null,
     functionId: active.functionId ?? null,
@@ -120,10 +101,7 @@ export async function loadActiveDiscount(
   };
 }
 
-export async function validateRuleReferences(
-  graphqlProxy: GraphQLProxy,
-  rule: HpnPromoRule,
-): Promise<string[]> {
+export async function validateRuleReferences(graphqlProxy: GraphQLProxy, rule: HpnPromoRule): Promise<string[]> {
   const productIds = new Set<string>();
   const variantIds = new Set<string>();
 
@@ -172,13 +150,17 @@ export async function validateRuleReferences(
     }
   }
 
+  if (rule.type === "cart_subtotal_free_gift") {
+    for (const tier of rule.tiers) {
+      for (const giftVariantId of tier.giftVariantIds) {
+        variantIds.add(giftVariantId);
+      }
+    }
+  }
+
   const [productResult, variantResult] = await Promise.all([
-    productIds.size > 0
-      ? validateProductIds(graphqlProxy, Array.from(productIds))
-      : { invalid: [], valid: [] },
-    variantIds.size > 0
-      ? validateVariantIds(graphqlProxy, Array.from(variantIds))
-      : { invalid: [], valid: [] },
+    productIds.size > 0 ? validateProductIds(graphqlProxy, Array.from(productIds)) : { invalid: [], valid: [] },
+    variantIds.size > 0 ? validateVariantIds(graphqlProxy, Array.from(variantIds)) : { invalid: [], valid: [] },
   ]);
 
   return [
@@ -198,9 +180,7 @@ export async function saveConfig(
   return withDatabaseLock(`hpn-discount-config:${discountId}`, async () => {
     const latest = await loadActiveDiscount(graphqlProxy, shop);
     if (!latest.configValid) {
-      throw new InvalidStoredConfigError(
-        latest.configError ?? "The stored configuration is invalid.",
-      );
+      throw new InvalidStoredConfigError(latest.configError ?? "The stored configuration is invalid.");
     }
     if (latest.discountId !== discountId || latest.configRevision !== expectedRevision) {
       throw new ConfigConflictError();
@@ -221,18 +201,14 @@ export async function saveConfig(
 export function pauseRule(config: HpnPromoConfig, ruleId: string): HpnPromoConfig {
   return {
     ...config,
-    rules: config.rules.map((r) =>
-      r.id === ruleId ? { ...r, enabled: false } : r
-    ) as HpnPromoConfig["rules"],
+    rules: config.rules.map((r) => (r.id === ruleId ? { ...r, enabled: false } : r)) as HpnPromoConfig["rules"],
   };
 }
 
 export function resumeRule(config: HpnPromoConfig, ruleId: string): HpnPromoConfig {
   return {
     ...config,
-    rules: config.rules.map((r) =>
-      r.id === ruleId ? { ...r, enabled: true } : r
-    ) as HpnPromoConfig["rules"],
+    rules: config.rules.map((r) => (r.id === ruleId ? { ...r, enabled: true } : r)) as HpnPromoConfig["rules"],
   };
 }
 
@@ -249,10 +225,7 @@ export function deleteRule(config: HpnPromoConfig, ruleId: string): HpnPromoConf
  * touches existing rules (even if their fields have since diverged from the
  * preset), so it's safe to run against a live, hand-edited config.
  */
-export function getMissingPresetRules(
-  config: HpnPromoConfig,
-  preset: HpnPromoConfig,
-): HpnPromoRule[] {
+export function getMissingPresetRules(config: HpnPromoConfig, preset: HpnPromoConfig): HpnPromoRule[] {
   const existingIds = new Set(config.rules.map((r) => r.id));
   return preset.rules.filter((rule) => !existingIds.has(rule.id));
 }
@@ -262,10 +235,7 @@ export function getMissingPresetRules(
  * existing rule and `combinesWith` untouched — this only ever adds, never
  * overwrites or removes.
  */
-export function syncNewRulesFromPreset(
-  config: HpnPromoConfig,
-  preset: HpnPromoConfig,
-): HpnPromoConfig {
+export function syncNewRulesFromPreset(config: HpnPromoConfig, preset: HpnPromoConfig): HpnPromoConfig {
   const missing = getMissingPresetRules(config, preset);
   if (missing.length === 0) return config;
 
@@ -275,10 +245,7 @@ export function syncNewRulesFromPreset(
   };
 }
 
-export function upsertRule(
-  config: HpnPromoConfig,
-  rule: HpnPromoRule
-): HpnPromoConfig {
+export function upsertRule(config: HpnPromoConfig, rule: HpnPromoRule): HpnPromoConfig {
   const exists = config.rules.some((r) => r.id === rule.id);
   if (exists) {
     return {

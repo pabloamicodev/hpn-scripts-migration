@@ -698,6 +698,17 @@ function deliveryDiscountValue(rule) {
   return { percentage: { value: String(percentage) } };
 }
 
+// Shopify's own CartDeliveryGroupType.ONE_TIME_PURCHASE covers "a one time
+// purchase OR A FIRST DELIVERY OF SUBSCRIPTION MERCHANDISE" — only
+// SUBSCRIPTION is exclusively recurring shipments. So a rule scoped to
+// "one-time purchase only" can't rely on groupType alone: a customer's very
+// first subscription checkout is classified ONE_TIME_PURCHASE too, and would
+// still get discounted as if no subscription were involved. Check the
+// group's own cart lines for a selling plan to tell the two apart.
+function deliveryGroupHasSubscriptionLine(group) {
+  return (group.cartLines ?? []).some((line) => Boolean(line.sellingPlanAllocation?.sellingPlan?.id));
+}
+
 function targetedDeliveryGroups(rule, deliveryGroups) {
   const configuredGroupTypes = rule.targetDeliveryGroupTypes;
   if (configuredGroupTypes == null) return deliveryGroups;
@@ -706,7 +717,14 @@ function targetedDeliveryGroups(rule, deliveryGroups) {
   const allowedGroupTypes = new Set(
     configuredGroupTypes.filter((groupType) => groupType === "ONE_TIME_PURCHASE" || groupType === "SUBSCRIPTION"),
   );
-  return deliveryGroups.filter((group) => allowedGroupTypes.has(group.groupType));
+  const includeOneTime = allowedGroupTypes.has("ONE_TIME_PURCHASE");
+  const includeSubscription = allowedGroupTypes.has("SUBSCRIPTION");
+
+  return deliveryGroups.filter((group) => {
+    if (group.groupType === "SUBSCRIPTION") return includeSubscription;
+    // group.groupType === "ONE_TIME_PURCHASE" (or unspecified in a test fixture)
+    return deliveryGroupHasSubscriptionLine(group) ? includeSubscription : includeOneTime;
+  });
 }
 
 function shippingDiscountResult(rule, deliveryGroups) {

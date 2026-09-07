@@ -142,6 +142,58 @@ describe("cartDeliveryOptionsDiscountsGenerateRun", () => {
     });
   });
 
+  // ── A subscription's FIRST delivery is groupType ONE_TIME_PURCHASE too ──
+  // (only later, recurring deliveries are groupType SUBSCRIPTION) — a rule
+  // scoped to "one-time purchase only" must still exclude it.
+
+  it("does not discount a first-time subscription checkout even though its groupType is ONE_TIME_PURCHASE", () => {
+    const result = runWith(
+      [lineWithAttribute("protein-complete-lp")],
+      [
+        {
+          id: "gid://shopify/CartDeliveryGroup/initial",
+          groupType: "ONE_TIME_PURCHASE",
+          cartLines: [{ sellingPlanAllocation: { sellingPlan: { id: "gid://shopify/SellingPlan/1" } } }],
+        },
+      ],
+      config({ targetDeliveryGroupTypes: ["ONE_TIME_PURCHASE"] }),
+    );
+
+    expect(result).toEqual({ operations: [] });
+  });
+
+  it("still discounts a genuine one-time purchase group with no selling plan on any of its lines", () => {
+    const result = runWith(
+      [lineWithAttribute("protein-complete-lp")],
+      [
+        {
+          id: "gid://shopify/CartDeliveryGroup/initial",
+          groupType: "ONE_TIME_PURCHASE",
+          cartLines: [{ sellingPlanAllocation: null }],
+        },
+      ],
+      config({ targetDeliveryGroupTypes: ["ONE_TIME_PURCHASE"] }),
+    );
+
+    expect(result.operations).toHaveLength(1);
+  });
+
+  it("discounts a first-time subscription checkout when the rule targets subscriptions", () => {
+    const result = runWith(
+      [lineWithAttribute("protein-complete-lp")],
+      [
+        {
+          id: "gid://shopify/CartDeliveryGroup/initial",
+          groupType: "ONE_TIME_PURCHASE",
+          cartLines: [{ sellingPlanAllocation: { sellingPlan: { id: "gid://shopify/SellingPlan/1" } } }],
+        },
+      ],
+      config({ targetDeliveryGroupTypes: ["SUBSCRIPTION"] }),
+    );
+
+    expect(result.operations).toHaveLength(1);
+  });
+
   it("can target only SKIO recurring subscription groups", () => {
     const result = runWith(
       [lineWithAttribute("protein-complete-lp")],

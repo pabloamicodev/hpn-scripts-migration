@@ -24,6 +24,13 @@ query DeliveryRunInput {
     deliveryGroups {
       id
       groupType
+      cartLines {
+        sellingPlanAllocation {
+          sellingPlan {
+            id
+          }
+        }
+      }
     }
   }
   discount {

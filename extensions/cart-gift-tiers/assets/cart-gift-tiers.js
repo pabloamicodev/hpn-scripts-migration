@@ -44,6 +44,18 @@
   var checking = false;
   var recheckAfter = false;
 
+  function variantOptionLabel(variant) {
+    var options = Array.isArray(variant.options) ? variant.options : [];
+    return options
+      .filter(function (option) {
+        return option && option.name && option.value && option.value !== "Default Title";
+      })
+      .map(function (option) {
+        return option.name.toUpperCase() + ": " + option.value;
+      })
+      .join(" · ");
+  }
+
   function formatMoney(amount) {
     try {
       return new Intl.NumberFormat(undefined, {
@@ -187,6 +199,7 @@
       var optionFragment = optionTemplate.content.cloneNode(true);
       var button = optionFragment.querySelector(".cart-gift-tiers-option");
       var image = optionFragment.querySelector(".cart-gift-tiers-option__image");
+      var variantLabel = optionFragment.querySelector(".cart-gift-tiers-option__variant-label");
       var title = optionFragment.querySelector(".cart-gift-tiers-option__title");
       var price = optionFragment.querySelector(".cart-gift-tiers-option__price");
 
@@ -196,8 +209,16 @@
       } else {
         image.style.display = "none";
       }
+
+      var optionLabel = variantOptionLabel(variant);
+      if (optionLabel) {
+        variantLabel.textContent = optionLabel;
+      } else {
+        variantLabel.style.display = "none";
+      }
+
       title.textContent = variant.variantTitle && variant.variantTitle !== "Default Title" ? variant.variantTitle : variant.title;
-      price.textContent = "Free · " + formatMoney(variant.price) + " value";
+      price.textContent = formatMoney(variant.price);
 
       button.addEventListener("click", function () {
         button.disabled = true;

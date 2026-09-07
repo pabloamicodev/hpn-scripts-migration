@@ -38,11 +38,15 @@
 <template id="cart-gift-tiers-option-template">
   <button type="button" class="cart-gift-tiers-option">
     <span class="cart-gift-tiers-option__media">
-      <img class="cart-gift-tiers-option__image" alt="" width="240" height="240" loading="lazy">
+      <img class="cart-gift-tiers-option__image" alt="" width="320" height="320" loading="lazy">
     </span>
     <span class="cart-gift-tiers-option__content">
+      <span class="cart-gift-tiers-option__variant-label"></span>
       <strong class="cart-gift-tiers-option__title"></strong>
-      <span class="cart-gift-tiers-option__price"></span>
+      <span class="cart-gift-tiers-option__price-row">
+        <s class="cart-gift-tiers-option__price"></s>
+        <span class="cart-gift-tiers-option__free-badge">Free</span>
+      </span>
     </span>
   </button>
 </template>

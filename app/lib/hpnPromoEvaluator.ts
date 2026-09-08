@@ -522,6 +522,14 @@ export function evaluateQuizBundleFreeShipping(
   return [];
 }
 
+// sitewide_free_shipping — same reasoning as landing_free_shipping above:
+// delivery cost, not cart lines, evaluated by cartDeliveryOptionsDiscountsGenerateRun.
+export function evaluateSitewideFreeShipping(
+  _rule: Extract<HpnPromoRule, { type: "sitewide_free_shipping" }>,
+): DiscountAction[] {
+  return [];
+}
+
 /**
  * Quiz Bundle Price Match + Free Gifts: groups lines by _quiz_bundle_id,
  * discounts _quiz_free_gift lines to (default 100%) free, and discounts the
@@ -750,6 +758,9 @@ export function evaluateConfig(
         break;
       case "quiz_bundle_free_shipping":
         ruleActions = evaluateQuizBundleFreeShipping(rule);
+        break;
+      case "sitewide_free_shipping":
+        ruleActions = evaluateSitewideFreeShipping(rule);
         break;
       case "cart_subtotal_free_gift":
         ruleActions = evaluateCartSubtotalFreeGift(rule, cartIndex, lines, context);

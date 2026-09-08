@@ -246,6 +246,27 @@ export const landingFreeShippingRuleSchema = z.object({
 });
 
 // ---------------------------------------------------------------------------
+// Sitewide free shipping — the same tiered, subscription-aware shipping
+// discount as landing_free_shipping above, but with no line-item-property
+// gate: it applies across the whole store whenever the cart subtotal crosses
+// a configured tier, not just carts arriving from a specific landing page.
+// This rule has no gate at all, so the Function always gives priority to a
+// matching landing_free_shipping / quiz_bundle_free_shipping rule over this
+// one, regardless of where each sits in the rules array (see
+// cartDeliveryOptionsDiscountsGenerateRun in extensions/hpn-discount-function).
+// ---------------------------------------------------------------------------
+
+export const sitewideFreeShippingRuleSchema = z.object({
+  id: ruleIdSchema,
+  type: z.literal("sitewide_free_shipping"),
+  enabled: z.boolean(),
+  shippingTiers: z.array(shippingDiscountTierSchema).min(1).optional(),
+  ...deliveryDiscountRuleFields,
+  message: z.string().trim().min(1),
+  conditions: ruleConditionsSchema,
+});
+
+// ---------------------------------------------------------------------------
 // Quiz bundle price match + free gifts (OneSol Product Quiz) — groups cart
 // lines by the _quiz_bundle_id line item property set by the quiz's own
 // bulk add-to-cart (Order Summary "Add to Cart" / "Shop All"). Fully
@@ -353,6 +374,7 @@ export const hpnPromoRuleSchema = z.discriminatedUnion("type", [
   landingQuantityTierFixedPriceRuleSchema,
   landingScopedProductDiscountRuleSchema,
   landingFreeShippingRuleSchema,
+  sitewideFreeShippingRuleSchema,
   quizBundlePriceMatchRuleSchema,
   quizBundleFreeShippingRuleSchema,
   cartSubtotalFreeGiftRuleSchema,
@@ -405,6 +427,9 @@ export type LandingScopedProductDiscountRule = z.infer<
 export type LandingFreeShippingRule = z.infer<
   typeof landingFreeShippingRuleSchema
 >;
+export type SitewideFreeShippingRule = z.infer<
+  typeof sitewideFreeShippingRuleSchema
+>;
 export type QuizBundlePriceMatchRule = z.infer<
   typeof quizBundlePriceMatchRuleSchema
 >;
@@ -429,6 +454,7 @@ export type HpnPromoRule =
   | LandingQuantityTierFixedPriceRule
   | LandingScopedProductDiscountRule
   | LandingFreeShippingRule
+  | SitewideFreeShippingRule
   | QuizBundlePriceMatchRule
   | QuizBundleFreeShippingRule
   | CartSubtotalFreeGiftRule;

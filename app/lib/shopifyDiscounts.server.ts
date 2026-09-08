@@ -297,7 +297,10 @@ interface CombinesWithInput {
 // the config actually has a rule that relies on it (e.g. gettrusupps' landing
 // page free-shipping promo) — this keeps hpn/one-sol, which have no shipping
 // rules, on the exact same discountClasses they've always had.
-const SHIPPING_RULE_TYPES: ReadonlySet<HpnPromoRule["type"]> = new Set(["landing_free_shipping"]);
+const SHIPPING_RULE_TYPES: ReadonlySet<HpnPromoRule["type"]> = new Set([
+  "landing_free_shipping",
+  "sitewide_free_shipping",
+]);
 
 function computeDiscountClasses(config: HpnPromoConfig): Array<"PRODUCT" | "SHIPPING"> {
   const hasShippingRule = config.rules.some((rule) => SHIPPING_RULE_TYPES.has(rule.type));

@@ -825,6 +825,7 @@ function applyLoyaltyTierRule(rule, byProduct, candidates, buyerIdentity) {
 const DELIVERY_DISCOUNT_SELECTION_STRATEGY = "ALL";
 const LANDING_FREE_SHIPPING_RULE_TYPE = "landing_free_shipping";
 const QUIZ_BUNDLE_FREE_SHIPPING_RULE_TYPE = "quiz_bundle_free_shipping";
+const SITEWIDE_FREE_SHIPPING_RULE_TYPE = "sitewide_free_shipping";
 
 // One candidate targets every eligible delivery group at once so checkout
 // shows a single label instead of duplicating it for initial and recurring
@@ -1021,6 +1022,14 @@ export function cartDeliveryOptionsDiscountsGenerateRun(input) {
   const cartSubtotalAmount = input?.cart?.cost?.subtotalAmount?.amount;
   if (deliveryGroups.length === 0) return EMPTY_RESULT;
 
+  // Scoped shipping rules (landing page / quiz bundle) always win over a
+  // sitewide rule, regardless of where each sits in the rules array — a
+  // merchant shouldn't have to think about rule creation order to know a
+  // landing page promo won't get silently overridden by the catch-all
+  // sitewide rule. So: check every scoped rule first, and only fall back to
+  // the first enabled sitewide rule once none of them matched.
+  let sitewideRule = null;
+
   for (const rule of config.rules) {
     if (!rule || typeof rule !== "object" || !rule.enabled) continue;
 
@@ -1035,6 +1044,17 @@ export function cartDeliveryOptionsDiscountsGenerateRun(input) {
       if (!hasCompleteQuizBundle(deliveryLines)) continue;
       return shippingDiscountResult(rule, deliveryGroups);
     }
+
+    // No line-attribute or anchor gate — applies to every cart storewide.
+    // Remember it but keep scanning in case a scoped rule further along
+    // the array also matches; it should still win.
+    if (rule.type === SITEWIDE_FREE_SHIPPING_RULE_TYPE && !sitewideRule) {
+      sitewideRule = rule;
+    }
+  }
+
+  if (sitewideRule) {
+    return shippingDiscountResult(sitewideRule, deliveryGroups, cartSubtotalAmount);
   }
 
   return EMPTY_RESULT;

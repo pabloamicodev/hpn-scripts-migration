@@ -24,6 +24,7 @@ const typeLabels: Record<HpnPromoRule["type"], string> = {
   landing_quantity_tier_fixed_price: "Landing Page Quantity-Tier Price",
   landing_scoped_product_discount: "Landing Page Scoped Product Discount",
   landing_free_shipping: "Landing Page Free Shipping",
+  sitewide_free_shipping: "Sitewide Free Shipping",
   quiz_bundle_price_match: "Product Quiz Bundle Price Match + Gifts",
   quiz_bundle_free_shipping: "Product Quiz Bundle Free Shipping",
   cart_subtotal_free_gift: "Cart Subtotal Free Gift",
@@ -401,6 +402,7 @@ function getRuleIdentifiers(rule: HpnPromoRule): string {
     case "landing_scoped_product_discount":
       return rule.targetProductIds.map(getGidTail).join(" ");
     case "landing_free_shipping":
+    case "sitewide_free_shipping":
       return "";
     case "quiz_bundle_price_match":
     case "quiz_bundle_free_shipping":
@@ -460,6 +462,8 @@ function getTriggerSummary(rule: HpnPromoRule): string {
       return rule.requiredAnchorMinQuantity
         ? `Line property: ${rule.requiredLineAttributeKey} = ${rule.requiredLineAttributeValue}, anchors >= ${rule.requiredAnchorMinQuantity}`
         : `Line property: ${rule.requiredLineAttributeKey} = ${rule.requiredLineAttributeValue}`;
+    case "sitewide_free_shipping":
+      return "Applies storewide (no line property required)";
     case "quiz_bundle_price_match":
       return "Line property: _quiz_bundle_id (any value)";
     case "quiz_bundle_free_shipping":
@@ -495,6 +499,7 @@ function getTargetsCount(rule: HpnPromoRule): number {
     case "landing_scoped_product_discount":
       return rule.targetProductIds.length;
     case "landing_free_shipping":
+    case "sitewide_free_shipping":
       return 0;
     case "quiz_bundle_price_match":
     case "quiz_bundle_free_shipping":
@@ -508,7 +513,8 @@ function getDiscountSummary(rule: HpnPromoRule): string {
   const shippingDiscountSummary = (
     shippingRule:
       | Extract<HpnPromoRule, { type: "landing_free_shipping" }>
-      | Extract<HpnPromoRule, { type: "quiz_bundle_free_shipping" }>,
+      | Extract<HpnPromoRule, { type: "quiz_bundle_free_shipping" }>
+      | Extract<HpnPromoRule, { type: "sitewide_free_shipping" }>,
   ) => {
     const value =
       shippingRule.deliveryDiscountType === "fixed_amount"
@@ -549,6 +555,8 @@ function getDiscountSummary(rule: HpnPromoRule): string {
       return rule.requiredAnchorMinQuantity
         ? `${shippingDiscountSummary(rule)}, anchor min ${rule.requiredAnchorMinQuantity}`
         : shippingDiscountSummary(rule);
+    case "sitewide_free_shipping":
+      return shippingDiscountSummary(rule);
     case "quiz_bundle_price_match":
       return `Price match + ${rule.discountPercentageOnGifts}% off gifts`;
     case "quiz_bundle_free_shipping":

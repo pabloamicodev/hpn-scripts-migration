@@ -750,3 +750,214 @@ describe("quiz_bundle_free_shipping", () => {
     expect(result).toEqual({ operations: [] });
   });
 });
+
+describe("sitewide_free_shipping", () => {
+  function subscriptionGroup(id = "gid://shopify/CartDeliveryGroup/sub") {
+    return {
+      id,
+      cartLines: [
+        {
+          sellingPlanAllocation: {
+            sellingPlan: { id: "gid://shopify/SellingPlan/1" },
+          },
+        },
+      ],
+    };
+  }
+
+  function oneTimeGroup(id = "gid://shopify/CartDeliveryGroup/one-time") {
+    return { id, cartLines: [{ sellingPlanAllocation: null }] };
+  }
+
+  function sitewideConfig(overrides = {}) {
+    return {
+      version: 1,
+      combinesWith: {
+        orderDiscounts: true,
+        productDiscounts: true,
+        shippingDiscounts: true,
+      },
+      rules: [
+        {
+          id: "sitewide-free-shipping",
+          type: "sitewide_free_shipping",
+          enabled: true,
+          message: "Sitewide free shipping",
+          ...overrides,
+        },
+      ],
+    };
+  }
+
+  it("applies with no line item property or anchor product required", () => {
+    const result = runWith(
+      [lineWithAttribute(null)],
+      [oneTimeGroup()],
+      sitewideConfig({ deliveryDiscountPercentage: 100 }),
+      ["SHIPPING"],
+      10,
+    );
+
+    expect(result.operations).toHaveLength(1);
+  });
+
+  it("applies the has_subscription ladder when the cart has a subscription line anywhere", () => {
+    const result = runWith(
+      [lineWithAttribute(null)],
+      [subscriptionGroup()],
+      sitewideConfig({
+        shippingTiers: [
+          { minimumSubtotal: 50, discountPercentage: 50, appliesWhen: "has_subscription" },
+          { minimumSubtotal: 100, discountPercentage: 100, appliesWhen: "has_subscription" },
+          { minimumSubtotal: 80, discountPercentage: 50, appliesWhen: "one_time_only" },
+        ],
+      }),
+      ["SHIPPING"],
+      60,
+    );
+
+    expect(
+      result.operations[0].deliveryDiscountsAdd.candidates[0].value,
+    ).toEqual({ percentage: { value: "50" } });
+  });
+
+  it("applies the one_time_only ladder when no cart line anywhere has a subscription", () => {
+    const result = runWith(
+      [lineWithAttribute(null)],
+      [oneTimeGroup()],
+      sitewideConfig({
+        shippingTiers: [
+          { minimumSubtotal: 50, discountPercentage: 50, appliesWhen: "has_subscription" },
+          { minimumSubtotal: 80, discountPercentage: 50, appliesWhen: "one_time_only" },
+        ],
+      }),
+      ["SHIPPING"],
+      90,
+    );
+
+    expect(
+      result.operations[0].deliveryDiscountsAdd.candidates[0].value,
+    ).toEqual({ percentage: { value: "50" } });
+  });
+
+  it("a matching landing_free_shipping rule always takes priority over a sitewide rule, regardless of array order", () => {
+    const baseRules = [
+      {
+        id: "tru-landing-free-shipping",
+        type: "landing_free_shipping",
+        enabled: true,
+        requiredLineAttributeKey: "__landing_source",
+        requiredLineAttributeValue: "protein-complete-lp",
+        deliveryDiscountPercentage: 25,
+        message: "Landing free shipping",
+      },
+      {
+        id: "sitewide-free-shipping",
+        type: "sitewide_free_shipping",
+        enabled: true,
+        deliveryDiscountPercentage: 100,
+        message: "Sitewide free shipping",
+      },
+    ];
+
+    for (const rules of [baseRules, [...baseRules].reverse()]) {
+      const cfg = {
+        version: 1,
+        combinesWith: {
+          orderDiscounts: true,
+          productDiscounts: true,
+          shippingDiscounts: true,
+        },
+        rules,
+      };
+
+      const result = runWith(
+        [lineWithAttribute("protein-complete-lp")],
+        [oneTimeGroup()],
+        cfg,
+      );
+
+      expect(
+        result.operations[0].deliveryDiscountsAdd.candidates[0].value,
+      ).toEqual({ percentage: { value: "25" } });
+    }
+  });
+
+  it("a matching quiz_bundle_free_shipping rule always takes priority over a sitewide rule, regardless of array order", () => {
+    const baseRules = [
+      {
+        id: "quiz-bundle-free-shipping",
+        type: "quiz_bundle_free_shipping",
+        enabled: true,
+        deliveryDiscountPercentage: 25,
+        message: "Quiz bundle free shipping",
+      },
+      {
+        id: "sitewide-free-shipping",
+        type: "sitewide_free_shipping",
+        enabled: true,
+        deliveryDiscountPercentage: 100,
+        message: "Sitewide free shipping",
+      },
+    ];
+    const quizLine = {
+      quantity: 1,
+      quizBundleIdAttribute: { value: "bundle-1" },
+      quizExpectedPaidCountAttribute: { value: "1" },
+      merchandise: { __typename: "ProductVariant", id: PROTEIN_VARIANT_ID },
+    };
+
+    for (const rules of [baseRules, [...baseRules].reverse()]) {
+      const cfg = {
+        version: 1,
+        combinesWith: {
+          orderDiscounts: true,
+          productDiscounts: true,
+          shippingDiscounts: true,
+        },
+        rules,
+      };
+
+      const result = runWith([quizLine], [oneTimeGroup()], cfg);
+
+      expect(
+        result.operations[0].deliveryDiscountsAdd.candidates[0].value,
+      ).toEqual({ percentage: { value: "25" } });
+    }
+  });
+
+  it("falls through to the sitewide rule when the landing rule's own gate doesn't match", () => {
+    const cfg = {
+      version: 1,
+      combinesWith: {
+        orderDiscounts: true,
+        productDiscounts: true,
+        shippingDiscounts: true,
+      },
+      rules: [
+        {
+          id: "tru-landing-free-shipping",
+          type: "landing_free_shipping",
+          enabled: true,
+          requiredLineAttributeKey: "__landing_source",
+          requiredLineAttributeValue: "protein-complete-lp",
+          deliveryDiscountPercentage: 25,
+          message: "Landing free shipping",
+        },
+        {
+          id: "sitewide-free-shipping",
+          type: "sitewide_free_shipping",
+          enabled: true,
+          deliveryDiscountPercentage: 100,
+          message: "Sitewide free shipping",
+        },
+      ],
+    };
+
+    const result = runWith([lineWithAttribute(null)], [oneTimeGroup()], cfg);
+
+    expect(
+      result.operations[0].deliveryDiscountsAdd.candidates[0].value,
+    ).toEqual({ percentage: { value: "100" } });
+  });
+});

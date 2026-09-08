@@ -241,6 +241,18 @@ const DEFAULT_RULES: Record<PromoRuleType, PromoRuleFormValues> = {
     deliveryDiscountType: "percentage",
     deliveryDiscountPercentage: 100,
     shippingDiscountAmount: 1,
+    shippingTiers: [{ minimumSubtotal: 0, discountPercentage: 100 }],
+    targetDeliveryGroupTypes: ["ONE_TIME_PURCHASE", "SUBSCRIPTION"],
+    message: "",
+  },
+
+  sitewide_free_shipping: {
+    id: "sitewide-free-shipping",
+    type: "sitewide_free_shipping",
+    enabled: true,
+    deliveryDiscountType: "percentage",
+    deliveryDiscountPercentage: 100,
+    shippingDiscountAmount: 1,
     shippingTiers: [
       {
         minimumSubtotal: 50,
@@ -330,11 +342,12 @@ function normalizeDefaultValues(
 
   if (
     defaultValues.type === "landing_free_shipping" ||
+    defaultValues.type === "sitewide_free_shipping" ||
     defaultValues.type === "quiz_bundle_free_shipping"
   ) {
+    const hasTiers = defaultValues.type !== "quiz_bundle_free_shipping";
     const legacyPercentageTier =
-      defaultValues.type === "landing_free_shipping" &&
-      defaultValues.deliveryDiscountType !== "fixed_amount"
+      hasTiers && defaultValues.deliveryDiscountType !== "fixed_amount"
         ? [
             {
               minimumSubtotal: 0,
@@ -354,10 +367,9 @@ function normalizeDefaultValues(
         "ONE_TIME_PURCHASE",
         "SUBSCRIPTION",
       ],
-      shippingTiers:
-        defaultValues.type === "landing_free_shipping"
-          ? (defaultValues.shippingTiers ?? legacyPercentageTier)
-          : undefined,
+      shippingTiers: hasTiers
+        ? (defaultValues.shippingTiers ?? legacyPercentageTier)
+        : undefined,
     };
   }
 
@@ -389,6 +401,8 @@ function makeRuleId(type: PromoRuleType) {
     return `landing-scoped-product-${suffix}`;
   if (type === "landing_free_shipping")
     return `landing-free-shipping-${suffix}`;
+  if (type === "sitewide_free_shipping")
+    return `sitewide-free-shipping-${suffix}`;
   if (type === "quiz_bundle_price_match")
     return `quiz-bundle-price-match-${suffix}`;
   if (type === "quiz_bundle_free_shipping")
@@ -597,6 +611,24 @@ function buildRulePayload(values: PromoRuleFormValues): unknown {
     };
   }
 
+  if (values.type === "sitewide_free_shipping") {
+    return {
+      id: values.id,
+      type: "sitewide_free_shipping",
+      enabled: values.enabled,
+      deliveryDiscountType: values.deliveryDiscountType ?? "percentage",
+      deliveryDiscountPercentage: values.deliveryDiscountPercentage ?? 100,
+      shippingDiscountAmount: values.shippingDiscountAmount ?? 1,
+      shippingTiers:
+        values.shippingTiers && values.shippingTiers.length > 0
+          ? values.shippingTiers
+          : undefined,
+      targetDeliveryGroupTypes: values.targetDeliveryGroupTypes ?? [],
+      message: values.message,
+      conditions,
+    };
+  }
+
   if (values.type === "quiz_bundle_price_match") {
     return {
       id: values.id,
@@ -719,6 +751,165 @@ export function PromoRuleForm({
   const giftTiers = watch("giftTiers");
   const shippingTiers = watch("shippingTiers");
   const deliveryDiscountType = watch("deliveryDiscountType");
+
+  const shippingTiersFields = (
+    <div className="form-group">
+      <span className="form-label">Cart value shipping tiers</span>
+      <p id="shippingTiersHint" className="field-hint">
+        The highest qualifying cart subtotal tier is applied. Use 0% for a
+        tier that gives no shipping discount. When the cart has a
+        subscription item anywhere in it, only tiers scoped to "Cart has a
+        subscription" compete (they always take priority over one-time
+        tiers); a cart with no subscription at all only matches "One-time
+        purchases only" tiers. Tiers left on "Always" compete no matter
+        what's in the cart.
+      </p>
+
+      <div className="shipping-tier-list" aria-describedby="shippingTiersHint">
+        {(shippingTiers ?? []).map((tier, index) => (
+          <div className="shipping-tier-row" key={index}>
+            <div>
+              <label htmlFor={`shippingTierMinimum-${index}`}>
+                Minimum cart value
+              </label>
+              <input
+                id={`shippingTierMinimum-${index}`}
+                type="number"
+                min={0}
+                step={0.01}
+                inputMode="decimal"
+                value={tier.minimumSubtotal}
+                onChange={(event) =>
+                  setValue(
+                    "shippingTiers",
+                    (shippingTiers ?? []).map((currentTier, tierIndex) =>
+                      tierIndex === index
+                        ? {
+                            ...currentTier,
+                            minimumSubtotal: Number(event.target.value),
+                          }
+                        : currentTier,
+                    ),
+                    { shouldDirty: true },
+                  )
+                }
+              />
+            </div>
+
+            <div>
+              <label htmlFor={`shippingTierCondition-${index}`}>
+                Applies when
+              </label>
+              <select
+                id={`shippingTierCondition-${index}`}
+                value={tier.appliesWhen ?? ""}
+                onChange={(event) =>
+                  setValue(
+                    "shippingTiers",
+                    (shippingTiers ?? []).map((currentTier, tierIndex) =>
+                      tierIndex === index
+                        ? {
+                            ...currentTier,
+                            appliesWhen:
+                              event.target.value === ""
+                                ? undefined
+                                : (event.target.value as
+                                    | "has_subscription"
+                                    | "one_time_only"),
+                          }
+                        : currentTier,
+                    ),
+                    { shouldDirty: true },
+                  )
+                }
+              >
+                <option value="">Always</option>
+                <option value="has_subscription">
+                  Cart has a subscription item
+                </option>
+                <option value="one_time_only">
+                  One-time purchases only (no subscription)
+                </option>
+              </select>
+            </div>
+
+            <div>
+              <label htmlFor={`shippingTierPercentage-${index}`}>
+                Shipping discount
+              </label>
+              <div className="shipping-tier-percentage">
+                <input
+                  id={`shippingTierPercentage-${index}`}
+                  type="number"
+                  min={0}
+                  max={100}
+                  step={1}
+                  inputMode="numeric"
+                  value={tier.discountPercentage}
+                  onChange={(event) =>
+                    setValue(
+                      "shippingTiers",
+                      (shippingTiers ?? []).map((currentTier, tierIndex) =>
+                        tierIndex === index
+                          ? {
+                              ...currentTier,
+                              discountPercentage: Number(event.target.value),
+                            }
+                          : currentTier,
+                      ),
+                      { shouldDirty: true },
+                    )
+                  }
+                />
+                <span aria-hidden="true">%</span>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              className="btn btn--small btn--danger"
+              disabled={(shippingTiers ?? []).length <= 1}
+              onClick={() =>
+                setValue(
+                  "shippingTiers",
+                  (shippingTiers ?? []).filter((_, tierIndex) => tierIndex !== index),
+                  { shouldDirty: true },
+                )
+              }
+            >
+              Remove
+            </button>
+          </div>
+        ))}
+      </div>
+
+      <button
+        type="button"
+        className="btn btn--small"
+        onClick={() => {
+          const currentTiers = shippingTiers ?? [];
+          const lastTier = currentTiers[currentTiers.length - 1];
+          setValue(
+            "shippingTiers",
+            [
+              ...currentTiers,
+              {
+                minimumSubtotal: (lastTier?.minimumSubtotal ?? -50) + 50,
+                discountPercentage: Math.min(
+                  (lastTier?.discountPercentage ?? 0) + 25,
+                  100,
+                ),
+                appliesWhen: lastTier?.appliesWhen,
+              },
+            ],
+            { shouldDirty: true },
+          );
+        }}
+      >
+        + Add shipping tier
+      </button>
+    </div>
+  );
 
   const shippingProfileFields = (
     <fieldset className="form-group shipping-profile-options">
@@ -1200,6 +1391,10 @@ export function PromoRuleForm({
 
             <option value="landing_free_shipping">
               Landing Page → Free Shipping
+            </option>
+
+            <option value="sitewide_free_shipping">
+              Sitewide Free Shipping
             </option>
 
             <option value="quiz_bundle_price_match">
@@ -1990,170 +2185,7 @@ export function PromoRuleForm({
             required line item property below.
           </p>
 
-          <div className="form-group">
-            <span className="form-label">Cart value shipping tiers</span>
-            <p id="shippingTiersHint" className="field-hint">
-              The highest qualifying cart subtotal tier is applied. Use 0% for a
-              tier that gives no shipping discount. When the cart has a
-              subscription item anywhere in it, only tiers scoped to "Cart has
-              a subscription" compete (they always take priority over
-              one-time tiers); a cart with no subscription at all only
-              matches "One-time purchases only" tiers. Tiers left on "Always"
-              compete no matter what's in the cart.
-            </p>
-
-            <div
-              className="shipping-tier-list"
-              aria-describedby="shippingTiersHint"
-            >
-              {(shippingTiers ?? []).map((tier, index) => (
-                <div className="shipping-tier-row" key={index}>
-                  <div>
-                    <label htmlFor={`shippingTierMinimum-${index}`}>
-                      Minimum cart value
-                    </label>
-                    <input
-                      id={`shippingTierMinimum-${index}`}
-                      type="number"
-                      min={0}
-                      step={0.01}
-                      inputMode="decimal"
-                      value={tier.minimumSubtotal}
-                      onChange={(event) =>
-                        setValue(
-                          "shippingTiers",
-                          (shippingTiers ?? []).map((currentTier, tierIndex) =>
-                            tierIndex === index
-                              ? {
-                                  ...currentTier,
-                                  minimumSubtotal: Number(event.target.value),
-                                }
-                              : currentTier,
-                          ),
-                          { shouldDirty: true },
-                        )
-                      }
-                    />
-                  </div>
-
-                  <div>
-                    <label htmlFor={`shippingTierCondition-${index}`}>
-                      Applies when
-                    </label>
-                    <select
-                      id={`shippingTierCondition-${index}`}
-                      value={tier.appliesWhen ?? ""}
-                      onChange={(event) =>
-                        setValue(
-                          "shippingTiers",
-                          (shippingTiers ?? []).map((currentTier, tierIndex) =>
-                            tierIndex === index
-                              ? {
-                                  ...currentTier,
-                                  appliesWhen:
-                                    event.target.value === ""
-                                      ? undefined
-                                      : (event.target.value as
-                                          | "has_subscription"
-                                          | "one_time_only"),
-                                }
-                              : currentTier,
-                          ),
-                          { shouldDirty: true },
-                        )
-                      }
-                    >
-                      <option value="">Always</option>
-                      <option value="has_subscription">
-                        Cart has a subscription item
-                      </option>
-                      <option value="one_time_only">
-                        One-time purchases only (no subscription)
-                      </option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label htmlFor={`shippingTierPercentage-${index}`}>
-                      Shipping discount
-                    </label>
-                    <div className="shipping-tier-percentage">
-                      <input
-                        id={`shippingTierPercentage-${index}`}
-                        type="number"
-                        min={0}
-                        max={100}
-                        step={1}
-                        inputMode="numeric"
-                        value={tier.discountPercentage}
-                        onChange={(event) =>
-                          setValue(
-                            "shippingTiers",
-                            (shippingTiers ?? []).map(
-                              (currentTier, tierIndex) =>
-                                tierIndex === index
-                                  ? {
-                                      ...currentTier,
-                                      discountPercentage: Number(
-                                        event.target.value,
-                                      ),
-                                    }
-                                  : currentTier,
-                            ),
-                            { shouldDirty: true },
-                          )
-                        }
-                      />
-                      <span aria-hidden="true">%</span>
-                    </div>
-                  </div>
-
-                  <button
-                    type="button"
-                    className="btn btn--small btn--danger"
-                    disabled={(shippingTiers ?? []).length <= 1}
-                    onClick={() =>
-                      setValue(
-                        "shippingTiers",
-                        (shippingTiers ?? []).filter(
-                          (_, tierIndex) => tierIndex !== index,
-                        ),
-                        { shouldDirty: true },
-                      )
-                    }
-                  >
-                    Remove
-                  </button>
-                </div>
-              ))}
-            </div>
-
-            <button
-              type="button"
-              className="btn btn--small"
-              onClick={() => {
-                const currentTiers = shippingTiers ?? [];
-                const lastTier = currentTiers[currentTiers.length - 1];
-                setValue(
-                  "shippingTiers",
-                  [
-                    ...currentTiers,
-                    {
-                      minimumSubtotal: (lastTier?.minimumSubtotal ?? -50) + 50,
-                      discountPercentage: Math.min(
-                        (lastTier?.discountPercentage ?? 0) + 25,
-                        100,
-                      ),
-                      appliesWhen: lastTier?.appliesWhen,
-                    },
-                  ],
-                  { shouldDirty: true },
-                );
-              }}
-            >
-              + Add shipping tier
-            </button>
-          </div>
+          {shippingTiersFields}
 
           {shippingProfileFields}
 
@@ -2218,6 +2250,24 @@ export function PromoRuleForm({
               className="number-field"
             />
           </div>
+        </section>
+      )}
+
+      {ruleType === "sitewide_free_shipping" && (
+        <section className="form-section">
+          <h2 className="form-section__title">Sitewide shipping discount</h2>
+          <p className="field-hint">
+            Applies across the whole store based on cart subtotal — no
+            landing-page line item property or anchor product required. Any
+            enabled Landing Page → Free Shipping or Product Quiz Bundle Free
+            Shipping rule that matches the cart always takes priority over
+            this one, regardless of creation order — this rule only ever
+            kicks in when none of those more specific rules apply.
+          </p>
+
+          {shippingTiersFields}
+
+          {shippingProfileFields}
         </section>
       )}
 

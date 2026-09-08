@@ -219,6 +219,142 @@ describe("cartDeliveryOptionsDiscountsGenerateRun", () => {
     });
   });
 
+  // ── Tiers scoped to subscription vs. one-time-only carts (Zaid's request:
+  // different shipping-tier ladders depending on whether the cart has a
+  // subscription item anywhere in it) ──
+
+  function subscriptionGroup(id = "gid://shopify/CartDeliveryGroup/sub") {
+    return {
+      id,
+      cartLines: [
+        {
+          sellingPlanAllocation: {
+            sellingPlan: { id: "gid://shopify/SellingPlan/1" },
+          },
+        },
+      ],
+    };
+  }
+
+  function oneTimeGroup(id = "gid://shopify/CartDeliveryGroup/one-time") {
+    return { id, cartLines: [{ sellingPlanAllocation: null }] };
+  }
+
+  const conditionalTiersConfig = config({
+    shippingTiers: [
+      { minimumSubtotal: 50, discountPercentage: 50, appliesWhen: "has_subscription" },
+      { minimumSubtotal: 100, discountPercentage: 100, appliesWhen: "has_subscription" },
+      { minimumSubtotal: 80, discountPercentage: 50, appliesWhen: "one_time_only" },
+    ],
+  });
+
+  it("applies the has_subscription ladder when the cart has a subscription line, at its lower threshold", () => {
+    const result = runWith(
+      [lineWithAttribute("protein-complete-lp")],
+      [subscriptionGroup()],
+      conditionalTiersConfig,
+      ["SHIPPING"],
+      60,
+    );
+
+    expect(
+      result.operations[0].deliveryDiscountsAdd.candidates[0].value,
+    ).toEqual({ percentage: { value: "50" } });
+  });
+
+  it("applies the has_subscription ladder's free-shipping threshold", () => {
+    const result = runWith(
+      [lineWithAttribute("protein-complete-lp")],
+      [subscriptionGroup()],
+      conditionalTiersConfig,
+      ["SHIPPING"],
+      150,
+    );
+
+    expect(
+      result.operations[0].deliveryDiscountsAdd.candidates[0].value,
+    ).toEqual({ percentage: { value: "100" } });
+  });
+
+  it("applies the one_time_only ladder when no cart line anywhere has a subscription", () => {
+    const result = runWith(
+      [lineWithAttribute("protein-complete-lp")],
+      [oneTimeGroup()],
+      conditionalTiersConfig,
+      ["SHIPPING"],
+      90,
+    );
+
+    expect(
+      result.operations[0].deliveryDiscountsAdd.candidates[0].value,
+    ).toEqual({ percentage: { value: "50" } });
+  });
+
+  it("does not discount a one-time-only cart below the one_time_only threshold, even though a lower has_subscription tier exists", () => {
+    const result = runWith(
+      [lineWithAttribute("protein-complete-lp")],
+      [oneTimeGroup()],
+      conditionalTiersConfig,
+      ["SHIPPING"],
+      60,
+    );
+
+    expect(result).toEqual({ operations: [] });
+  });
+
+  it("always resolves against the has_subscription ladder when the cart mixes one-time and subscription lines, even when that's worse than the one-time ladder", () => {
+    const mixedGroupsConfig = config({
+      shippingTiers: [
+        { minimumSubtotal: 50, discountPercentage: 25, appliesWhen: "has_subscription" },
+        { minimumSubtotal: 50, discountPercentage: 100, appliesWhen: "one_time_only" },
+      ],
+    });
+
+    const result = runWith(
+      [lineWithAttribute("protein-complete-lp")],
+      [oneTimeGroup("gid://shopify/CartDeliveryGroup/one-time"), subscriptionGroup("gid://shopify/CartDeliveryGroup/sub")],
+      mixedGroupsConfig,
+      ["SHIPPING"],
+      60,
+    );
+
+    expect(
+      result.operations[0].deliveryDiscountsAdd.candidates[0].value,
+    ).toEqual({ percentage: { value: "25" } });
+  });
+
+  it("gives no shipping discount for a one-time cart when only has_subscription tiers are configured", () => {
+    const result = runWith(
+      [lineWithAttribute("protein-complete-lp")],
+      [oneTimeGroup()],
+      config({
+        shippingTiers: [
+          { minimumSubtotal: 0, discountPercentage: 100, appliesWhen: "has_subscription" },
+        ],
+      }),
+      ["SHIPPING"],
+      500,
+    );
+
+    expect(result).toEqual({ operations: [] });
+  });
+
+  it("an unconditional tier (no appliesWhen) still competes regardless of cart composition", () => {
+    const result = runWith(
+      [lineWithAttribute("protein-complete-lp")],
+      [oneTimeGroup()],
+      config({
+        shippingTiers: [{ minimumSubtotal: 0, discountPercentage: 15 }],
+      }),
+      ["SHIPPING"],
+      10,
+    );
+
+    expect(
+      result.operations[0].deliveryDiscountsAdd.candidates[0].value,
+    ).toEqual({ percentage: { value: "15" } });
+  });
+
   // ── A subscription's FIRST delivery is groupType ONE_TIME_PURCHASE too ──
   // (only later, recurring deliveries are groupType SUBSCRIPTION) — a rule
   // scoped to "one-time purchase only" must still exclude it.

@@ -5,7 +5,8 @@
  * embed — no theme code required). Watches the cart, and once a
  * merchant-configured subtotal tier is crossed:
  *   - a single-variant gift is added to the cart silently;
- *   - a multi-variant gift shows a picker modal first.
+ *   - a multi-variant (or multi-product) gift shows a picker modal first,
+ *     rendered as one "mini PDP" (gallery + variant pills) per gift product.
  *
  * The discount function (extensions/hpn-discount-function) is the source
  * of truth for pricing: it only ever discounts a cart line already tagged
@@ -32,7 +33,7 @@
   var FALLBACK_POLL_MS = 4000;
   var CART_MUTATION_URL_PATTERN = /\/cart\/(add|change|update|clear)\.js/;
 
-  var tierConfig = null; // { stackingMode, tiers: [{ id, minimumSubtotal, maxFreeUnits, discountPercentage, variants }] }
+  var tierConfig = null; // { stackingMode, message, tiers: [{ id, minimumSubtotal, maxFreeUnits, discountPercentage, products }] }
   var configLoaded = false;
 
   var dismissedTierIds = new Set();
@@ -44,16 +45,41 @@
   var checking = false;
   var recheckAfter = false;
 
-  function variantOptionLabel(variant) {
+  // ── Tier/product helpers ─────────────────────────────────────────────
+
+  function tierVariants(tier) {
+    var variants = [];
+    (tier.products || []).forEach(function (product) {
+      (product.variants || []).forEach(function (variant) {
+        variants.push(variant);
+      });
+    });
+    return variants;
+  }
+
+  function pillLabel(variant) {
     var options = Array.isArray(variant.options) ? variant.options : [];
-    return options
+    var values = options
       .filter(function (option) {
-        return option && option.name && option.value && option.value !== "Default Title";
+        return option && option.value && option.value !== "Default Title";
       })
       .map(function (option) {
-        return option.name.toUpperCase() + ": " + option.value;
+        return option.value;
+      });
+    return values.length ? values.join(" / ") : variant.title || "Option";
+  }
+
+  function pickerLabel(variants) {
+    var first = variants[0];
+    var options = first && Array.isArray(first.options) ? first.options : [];
+    var names = options
+      .filter(function (option) {
+        return option && option.name && option.value !== "Default Title";
       })
-      .join(" · ");
+      .map(function (option) {
+        return option.name;
+      });
+    return "Select " + (names.length ? names.join(" / ") : "an option");
   }
 
   function formatMoney(amount) {
@@ -154,23 +180,173 @@
 
   // ── Modal ─────────────────────────────────────────────────────────────
 
+  // One gallery main image up top (the product's own default photo), a
+  // thumbnail strip below it built from each variant's own image (not the
+  // generic product photo set) — clicking a thumbnail is just another way
+  // to pick a variant, equivalent to clicking its pill. Both stay in sync.
+  function renderProduct(tier, product, onFulfilled) {
+    var productTemplate = document.getElementById("cart-gift-tiers-product-template");
+    var pillTemplate = document.getElementById("cart-gift-tiers-pill-template");
+    var thumbTemplate = document.getElementById("cart-gift-tiers-thumb-template");
+    if (!productTemplate) return null;
+
+    var fragment = productTemplate.content.cloneNode(true);
+    var title = fragment.querySelector(".cart-gift-tiers-info__title");
+    var description = fragment.querySelector(".cart-gift-tiers-info__description");
+    var mainImageWrap = fragment.querySelector(".cart-gift-tiers-gallery__main");
+    var mainImage = fragment.querySelector(".cart-gift-tiers-gallery__main-image");
+    var thumbsRow = fragment.querySelector("[data-cart-gift-tiers-thumbs-row]");
+    var thumbsContainer = fragment.querySelector("[data-cart-gift-tiers-thumbs]");
+    var prevBtn = fragment.querySelector("[data-cart-gift-tiers-thumb-prev]");
+    var nextBtn = fragment.querySelector("[data-cart-gift-tiers-thumb-next]");
+    var pickerWrap = fragment.querySelector("[data-cart-gift-tiers-picker]");
+    var pickerLabelEl = fragment.querySelector("[data-cart-gift-tiers-picker-label]");
+    var pillsContainer = fragment.querySelector("[data-cart-gift-tiers-pills]");
+    var priceEl = fragment.querySelector("[data-cart-gift-tiers-price]");
+    var addButton = fragment.querySelector("[data-cart-gift-tiers-add]");
+
+    if (product.description) {
+      description.textContent = product.description;
+    } else {
+      description.style.display = "none";
+    }
+
+    function setMainImage(url, alt) {
+      if (!url) {
+        mainImageWrap.style.display = "none";
+        return;
+      }
+      mainImage.src = url;
+      mainImage.alt = alt || product.title || "";
+      mainImageWrap.style.display = "";
+    }
+
+    var defaultImage = (Array.isArray(product.images) && product.images[0]) || null;
+
+    var variants = Array.isArray(product.variants) ? product.variants : [];
+    var selected = variants[0] || null;
+    var titleTouched = false;
+    var selectables = []; // { variant, button }[] — pills and thumbnails together
+
+    function updateTitle() {
+      title.textContent = (titleTouched && selected ? selected.title : product.title) || "";
+    }
+
+    function highlightSelected() {
+      selectables.forEach(function (entry) {
+        entry.button.classList.toggle("is-active", selected && entry.variant.id === selected.id);
+      });
+    }
+
+    function selectVariant(variant, fromUserClick) {
+      selected = variant;
+      if (fromUserClick) titleTouched = true;
+      updateTitle();
+      if (priceEl) priceEl.textContent = formatMoney(variant.price);
+      if (variant.image) setMainImage(variant.image, variant.title);
+      highlightSelected();
+    }
+
+    updateTitle();
+    setMainImage(
+      defaultImage ? defaultImage.url : selected && selected.image,
+      defaultImage ? defaultImage.altText : selected && selected.title,
+    );
+    if (selected && priceEl) priceEl.textContent = formatMoney(selected.price);
+
+    var variantsWithImages = variants.filter(function (variant) {
+      return Boolean(variant.image);
+    });
+    if (variantsWithImages.length > 1 && thumbTemplate) {
+      thumbsRow.hidden = false;
+      variantsWithImages.forEach(function (variant) {
+        var thumbFragment = thumbTemplate.content.cloneNode(true);
+        var thumbButton = thumbFragment.querySelector(".cart-gift-tiers-gallery__thumb");
+        var thumbImage = thumbFragment.querySelector("img");
+        thumbImage.src = variant.image;
+        thumbImage.alt = variant.title || product.title || "";
+        thumbButton.addEventListener("click", function () {
+          selectVariant(variant, true);
+        });
+        selectables.push({ variant: variant, button: thumbButton });
+        thumbsContainer.appendChild(thumbFragment);
+      });
+
+      if (prevBtn) {
+        prevBtn.addEventListener("click", function () {
+          thumbsContainer.scrollBy({ left: -96, behavior: "smooth" });
+        });
+      }
+      if (nextBtn) {
+        nextBtn.addEventListener("click", function () {
+          thumbsContainer.scrollBy({ left: 96, behavior: "smooth" });
+        });
+      }
+    }
+
+    if (variants.length > 1 && pillTemplate) {
+      pickerWrap.hidden = false;
+      if (pickerLabelEl) pickerLabelEl.textContent = pickerLabel(variants);
+      variants.forEach(function (variant) {
+        var pillFragment = pillTemplate.content.cloneNode(true);
+        var pillButton = pillFragment.querySelector(".cart-gift-tiers-pill");
+        pillButton.textContent = pillLabel(variant);
+        pillButton.addEventListener("click", function () {
+          selectVariant(variant, true);
+        });
+        selectables.push({ variant: variant, button: pillButton });
+        pillsContainer.appendChild(pillFragment);
+      });
+    } else if (pickerWrap) {
+      pickerWrap.hidden = true;
+    }
+
+    highlightSelected();
+
+    if (addButton) {
+      addButton.addEventListener("click", function () {
+        if (!selected) return;
+        addButton.disabled = true;
+        pendingTierIds.add(tier.id);
+        addGiftVariant(selected.id, tier.id)
+          .then(function () {
+            notifyThemeCartChanged();
+            onFulfilled();
+          })
+          .catch(function () {
+            addButton.disabled = false;
+          })
+          .finally(function () {
+            pendingTierIds.delete(tier.id);
+          });
+      });
+    }
+
+    return fragment;
+  }
+
   function openModalForTier(tier) {
     modalOpen = true;
 
     var modalTemplate = document.getElementById("cart-gift-tiers-modal-template");
-    var optionTemplate = document.getElementById("cart-gift-tiers-option-template");
-    if (!modalTemplate || !optionTemplate) {
+    if (!modalTemplate) {
       modalOpen = false;
+      return;
+    }
+
+    var products = Array.isArray(tier.products) ? tier.products : [];
+    if (products.length === 0) {
+      modalOpen = false;
+      processModalQueue();
       return;
     }
 
     var fragment = modalTemplate.content.cloneNode(true);
     var dialog = fragment.querySelector("[data-cart-gift-tiers-dialog]");
-    var optionsContainer = fragment.querySelector("[data-cart-gift-tiers-options]");
+    var productsContainer = fragment.querySelector("[data-cart-gift-tiers-products]");
     var closeBtn = fragment.querySelector("[data-cart-gift-tiers-close]");
     var subtitle = fragment.querySelector("#cart-gift-tiers-modal-subtitle");
     var description = fragment.querySelector("#cart-gift-tiers-modal-description");
-    var giftProductTitle = tier.variants[0] && tier.variants[0].productTitle;
     var variantChosen = false;
 
     if (tierConfig.message) {
@@ -179,9 +355,10 @@
       subtitle.style.display = "none";
     }
 
-    description.textContent = giftProductTitle
-      ? "Select the " + giftProductTitle + " flavor, size, or option you want as your gift."
-      : "Select the flavor, size, or option you want as your gift.";
+    description.textContent =
+      products.length > 1
+        ? "Select an option for each gift below."
+        : "Select the flavor, size, or option you want as your gift.";
 
     function closeModal() {
       if (!variantChosen) dismissedTierIds.add(tier.id);
@@ -203,54 +380,19 @@
       if (event.target === dialog) closeModal();
     });
 
-    tier.variants.forEach(function (variant) {
-      var optionFragment = optionTemplate.content.cloneNode(true);
-      var button = optionFragment.querySelector(".cart-gift-tiers-option");
-      var image = optionFragment.querySelector(".cart-gift-tiers-option__image");
-      var variantLabel = optionFragment.querySelector(".cart-gift-tiers-option__variant-label");
-      var title = optionFragment.querySelector(".cart-gift-tiers-option__title");
-      var price = optionFragment.querySelector(".cart-gift-tiers-option__price");
-
-      if (variant.image) {
-        image.src = variant.image;
-        image.alt = variant.title;
-      } else {
-        image.style.display = "none";
-      }
-
-      var optionLabel = variantOptionLabel(variant);
-      if (optionLabel) {
-        variantLabel.textContent = optionLabel;
-      } else {
-        variantLabel.style.display = "none";
-      }
-
-      title.textContent = variant.variantTitle && variant.variantTitle !== "Default Title" ? variant.variantTitle : variant.title;
-      price.textContent = formatMoney(variant.price);
-
-      button.addEventListener("click", function () {
-        button.disabled = true;
-        pendingTierIds.add(tier.id);
-        addGiftVariant(variant.id, tier.id)
-          .then(function () {
-            variantChosen = true;
-            fulfilledTierIds.add(tier.id);
-            notifyThemeCartChanged();
-          })
-          .catch(function () {})
-          .finally(function () {
-            pendingTierIds.delete(tier.id);
-            closeModal();
-          });
+    products.forEach(function (product) {
+      var productFragment = renderProduct(tier, product, function () {
+        variantChosen = true;
+        fulfilledTierIds.add(tier.id);
+        closeModal();
       });
-
-      optionsContainer.appendChild(optionFragment);
+      if (productFragment) productsContainer.appendChild(productFragment);
     });
 
     document.body.appendChild(dialog);
     dialog.showModal();
-    var firstOption = optionsContainer.querySelector("button");
-    if (firstOption) firstOption.focus();
+    var firstFocusable = productsContainer.querySelector(".cart-gift-tiers-pill, [data-cart-gift-tiers-add]");
+    if (firstFocusable) firstFocusable.focus();
   }
 
   function processModalQueue() {
@@ -325,9 +467,10 @@
             }
 
             // Newly qualifying tier.
-            if (tier.variants.length === 1) {
+            var variants = tierVariants(tier);
+            if (variants.length === 1) {
               pendingTierIds.add(tier.id);
-              addGiftVariant(tier.variants[0].id, tier.id)
+              addGiftVariant(variants[0].id, tier.id)
                 .then(function () {
                   fulfilledTierIds.add(tier.id);
                   notifyThemeCartChanged();
@@ -336,7 +479,7 @@
                 .finally(function () {
                   pendingTierIds.delete(tier.id);
                 });
-            } else if (tier.variants.length > 1) {
+            } else if (variants.length > 1) {
               enqueueModal(tier);
             }
           } else {

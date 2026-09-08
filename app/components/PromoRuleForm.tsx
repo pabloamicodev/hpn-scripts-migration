@@ -60,6 +60,7 @@ interface CartSubtotalGiftTierFormValue {
 interface ShippingDiscountTierFormValue {
   minimumSubtotal: number;
   discountPercentage: number;
+  appliesWhen?: "has_subscription" | "one_time_only";
 }
 
 interface RuleConditionsFormValues {
@@ -240,7 +241,23 @@ const DEFAULT_RULES: Record<PromoRuleType, PromoRuleFormValues> = {
     deliveryDiscountType: "percentage",
     deliveryDiscountPercentage: 100,
     shippingDiscountAmount: 1,
-    shippingTiers: [{ minimumSubtotal: 0, discountPercentage: 100 }],
+    shippingTiers: [
+      {
+        minimumSubtotal: 50,
+        discountPercentage: 50,
+        appliesWhen: "has_subscription",
+      },
+      {
+        minimumSubtotal: 100,
+        discountPercentage: 100,
+        appliesWhen: "has_subscription",
+      },
+      {
+        minimumSubtotal: 80,
+        discountPercentage: 50,
+        appliesWhen: "one_time_only",
+      },
+    ],
     targetDeliveryGroupTypes: ["ONE_TIME_PURCHASE", "SUBSCRIPTION"],
     message: "",
   },
@@ -1977,7 +1994,12 @@ export function PromoRuleForm({
             <span className="form-label">Cart value shipping tiers</span>
             <p id="shippingTiersHint" className="field-hint">
               The highest qualifying cart subtotal tier is applied. Use 0% for a
-              tier that gives no shipping discount.
+              tier that gives no shipping discount. When the cart has a
+              subscription item anywhere in it, only tiers scoped to "Cart has
+              a subscription" compete (they always take priority over
+              one-time tiers); a cart with no subscription at all only
+              matches "One-time purchases only" tiers. Tiers left on "Always"
+              compete no matter what's in the cart.
             </p>
 
             <div
@@ -2012,6 +2034,43 @@ export function PromoRuleForm({
                         )
                       }
                     />
+                  </div>
+
+                  <div>
+                    <label htmlFor={`shippingTierCondition-${index}`}>
+                      Applies when
+                    </label>
+                    <select
+                      id={`shippingTierCondition-${index}`}
+                      value={tier.appliesWhen ?? ""}
+                      onChange={(event) =>
+                        setValue(
+                          "shippingTiers",
+                          (shippingTiers ?? []).map((currentTier, tierIndex) =>
+                            tierIndex === index
+                              ? {
+                                  ...currentTier,
+                                  appliesWhen:
+                                    event.target.value === ""
+                                      ? undefined
+                                      : (event.target.value as
+                                          | "has_subscription"
+                                          | "one_time_only"),
+                                }
+                              : currentTier,
+                          ),
+                          { shouldDirty: true },
+                        )
+                      }
+                    >
+                      <option value="">Always</option>
+                      <option value="has_subscription">
+                        Cart has a subscription item
+                      </option>
+                      <option value="one_time_only">
+                        One-time purchases only (no subscription)
+                      </option>
+                    </select>
                   </div>
 
                   <div>
@@ -2085,6 +2144,7 @@ export function PromoRuleForm({
                         (lastTier?.discountPercentage ?? 0) + 25,
                         100,
                       ),
+                      appliesWhen: lastTier?.appliesWhen,
                     },
                   ],
                   { shouldDirty: true },

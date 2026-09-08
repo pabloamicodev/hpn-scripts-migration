@@ -203,9 +203,18 @@ const deliveryDiscountPercentageSchema = z.union([
   z.literal(100),
 ]);
 const deliveryGroupTypeSchema = z.enum(["ONE_TIME_PURCHASE", "SUBSCRIPTION"]);
+// A tier with no appliesWhen matches regardless of cart composition (the
+// original, unconditional behavior). Setting it scopes the tier to carts
+// that do/don't contain a subscription line anywhere — e.g. Landing page
+// shipping tiers wanting a richer discount ladder for subscription carts
+// than for one-time-only carts. When a subscription line is present
+// anywhere in the cart, "has_subscription" tiers always take priority over
+// "one_time_only" ones (see cartHasSubscriptionLine in the Function).
+const shippingTierConditionSchema = z.enum(["has_subscription", "one_time_only"]);
 const shippingDiscountTierSchema = z.object({
   minimumSubtotal: z.number().min(0),
   discountPercentage: z.number().min(0).max(100),
+  appliesWhen: shippingTierConditionSchema.optional(),
 });
 
 const deliveryDiscountRuleFields = {

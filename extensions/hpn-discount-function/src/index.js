@@ -841,16 +841,31 @@ function deliveryDiscountValue(rule) {
   return { percentage: { value: String(percentage) } };
 }
 
-function tieredDeliveryDiscountValue(rule, cartSubtotalAmount) {
+// A tier scoped via appliesWhen only competes for its own condition — a
+// cart with a subscription anywhere in it always resolves against the
+// "has_subscription" tiers (never falls back to "one_time_only" ones even
+// if no has_subscription tier qualifies), and a cart with no subscription
+// line at all only ever matches "one_time_only" tiers. A tier with no
+// appliesWhen at all is unconditional and competes either way — this is
+// what keeps pre-existing (pre-Zaid's-request) tier configs working
+// unchanged.
+function tieredDeliveryDiscountValue(rule, cartSubtotalAmount, hasSubscriptionLine) {
   if (!Array.isArray(rule.shippingTiers) || rule.shippingTiers.length === 0) {
     return deliveryDiscountValue(rule);
   }
+
+  const activeCondition = hasSubscriptionLine ? "has_subscription" : "one_time_only";
+  const tiers = rule.shippingTiers.filter((tier) => {
+    const appliesWhen = tier?.appliesWhen;
+    if (appliesWhen !== "has_subscription" && appliesWhen !== "one_time_only") return true;
+    return appliesWhen === activeCondition;
+  });
 
   const subtotal = Number(cartSubtotalAmount);
   if (!Number.isFinite(subtotal) || subtotal < 0) return null;
 
   let matchingTier = null;
-  for (const tier of rule.shippingTiers) {
+  for (const tier of tiers) {
     const minimumSubtotal = Number(tier?.minimumSubtotal);
     const discountPercentage = Number(tier?.discountPercentage);
     if (
@@ -911,7 +926,8 @@ function targetedDeliveryGroups(rule, deliveryGroups) {
 }
 
 function shippingDiscountResult(rule, deliveryGroups, cartSubtotalAmount) {
-  const discountValue = tieredDeliveryDiscountValue(rule, cartSubtotalAmount);
+  const hasSubscriptionLine = deliveryGroups.some(deliveryGroupHasSubscriptionLine);
+  const discountValue = tieredDeliveryDiscountValue(rule, cartSubtotalAmount, hasSubscriptionLine);
   const eligibleDeliveryGroups = targetedDeliveryGroups(rule, deliveryGroups);
   if (!discountValue || eligibleDeliveryGroups.length === 0)
     return EMPTY_RESULT;

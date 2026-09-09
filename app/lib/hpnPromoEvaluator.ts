@@ -687,6 +687,53 @@ export function evaluateCartSubtotalFreeGift(
   return actions;
 }
 
+/**
+ * Product Trigger Free Gift: mirrors applyProductTriggerFreeGiftRule in the
+ * real Function (extensions/hpn-discount-function/src/index.js) for preview
+ * purposes. A tier qualifies when the cart contains any variant of one of
+ * its triggerProductIds — every qualifying tier applies at once, there is
+ * no "highest tier" reduction (unlike cart_subtotal_free_gift's
+ * stackingMode) since each tier is tied to a different trigger product.
+ */
+export function evaluateProductTriggerFreeGift(
+  rule: Extract<HpnPromoRule, { type: "product_trigger_free_gift" }>,
+  cartIndex: CartIndex,
+): DiscountAction[] {
+  const actions: DiscountAction[] = [];
+
+  for (const tier of rule.tiers) {
+    const qualifies = tier.triggerProductIds.some(
+      (productId) => (cartIndex.linesByProductId.get(productId)?.length ?? 0) > 0,
+    );
+    if (!qualifies) continue;
+
+    let remainingFreeUnits = tier.maxFreeUnits;
+
+    for (const variantId of tier.giftVariantIds) {
+      if (remainingFreeUnits <= 0) break;
+      const variantLines = cartIndex.linesByVariantId.get(variantId);
+      if (!variantLines) continue;
+
+      for (const line of variantLines) {
+        if (remainingFreeUnits <= 0) break;
+        if (getLineAttribute(line, "__cart_gift_tier") !== tier.id) continue;
+        const qty = Math.min(remainingFreeUnits, line.quantity);
+        actions.push({
+          lineId: line.id,
+          variantId: line.merchandise.id,
+          productId: line.merchandise.product.id,
+          discountedQuantity: qty,
+          percentageOff: tier.discountPercentage,
+          message: rule.message,
+        });
+        remainingFreeUnits -= qty;
+      }
+    }
+  }
+
+  return actions;
+}
+
 // ---------------------------------------------------------------------------
 // Exhaustiveness guard — TypeScript will error here if a new rule type is
 // added to HpnPromoRule but not handled in evaluateConfig's switch.
@@ -764,6 +811,9 @@ export function evaluateConfig(
         break;
       case "cart_subtotal_free_gift":
         ruleActions = evaluateCartSubtotalFreeGift(rule, cartIndex, lines, context);
+        break;
+      case "product_trigger_free_gift":
+        ruleActions = evaluateProductTriggerFreeGift(rule, cartIndex);
         break;
       default:
         assertNever(rule);

@@ -8,7 +8,10 @@ import {
   type ProductVariantWithProductNode,
 } from "~/lib/shopifyProducts.server";
 import { loadActiveDiscount } from "~/lib/hpnPromoConfig.server";
-import type { CartSubtotalFreeGiftRule } from "~/lib/validations";
+import type {
+  CartSubtotalFreeGiftRule,
+  ProductTriggerFreeGiftRule,
+} from "~/lib/validations";
 
 // Storefront-facing app proxy endpoint (Shopify signs and forwards
 // requests from https://<shop>/apps/cart-gift-tiers to this route — see
@@ -102,6 +105,59 @@ function variantDisplayTitle(v: ProductVariantWithProductNode) {
   return `${v.product.title} — ${v.title}`;
 }
 
+// A GID's trailing segment is always the legacy numeric id
+// (gid://shopify/Product/123 -> "123") — /cart.js expresses product_id as
+// that same plain number, so this is what the storefront widget matches
+// trigger products against.
+function legacyId(gid: string) {
+  return gid.split("/").pop() ?? gid;
+}
+
+// Shared by both gift-granting rule types: resolves a tier's giftVariantIds
+// into the "mini PDP" product/variant shape the storefront widget renders,
+// grouped by product (a gift is usually one product with several
+// size/flavor variants to choose from, occasionally several distinct
+// products a merchant listed as alternatives).
+async function resolveTierProducts(graphqlProxy: GraphQLProxyFn, giftVariantIds: string[]) {
+  const resolved = await Promise.all(giftVariantIds.map((id) => getVariantById(graphqlProxy, id)));
+  const available = resolved.filter(
+    (v): v is NonNullable<typeof v> => v !== null && v.availableForSale !== false,
+  );
+
+  const byProductId = new Map<string, ProductVariantWithProductNode[]>();
+  for (const v of available) {
+    const list = byProductId.get(v.product.id) ?? [];
+    list.push(v);
+    byProductId.set(v.product.id, list);
+  }
+
+  const media = await loadProductMedia(graphqlProxy, Array.from(byProductId.keys()));
+
+  return Array.from(byProductId.entries()).map(([productId, variants]) => {
+    const productMedia = media.get(productId);
+    const fallbackImage = variants[0]?.image?.url ?? variants[0]?.product.featuredImage?.url ?? null;
+    const images = productMedia?.images?.length
+      ? productMedia.images
+      : fallbackImage
+        ? [{ url: fallbackImage, altText: variants[0].product.title }]
+        : [];
+
+    return {
+      id: productId,
+      title: variants[0].product.title,
+      description: productMedia?.description ?? "",
+      images,
+      variants: variants.map((v) => ({
+        id: v.legacyResourceId ?? v.id.split("/").pop() ?? v.id,
+        title: variantDisplayTitle(v),
+        options: v.selectedOptions ?? [],
+        image: v.image?.url ?? null,
+        price: v.price,
+      })),
+    };
+  });
+}
+
 export async function loader({ request }: LoaderFunctionArgs) {
   const { session, admin } = await authenticate.public.appProxy(request);
 
@@ -119,69 +175,45 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
   try {
     const loaded = await loadActiveDiscount(graphqlProxy, session.shop);
-    const rule = loaded.config.rules.find((r): r is CartSubtotalFreeGiftRule => r.type === "cart_subtotal_free_gift" && r.enabled);
 
-    if (!rule) {
+    const subtotalRule = loaded.config.rules.find(
+      (r): r is CartSubtotalFreeGiftRule => r.type === "cart_subtotal_free_gift" && r.enabled,
+    );
+    const productTriggerRule = loaded.config.rules.find(
+      (r): r is ProductTriggerFreeGiftRule => r.type === "product_trigger_free_gift" && r.enabled,
+    );
+
+    if (!subtotalRule && !productTriggerRule) {
       return json(EMPTY_RESPONSE);
     }
 
-    const tiers = await Promise.all(
-      rule.tiers.map(async (tier) => {
-        const resolved = await Promise.all(tier.giftVariantIds.map((id) => getVariantById(graphqlProxy, id)));
-        const available = resolved.filter(
-          (v): v is NonNullable<typeof v> => v !== null && v.availableForSale !== false,
-        );
+    const subtotalTiers = await Promise.all(
+      (subtotalRule?.tiers ?? []).map(async (tier) => ({
+        id: tier.id,
+        qualifyingType: "subtotal" as const,
+        minimumSubtotal: tier.minimumSubtotal,
+        maxFreeUnits: tier.maxFreeUnits,
+        discountPercentage: tier.discountPercentage,
+        message: subtotalRule!.message,
+        products: await resolveTierProducts(graphqlProxy, tier.giftVariantIds),
+      })),
+    );
 
-        // Group by product — a gift is usually one product with several
-        // size/flavor variants to choose from, occasionally several
-        // distinct products a merchant listed as alternatives.
-        const byProductId = new Map<string, ProductVariantWithProductNode[]>();
-        for (const v of available) {
-          const list = byProductId.get(v.product.id) ?? [];
-          list.push(v);
-          byProductId.set(v.product.id, list);
-        }
-
-        const media = await loadProductMedia(graphqlProxy, Array.from(byProductId.keys()));
-
-        const products = Array.from(byProductId.entries()).map(([productId, variants]) => {
-          const productMedia = media.get(productId);
-          const fallbackImage = variants[0]?.image?.url ?? variants[0]?.product.featuredImage?.url ?? null;
-          const images = productMedia?.images?.length
-            ? productMedia.images
-            : fallbackImage
-              ? [{ url: fallbackImage, altText: variants[0].product.title }]
-              : [];
-
-          return {
-            id: productId,
-            title: variants[0].product.title,
-            description: productMedia?.description ?? "",
-            images,
-            variants: variants.map((v) => ({
-              id: v.legacyResourceId ?? v.id.split("/").pop() ?? v.id,
-              title: variantDisplayTitle(v),
-              options: v.selectedOptions ?? [],
-              image: v.image?.url ?? null,
-              price: v.price,
-            })),
-          };
-        });
-
-        return {
-          id: tier.id,
-          minimumSubtotal: tier.minimumSubtotal,
-          maxFreeUnits: tier.maxFreeUnits,
-          discountPercentage: tier.discountPercentage,
-          products,
-        };
-      }),
+    const productTiers = await Promise.all(
+      (productTriggerRule?.tiers ?? []).map(async (tier) => ({
+        id: tier.id,
+        qualifyingType: "product" as const,
+        triggerProductIds: tier.triggerProductIds.map(legacyId),
+        maxFreeUnits: tier.maxFreeUnits,
+        discountPercentage: tier.discountPercentage,
+        message: productTriggerRule!.message,
+        products: await resolveTierProducts(graphqlProxy, tier.giftVariantIds),
+      })),
     );
 
     const body = {
-      stackingMode: rule.stackingMode,
-      message: rule.message,
-      tiers: tiers.filter((tier) => tier.products.length > 0),
+      stackingMode: subtotalRule?.stackingMode ?? "highest_tier_only",
+      tiers: [...subtotalTiers, ...productTiers].filter((tier) => tier.products.length > 0),
     };
     responseCache.set(session.shop, {
       expiresAt: Date.now() + RESPONSE_CACHE_TTL_MS,

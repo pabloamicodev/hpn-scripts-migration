@@ -63,6 +63,14 @@ interface ShippingDiscountTierFormValue {
   appliesWhen?: "has_subscription" | "one_time_only";
 }
 
+interface ProductTriggerGiftTierFormValue {
+  id: string;
+  triggerProductIds: string[];
+  giftVariantIds: string[];
+  maxFreeUnits: number;
+  discountPercentage: number;
+}
+
 interface RuleConditionsFormValues {
   minimumCartSubtotal?: number;
   requiredCartAttributeKey?: string;
@@ -94,6 +102,7 @@ interface PromoRuleFormValues {
   requiredAnchorMinQuantity?: number;
   discountPercentageOnGifts?: number;
   giftTiers?: CartSubtotalGiftTierFormValue[];
+  productGiftTiers?: ProductTriggerGiftTierFormValue[];
   stackingMode?: "highest_tier_only" | "cumulative";
   deliveryDiscountType?: "percentage" | "fixed_amount";
   deliveryDiscountPercentage?: 25 | 50 | 100;
@@ -309,6 +318,22 @@ const DEFAULT_RULES: Record<PromoRuleType, PromoRuleFormValues> = {
     stackingMode: "highest_tier_only",
     message: "",
   },
+
+  product_trigger_free_gift: {
+    id: "product-trigger-free-gift",
+    type: "product_trigger_free_gift",
+    enabled: true,
+    productGiftTiers: [
+      {
+        id: "tier-1",
+        triggerProductIds: [],
+        giftVariantIds: [],
+        maxFreeUnits: 1,
+        discountPercentage: 100,
+      },
+    ],
+    message: "",
+  },
 };
 
 function normalizeDefaultValues(
@@ -337,6 +362,14 @@ function normalizeDefaultValues(
     return {
       ...rest,
       giftTiers: tiers,
+    };
+  }
+
+  if (defaultValues.type === "product_trigger_free_gift") {
+    const { tiers, ...rest } = defaultValues;
+    return {
+      ...rest,
+      productGiftTiers: tiers,
     };
   }
 
@@ -409,6 +442,8 @@ function makeRuleId(type: PromoRuleType) {
     return `quiz-bundle-free-shipping-${suffix}`;
   if (type === "cart_subtotal_free_gift")
     return `cart-subtotal-free-gift-${suffix}`;
+  if (type === "product_trigger_free_gift")
+    return `product-trigger-free-gift-${suffix}`;
   return `loyalty-tier-${suffix}`;
 }
 
@@ -666,6 +701,17 @@ function buildRulePayload(values: PromoRuleFormValues): unknown {
     };
   }
 
+  if (values.type === "product_trigger_free_gift") {
+    return {
+      id: values.id,
+      type: "product_trigger_free_gift",
+      enabled: values.enabled,
+      tiers: values.productGiftTiers ?? [],
+      message: values.message,
+      conditions,
+    };
+  }
+
   return {
     id: values.id,
     type: "loyalty_tier",
@@ -718,6 +764,8 @@ export function PromoRuleForm({
     | "landingScopedProduct"
     | "landingScopedAnchorVariant"
     | "cartGiftTierVariant"
+    | "productGiftTierTrigger"
+    | "productGiftTierVariant"
     | null
   >(null);
   const [activeGiftTierIndex, setActiveGiftTierIndex] = useState<number | null>(
@@ -749,6 +797,7 @@ export function PromoRuleForm({
   const tiers = watch("tiers");
   const quantityTiers = watch("quantityTiers");
   const giftTiers = watch("giftTiers");
+  const productGiftTiers = watch("productGiftTiers");
   const shippingTiers = watch("shippingTiers");
   const deliveryDiscountType = watch("deliveryDiscountType");
 
@@ -1003,6 +1052,10 @@ export function PromoRuleForm({
           ...(requiredAnchorVariantIds ?? []),
           ...(targets ?? []).map((t) => t.productId),
           ...(giftTiers ?? []).flatMap((tier) => tier.giftVariantIds),
+          ...(productGiftTiers ?? []).flatMap((tier) => [
+            ...tier.triggerProductIds,
+            ...tier.giftVariantIds,
+          ]),
         ].filter((id): id is string => Boolean(id)),
       ),
     );
@@ -1015,6 +1068,7 @@ export function PromoRuleForm({
     triggerProductId,
     targets,
     giftTiers,
+    productGiftTiers,
   ]);
   const selectedIdsKey = selectedIds.join("|");
 
@@ -1256,6 +1310,77 @@ export function PromoRuleForm({
       }
     }
 
+    if (
+      productPickerMode === "productGiftTierTrigger" &&
+      activeGiftTierIndex !== null
+    ) {
+      const currentTiers = productGiftTiers ?? [];
+      const tier = currentTiers[activeGiftTierIndex];
+
+      if (tier && !tier.triggerProductIds.includes(selection.productId)) {
+        setSelectionMetaById((current) => ({
+          ...current,
+          [selection.productId]: selectedProductMeta,
+        }));
+        setValue(
+          "productGiftTiers",
+          currentTiers.map((t, i) =>
+            i === activeGiftTierIndex
+              ? {
+                  ...t,
+                  triggerProductIds: [...t.triggerProductIds, selection.productId],
+                }
+              : t,
+          ),
+          { shouldDirty: true, shouldValidate: false },
+        );
+      }
+    }
+
+    if (
+      productPickerMode === "productGiftTierVariant" &&
+      activeGiftTierIndex !== null
+    ) {
+      const currentTiers = productGiftTiers ?? [];
+      const tier = currentTiers[activeGiftTierIndex];
+
+      if (tier) {
+        const giftVariantIds = selection.productVariants.map(
+          (variant) => variant.id,
+        );
+        setSelectionMetaById((current) => ({
+          ...current,
+          ...Object.fromEntries(
+            selection.productVariants.map((variant) => [
+              variant.id,
+              {
+                ...selectedProductMeta,
+                id: variant.id,
+                variantId: variant.id,
+                variantTitle: variant.title,
+                sku: variant.sku,
+                price: variant.price,
+                imageUrl: variant.imageUrl,
+                imageAlt: variant.imageAlt,
+              },
+            ]),
+          ),
+        }));
+        setValue(
+          "productGiftTiers",
+          currentTiers.map((t, i) =>
+            i === activeGiftTierIndex
+              ? {
+                  ...t,
+                  giftVariantIds,
+                }
+              : t,
+          ),
+          { shouldDirty: true, shouldValidate: false },
+        );
+      }
+    }
+
     if (productPickerMode === "discountedTarget") {
       const currentTargets = targets ?? [];
       if (!currentTargets.some((t) => t.productId === selection.productId)) {
@@ -1407,6 +1532,10 @@ export function PromoRuleForm({
 
             <option value="cart_subtotal_free_gift">
               Cart Subtotal → Free Gift Tiers
+            </option>
+
+            <option value="product_trigger_free_gift">
+              Sitewide Product Trigger → Free Gift
             </option>
           </select>
         </div>
@@ -2484,6 +2613,174 @@ export function PromoRuleForm({
         </section>
       )}
 
+      {ruleType === "product_trigger_free_gift" && (
+        <section className="form-section">
+          <h2 className="form-section__title">
+            Sitewide product trigger free gift tiers
+          </h2>
+          <p className="field-hint">
+            Applies across the whole store — no landing page or line item
+            property required. The storefront adds each qualifying tier's
+            gift automatically as soon as any variant of one of its trigger
+            products is in the cart, and removes it again if every unit of
+            those trigger products is later removed. Every qualifying tier's
+            gift applies at once (there's no "highest tier" here since each
+            tier is tied to a different trigger product). If the selected
+            gift product has flavors, sizes, or other variants, the customer
+            chooses one from a visual card picker first.
+          </p>
+
+          <div className="form-group">
+            <span className="form-label">Tiers</span>
+
+            {(productGiftTiers ?? []).map((tier, idx) => (
+              <div key={tier.id} className="product-id-chip">
+                <div className="target-discount-row">
+                  <label className="form-label">Max free units</label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={tier.maxFreeUnits}
+                    onChange={(e) => {
+                      const next = (productGiftTiers ?? []).map((t, i) =>
+                        i === idx
+                          ? { ...t, maxFreeUnits: Number(e.target.value) }
+                          : t,
+                      );
+                      setValue("productGiftTiers", next, { shouldDirty: true });
+                    }}
+                    className="number-field"
+                  />
+
+                  <label className="form-label">Discount %</label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={100}
+                    value={tier.discountPercentage}
+                    onChange={(e) => {
+                      const next = (productGiftTiers ?? []).map((t, i) =>
+                        i === idx
+                          ? { ...t, discountPercentage: Number(e.target.value) }
+                          : t,
+                      );
+                      setValue("productGiftTiers", next, { shouldDirty: true });
+                    }}
+                    className="number-field"
+                  />
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setValue(
+                        "productGiftTiers",
+                        (productGiftTiers ?? []).filter((_, i) => i !== idx),
+                        { shouldDirty: true },
+                      )
+                    }
+                    className="btn btn--small btn--danger"
+                  >
+                    Remove tier
+                  </button>
+                </div>
+
+                <div className="form-group">
+                  <span className="form-label">Trigger products</span>
+                  <p className="field-hint">
+                    Any variant of any of these products in the cart
+                    qualifies this tier — e.g. every protein flavor/size.
+                  </p>
+                  <ProductIdListSelector
+                    productIds={tier.triggerProductIds}
+                    metaById={selectionMetaById}
+                    emptyText="Choose the product(s) that trigger this gift."
+                    itemLabel="Product"
+                    addLabel="Add trigger product"
+                    onPick={() => {
+                      setActiveGiftTierIndex(idx);
+                      setProductPickerMode("productGiftTierTrigger");
+                    }}
+                    onRemove={(productId) => {
+                      const next = (productGiftTiers ?? []).map((t, i) =>
+                        i === idx
+                          ? {
+                              ...t,
+                              triggerProductIds: t.triggerProductIds.filter(
+                                (id) => id !== productId,
+                              ),
+                            }
+                          : t,
+                      );
+                      setValue("productGiftTiers", next, { shouldDirty: true });
+                    }}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <span className="form-label">
+                    Gift product
+                    {tier.giftVariantIds.length > 1
+                      ? " (customer chooses a variant)"
+                      : ""}
+                  </span>
+                  <ProductIdListSelector
+                    productIds={tier.giftVariantIds}
+                    metaById={selectionMetaById}
+                    emptyText="Choose the gift product for this tier."
+                    itemLabel="Variant"
+                    addLabel={
+                      tier.giftVariantIds.length
+                        ? "Replace gift product"
+                        : "Choose gift product"
+                    }
+                    onPick={() => {
+                      setActiveGiftTierIndex(idx);
+                      setProductPickerMode("productGiftTierVariant");
+                    }}
+                    onRemove={(variantId) => {
+                      const next = (productGiftTiers ?? []).map((t, i) =>
+                        i === idx
+                          ? {
+                              ...t,
+                              giftVariantIds: t.giftVariantIds.filter(
+                                (id) => id !== variantId,
+                              ),
+                            }
+                          : t,
+                      );
+                      setValue("productGiftTiers", next, { shouldDirty: true });
+                    }}
+                  />
+                </div>
+              </div>
+            ))}
+
+            <button
+              type="button"
+              onClick={() =>
+                setValue(
+                  "productGiftTiers",
+                  [
+                    ...(productGiftTiers ?? []),
+                    {
+                      id: `tier-${(productGiftTiers?.length ?? 0) + 1}-${Date.now().toString(36)}`,
+                      triggerProductIds: [],
+                      giftVariantIds: [],
+                      maxFreeUnits: 1,
+                      discountPercentage: 100,
+                    },
+                  ],
+                  { shouldDirty: true },
+                )
+              }
+              className="btn btn--small"
+            >
+              + Add tier
+            </button>
+          </div>
+        </section>
+      )}
+
       <section className="form-section">
         <h2 className="form-section__title">
           Additional conditions (optional)
@@ -2561,7 +2858,11 @@ export function PromoRuleForm({
       {productPickerMode && (
         <ProductPicker
           selectionMode={
-            productPickerMode === "cartGiftTierVariant" ? "product" : "variant"
+            productPickerMode === "cartGiftTierVariant" ||
+            productPickerMode === "productGiftTierTrigger" ||
+            productPickerMode === "productGiftTierVariant"
+              ? "product"
+              : "variant"
           }
           onSelect={handlePickerSelect}
           onClose={() => setProductPickerMode(null)}

@@ -33,7 +33,12 @@
   var FALLBACK_POLL_MS = 4000;
   var CART_MUTATION_URL_PATTERN = /\/cart\/(add|change|update|clear)\.js/;
 
-  var tierConfig = null; // { stackingMode, message, tiers: [{ id, minimumSubtotal, maxFreeUnits, discountPercentage, products }] }
+  // tierConfig: { stackingMode, tiers: [...] }. A tier is either:
+  //   { id, qualifyingType: "subtotal", minimumSubtotal, maxFreeUnits, discountPercentage, message, products }
+  //   { id, qualifyingType: "product", triggerProductIds, maxFreeUnits, discountPercentage, message, products }
+  // stackingMode only ever reduces subtotal tiers to "the" active one;
+  // product tiers have no such competition (see activeTiers below).
+  var tierConfig = null;
   var configLoaded = false;
 
   var dismissedTierIds = new Set();
@@ -101,13 +106,12 @@
       .then(function (data) {
         tierConfig = {
           stackingMode: data.stackingMode === "cumulative" ? "cumulative" : "highest_tier_only",
-          message: typeof data.message === "string" ? data.message : "",
           tiers: Array.isArray(data.tiers) ? data.tiers : [],
         };
         configLoaded = true;
       })
       .catch(function () {
-        tierConfig = { stackingMode: "highest_tier_only", message: "", tiers: [] };
+        tierConfig = { stackingMode: "highest_tier_only", tiers: [] };
         configLoaded = true;
       });
   }
@@ -134,6 +138,19 @@
       return sum + (item.original_line_price || item.line_price || 0);
     }, 0);
     return cents / 100;
+  }
+
+  // A "product" tier qualifies when the cart has any unit of one of its
+  // trigger products (matched by /cart.js's numeric product_id — the proxy
+  // already converts each triggerProductId GID to that same legacy id).
+  // Gift lines are excluded from the match for the same reason
+  // qualifyingSubtotal excludes them: a gift should never be able to
+  // trigger its own (or another) tier.
+  function productTierQualifies(tier, cart) {
+    var triggerIds = tier.triggerProductIds || [];
+    return cart.items.some(function (item) {
+      return !giftTierOf(item) && triggerIds.indexOf(String(item.product_id)) !== -1;
+    });
   }
 
   function addGiftVariant(variantId, tierId) {
@@ -349,8 +366,8 @@
     var description = fragment.querySelector("#cart-gift-tiers-modal-description");
     var variantChosen = false;
 
-    if (tierConfig.message) {
-      subtitle.textContent = tierConfig.message;
+    if (tier.message) {
+      subtitle.textContent = tier.message;
     } else {
       subtitle.style.display = "none";
     }
@@ -411,22 +428,39 @@
     processModalQueue();
   }
 
-  // ── Tier evaluation (mirrors applyCartSubtotalFreeGiftRule) ──────────
+  // ── Tier evaluation (mirrors applyCartSubtotalFreeGiftRule and
+  // applyProductTriggerFreeGiftRule) ───────────────────────────────────
 
   function activeTiers(cart) {
     var subtotal = qualifyingSubtotal(cart);
-    var qualifying = tierConfig.tiers.filter(function (tier) {
+
+    var subtotalTiers = tierConfig.tiers.filter(function (tier) {
+      return tier.qualifyingType !== "product";
+    });
+    var qualifyingSubtotalTiers = subtotalTiers.filter(function (tier) {
       return subtotal >= tier.minimumSubtotal;
     });
-    if (qualifying.length === 0) return [];
 
-    if (tierConfig.stackingMode === "cumulative") return qualifying;
+    var activeSubtotalTiers = [];
+    if (qualifyingSubtotalTiers.length > 0) {
+      activeSubtotalTiers =
+        tierConfig.stackingMode === "cumulative"
+          ? qualifyingSubtotalTiers
+          : [
+              qualifyingSubtotalTiers.reduce(function (best, tier) {
+                return tier.minimumSubtotal > best.minimumSubtotal ? tier : best;
+              }),
+            ];
+    }
 
-    return [
-      qualifying.reduce(function (best, tier) {
-        return tier.minimumSubtotal > best.minimumSubtotal ? tier : best;
-      }),
-    ];
+    // Every qualifying product tier applies at once — each is tied to a
+    // different trigger product, not a competing spend level, so there's
+    // no "highest tier" reduction to do here.
+    var activeProductTiers = tierConfig.tiers.filter(function (tier) {
+      return tier.qualifyingType === "product" && productTierQualifies(tier, cart);
+    });
+
+    return activeSubtotalTiers.concat(activeProductTiers);
   }
 
   function checkCart() {

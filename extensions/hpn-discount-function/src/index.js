@@ -98,6 +98,8 @@ export function cartLinesDiscountsGenerateRun(input) {
         lines,
         candidatesByLine,
       );
+    } else if (rule.type === "product_trigger_free_gift") {
+      applyProductTriggerFreeGiftRule(rule, byProduct, byVariant, candidatesByLine);
     }
   }
 
@@ -734,6 +736,60 @@ function applyCartSubtotalFreeGiftRule(
         ];
 
   for (const tier of activeTiers) {
+    const maxFreeUnits =
+      typeof tier.maxFreeUnits === "number" ? tier.maxFreeUnits : 1;
+    const pct =
+      typeof tier.discountPercentage === "number"
+        ? tier.discountPercentage
+        : 100;
+    let remainingFreeUnits = maxFreeUnits;
+
+    for (const variantId of tier.giftVariantIds) {
+      if (remainingFreeUnits <= 0) break;
+      for (const line of byVariant.get(variantId) ?? []) {
+        if (remainingFreeUnits <= 0) break;
+        if (line.cartGiftTierAttribute?.value !== tier.id) continue;
+        const qty = Math.min(remainingFreeUnits, line.quantity);
+        addCandidate(candidates, line, qty, pct, rule.message);
+        remainingFreeUnits -= qty;
+      }
+    }
+  }
+}
+
+/**
+ * Product Trigger Free Gift: sitewide "buy X, get gift Y free" — like
+ * cart_subtotal_free_gift above (the storefront adds the gift variant and
+ * tags it __cart_gift_tier; this rule only ever discounts a line already
+ * carrying that tag, it never creates one), but a tier qualifies when the
+ * cart contains any variant of one of its triggerProductIds rather than a
+ * subtotal threshold. Every qualifying tier applies at once — there is no
+ * "highest tier" reduction here, since each tier is tied to a different
+ * trigger product rather than a competing spend level. If every unit of a
+ * tier's trigger products is removed from the cart, that tier simply stops
+ * qualifying here and the gift line's price is restored automatically on
+ * the next recalculation, same as every other anchor-gated rule in this
+ * file — the storefront widget separately removes the now-full-price line.
+ */
+function applyProductTriggerFreeGiftRule(rule, byProduct, byVariant, candidates) {
+  if (!Array.isArray(rule.tiers) || rule.tiers.length === 0) return;
+
+  for (const tier of rule.tiers) {
+    if (
+      !tier ||
+      !Array.isArray(tier.triggerProductIds) ||
+      tier.triggerProductIds.length === 0 ||
+      !Array.isArray(tier.giftVariantIds) ||
+      tier.giftVariantIds.length === 0
+    ) {
+      continue;
+    }
+
+    const qualifies = tier.triggerProductIds.some(
+      (productId) => (byProduct.get(productId) ?? []).length > 0,
+    );
+    if (!qualifies) continue;
+
     const maxFreeUnits =
       typeof tier.maxFreeUnits === "number" ? tier.maxFreeUnits : 1;
     const pct =

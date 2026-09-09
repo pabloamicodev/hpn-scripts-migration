@@ -358,6 +358,38 @@ export const cartSubtotalFreeGiftRuleSchema = z.object({
 });
 
 // ---------------------------------------------------------------------------
+// Product trigger free gift — buy any variant of a trigger product (e.g. a
+// protein tub), get a free gift product (e.g. an ebook) sitewide. Same
+// storefront contract as cart_subtotal_free_gift above (the theme app
+// extension adds the gift variant and tags it __cart_gift_tier; this rule
+// only ever discounts a line already carrying that tag, it never creates
+// one) — but a tier qualifies on trigger PRODUCT PRESENCE instead of a
+// subtotal threshold. Every qualifying tier stays active at once (there is
+// no "highest tier" concept here — each tier is tied to a different trigger
+// product, not a competing spend level), so no stackingMode field.
+// ---------------------------------------------------------------------------
+
+export const productTriggerGiftTierSchema = z.object({
+  id: ruleIdSchema,
+  triggerProductIds: z.array(productGidSchema).min(1),
+  giftVariantIds: z.array(variantGidSchema).min(1),
+  // Capped at 1 unit by default so buying multiple units of the trigger
+  // product (or bumping the gift's own quantity) doesn't turn extra units
+  // free too — same cap pattern as cart_subtotal_free_gift.
+  maxFreeUnits: z.number().int().positive().default(1),
+  discountPercentage: z.number().positive().max(100).default(100),
+});
+
+export const productTriggerFreeGiftRuleSchema = z.object({
+  id: ruleIdSchema,
+  type: z.literal("product_trigger_free_gift"),
+  enabled: z.boolean(),
+  tiers: z.array(productTriggerGiftTierSchema).min(1),
+  message: z.string().trim().min(1),
+  conditions: ruleConditionsSchema,
+});
+
+// ---------------------------------------------------------------------------
 // Union
 // ---------------------------------------------------------------------------
 
@@ -378,6 +410,7 @@ export const hpnPromoRuleSchema = z.discriminatedUnion("type", [
   quizBundlePriceMatchRuleSchema,
   quizBundleFreeShippingRuleSchema,
   cartSubtotalFreeGiftRuleSchema,
+  productTriggerFreeGiftRuleSchema,
 ]);
 
 export const hpnPromoConfigSchema = z.object({
@@ -440,6 +473,12 @@ export type CartSubtotalGiftTier = z.infer<typeof cartSubtotalGiftTierSchema>;
 export type CartSubtotalFreeGiftRule = z.infer<
   typeof cartSubtotalFreeGiftRuleSchema
 >;
+export type ProductTriggerGiftTier = z.infer<
+  typeof productTriggerGiftTierSchema
+>;
+export type ProductTriggerFreeGiftRule = z.infer<
+  typeof productTriggerFreeGiftRuleSchema
+>;
 
 export type HpnPromoRule =
   | Pa7CrossSellRule
@@ -457,7 +496,8 @@ export type HpnPromoRule =
   | SitewideFreeShippingRule
   | QuizBundlePriceMatchRule
   | QuizBundleFreeShippingRule
-  | CartSubtotalFreeGiftRule;
+  | CartSubtotalFreeGiftRule
+  | ProductTriggerFreeGiftRule;
 
 export type HpnPromoRuleId = HpnPromoRule["id"];
 export type HpnPromoRuleType = HpnPromoRule["type"];

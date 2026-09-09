@@ -2104,3 +2104,151 @@ describe("cart_subtotal_free_gift", () => {
     expect(result).toEqual({ operations: [] });
   });
 });
+
+// ---------------------------------------------------------------------------
+// product_trigger_free_gift — sitewide "buy X, get gift Y free". Same
+// storefront contract as cart_subtotal_free_gift (the theme app extension
+// adds the gift line and tags it __cart_gift_tier), but a tier qualifies on
+// trigger PRODUCT PRESENCE instead of a subtotal threshold, and every
+// qualifying tier applies at once (no "highest tier" concept).
+// ---------------------------------------------------------------------------
+
+describe("product_trigger_free_gift", () => {
+  const WHEY_PROTEIN_PRODUCT = "gid://shopify/Product/80000000001";
+  const VEGAN_PROTEIN_PRODUCT = "gid://shopify/Product/80000000002";
+  const EBOOK_VARIANT = "gid://shopify/ProductVariant/80000000101";
+  const VEGAN_EBOOK_VARIANT = "gid://shopify/ProductVariant/80000000102";
+
+  function config(overrides = {}) {
+    return {
+      version: 1,
+      combinesWith: { orderDiscounts: true, productDiscounts: true, shippingDiscounts: true },
+      rules: [
+        {
+          id: "protein-ebook-gift",
+          type: "product_trigger_free_gift",
+          enabled: true,
+          tiers: [
+            {
+              id: "tier-whey",
+              triggerProductIds: [WHEY_PROTEIN_PRODUCT],
+              giftVariantIds: [EBOOK_VARIANT],
+              maxFreeUnits: 1,
+              discountPercentage: 100,
+            },
+            {
+              id: "tier-vegan",
+              triggerProductIds: [VEGAN_PROTEIN_PRODUCT],
+              giftVariantIds: [VEGAN_EBOOK_VARIANT],
+              maxFreeUnits: 1,
+              discountPercentage: 100,
+            },
+          ],
+          message: "Free ebook unlocked",
+          ...overrides,
+        },
+      ],
+    };
+  }
+
+  function proteinLine(id, productId, quantity = 1) {
+    return productLine(id, productId, VARIANT_IDS.unrelated, quantity);
+  }
+
+  function giftLine(id, variantId, tierId, { quantity = 1 } = {}) {
+    return {
+      id,
+      quantity,
+      merchandise: {
+        __typename: "ProductVariant",
+        id: variantId,
+        product: { id: PRODUCT_IDS.unrelated },
+      },
+      cartGiftTierAttribute: tierId ? { value: tierId } : null,
+    };
+  }
+
+  function runWithLinesAndConfig(lines, cfg) {
+    return cartLinesDiscountsGenerateRun({
+      cart: { lines },
+      discount: {
+        discountClasses: ["PRODUCT"],
+        metafield: { value: JSON.stringify(cfg) },
+      },
+    });
+  }
+
+  it("does not discount the gift line when no trigger product is in the cart (also covers the trigger product being removed later -- the Function is stateless, so both cases look identical to it)", () => {
+    const result = runWithLinesAndConfig(
+      [giftLine("gift", EBOOK_VARIANT, "tier-whey")],
+      config(),
+    );
+
+    expect(result).toEqual({ operations: [] });
+  });
+
+  it("discounts the tagged gift line once a trigger product is in the cart", () => {
+    const result = runWithLinesAndConfig(
+      [proteinLine("protein", WHEY_PROTEIN_PRODUCT), giftLine("gift", EBOOK_VARIANT, "tier-whey")],
+      config(),
+    );
+
+    expect(candidates(result)).toEqual([
+      {
+        targets: [{ cartLine: { id: "gift", quantity: 1 } }],
+        value: { percentage: { value: "100.0" } },
+        message: "Free ebook unlocked",
+      },
+    ]);
+  });
+
+  it("does not discount the same variant added from its own PDP (untagged)", () => {
+    const result = runWithLinesAndConfig(
+      [proteinLine("protein", WHEY_PROTEIN_PRODUCT), giftLine("gift", EBOOK_VARIANT, null)],
+      config(),
+    );
+
+    expect(result).toEqual({ operations: [] });
+  });
+
+  it("does not discount a gift line tagged for a tier whose trigger product isn't in the cart", () => {
+    const result = runWithLinesAndConfig(
+      [proteinLine("protein", WHEY_PROTEIN_PRODUCT), giftLine("gift", VEGAN_EBOOK_VARIANT, "tier-vegan")],
+      config(),
+    );
+
+    expect(result).toEqual({ operations: [] });
+  });
+
+  it("caps the free discount at maxFreeUnits even when quantity is bumped up", () => {
+    const result = runWithLinesAndConfig(
+      [
+        proteinLine("protein", WHEY_PROTEIN_PRODUCT),
+        giftLine("gift", EBOOK_VARIANT, "tier-whey", { quantity: 5 }),
+      ],
+      config(),
+    );
+
+    expect(candidates(result)).toEqual([
+      {
+        targets: [{ cartLine: { id: "gift", quantity: 1 } }],
+        value: { percentage: { value: "100.0" } },
+        message: "Free ebook unlocked",
+      },
+    ]);
+  });
+
+  it("applies every qualifying tier at once -- no highest-tier reduction", () => {
+    const result = runWithLinesAndConfig(
+      [
+        proteinLine("whey", WHEY_PROTEIN_PRODUCT),
+        proteinLine("vegan", VEGAN_PROTEIN_PRODUCT),
+        giftLine("whey-gift", EBOOK_VARIANT, "tier-whey"),
+        giftLine("vegan-gift", VEGAN_EBOOK_VARIANT, "tier-vegan"),
+      ],
+      config(),
+    );
+
+    expect(candidates(result)).toHaveLength(2);
+  });
+});

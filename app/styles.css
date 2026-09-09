@@ -980,7 +980,6 @@ textarea:focus-visible {
 .promo-rule-form {
   display: grid;
   gap: var(--space-6);
-  max-inline-size: 840px;
 }
 
 .form-section {

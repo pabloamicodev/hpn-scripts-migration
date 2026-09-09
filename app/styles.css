@@ -828,6 +828,14 @@ textarea:focus-visible {
 .data-table {
   inline-size: 100%;
   border-collapse: collapse;
+  /* Column widths come from <colgroup> (see PromoRulesTable.tsx) instead of
+     being guessed from content — that guessing is what let a handful of
+     narrow-content columns (Status) push the wide text columns into needing
+     an ever-changing amount of squeezing depending on viewport width, which
+     is what caused the single-word-per-line wrapping. Fixed layout +
+     explicit <col> widths make every column's width deterministic
+     regardless of viewport, so it all fits without any horizontal scroll. */
+  table-layout: fixed;
 }
 
 .data-table th,
@@ -836,12 +844,12 @@ textarea:focus-visible {
   border-block-end: 1px solid var(--border);
   text-align: start;
   vertical-align: middle;
+  font-size: 12px;
 }
 
 .data-table th {
   background: var(--surface-subdued);
   color: var(--text-subdued);
-  font-size: 12px;
   font-weight: 650;
 }
 
@@ -882,11 +890,11 @@ textarea:focus-visible {
   white-space: nowrap;
 }
 
-.truncate {
-  max-inline-size: 240px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.cell-wrap {
+  /* Width is set by the column (see table-layout: fixed above); this just
+     lets long single words/tokens (e.g. "__landing_source") break instead
+     of overflowing the column. */
+  overflow-wrap: break-word;
 }
 
 .empty-state {
@@ -2332,11 +2340,6 @@ input[type="radio"] {
 
   .data-table td:last-child {
     border-block-end: 0;
-  }
-
-  .data-table .truncate {
-    max-inline-size: none;
-    white-space: normal;
   }
 
   .row-actions {

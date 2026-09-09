@@ -221,15 +221,23 @@ export function PromoRulesTable({ rules, onPause, onResume, onDelete }: PromoRul
       <div className="table-wrap">
         <table className="data-table">
           <caption className="visually-hidden">
-            Promotion rules with status, trigger, target, discount, message, and actions.
+            Promotion rules with status, trigger, discount, message, and actions.
           </caption>
+          <colgroup>
+            <col />
+            <col />
+            <col style={{ inlineSize: 80 }} />
+            <col />
+            <col />
+            <col />
+            <col style={{ inlineSize: 188 }} />
+          </colgroup>
           <thead>
             <tr>
               <th scope="col">Name</th>
               <th scope="col">Type</th>
               <th scope="col">Status</th>
               <th scope="col">Trigger</th>
-              <th scope="col">Targets</th>
               <th scope="col">Discount</th>
               <th scope="col">Message</th>
               <th scope="col">Actions</th>
@@ -243,23 +251,22 @@ export function PromoRulesTable({ rules, onPause, onResume, onDelete }: PromoRul
 
               return (
                 <tr key={rule.id} className={rule.enabled ? undefined : "data-table__row--muted"}>
-                  <td className="cell-strong cell-nowrap" data-label="Name">
+                  <td className="cell-strong cell-wrap" data-label="Name">
                     {displayName}
                   </td>
-                  <td data-label="Type">{typeLabels[rule.type] ?? "Unknown"}</td>
+                  <td className="cell-wrap" data-label="Type">
+                    {typeLabels[rule.type] ?? "Unknown"}
+                  </td>
                   <td data-label="Status">
                     <StatusBadge status={rule.enabled ? "active" : "paused"} />
                   </td>
-                  <td title={triggerSummary} className="cell-muted truncate" data-label="Trigger">
+                  <td className="cell-muted cell-wrap" data-label="Trigger">
                     {triggerSummary}
                   </td>
-                  <td className="cell-muted cell-nowrap" data-label="Targets">
-                    {getTargetsCount(rule)} items
-                  </td>
-                  <td className="cell-strong cell-nowrap" data-label="Discount">
+                  <td className="cell-strong cell-wrap" data-label="Discount">
                     {getDiscountSummary(rule)}
                   </td>
-                  <td title={rule.message} className="cell-muted truncate" data-label="Message">
+                  <td className="cell-muted cell-wrap" data-label="Message">
                     {rule.message}
                   </td>
                   <td data-label="Actions">
@@ -323,7 +330,7 @@ export function PromoRulesTable({ rules, onPause, onResume, onDelete }: PromoRul
 
             {visibleRules.length === 0 && (
               <tr>
-                <td colSpan={8} className="muted table-empty">
+                <td colSpan={7} className="muted table-empty">
                   No rules match the current filters.
                 </td>
               </tr>
@@ -480,42 +487,6 @@ function getTriggerSummary(rule: HpnPromoRule): string {
     }
     case "product_trigger_free_gift":
       return `${rule.tiers.length} trigger product tier(s), sitewide`;
-  }
-}
-
-function getTargetsCount(rule: HpnPromoRule): number {
-  switch (rule.type) {
-    case "pa7_cross_sell":
-      return rule.targetProductIds.length;
-    case "required_variants_free_variants":
-      return rule.freeVariantIds.length;
-    case "required_product_with_free_variants":
-      return rule.freeVariantIds.length;
-    case "trigger_product_discounted_targets":
-      return rule.targets.length;
-    case "loyalty_tier":
-      return rule.targetProductIds.length;
-    case "subscription_bundle_group":
-      return rule.targetProductIds.length;
-    case "one_time_purchase_discount":
-      return rule.targetVariantIds.length;
-    case "swell_free_product":
-    case "swell_cart_fixed_amount":
-      return 0;
-    case "landing_quantity_tier_fixed_price":
-      return rule.targetVariantIds.length;
-    case "landing_scoped_product_discount":
-      return rule.targetProductIds.length;
-    case "landing_free_shipping":
-    case "sitewide_free_shipping":
-      return 0;
-    case "quiz_bundle_price_match":
-    case "quiz_bundle_free_shipping":
-      return 0;
-    case "cart_subtotal_free_gift":
-      return rule.tiers.reduce((sum, t) => sum + t.giftVariantIds.length, 0);
-    case "product_trigger_free_gift":
-      return rule.tiers.reduce((sum, t) => sum + t.giftVariantIds.length, 0);
   }
 }
 

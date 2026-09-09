@@ -23,13 +23,33 @@
  * periodic fallback poll, so it keeps working regardless of which cart UI
  * a given store's theme uses.
  */
-(function () {
+// The widget body is an IIFE assigned to a module-level variable purely so
+// the pure tier-qualification functions (giftTierOf, qualifyingSubtotal,
+// productTierQualifies, activeTiers — no DOM/fetch dependency) can be
+// exported below for cart-gift-tiers.test.js. That export is inert for the
+// storefront itself: this file is loaded as a module script (see
+// cart-gift-tiers.liquid) purely to make that export reachable, but nothing
+// here relies on module scoping otherwise, and the IIFE's early "no root
+// element" return is unchanged real behavior.
+var cartGiftTiersInternals = (function () {
+  // Needed by giftTierOf/qualifyingSubtotal/productTierQualifies/activeTiers,
+  // which stay reachable (and must work correctly) even down the "no root
+  // element" path below, so this has to be assigned before that check —
+  // not just declared: `var` hoists the declaration but not the value.
+  var GIFT_TIER_ATTRIBUTE_KEY = "__cart_gift_tier";
+
   var root = document.getElementById("cart-gift-tiers-root");
-  if (!root) return;
+  if (!root) {
+    return {
+      giftTierOf: giftTierOf,
+      qualifyingSubtotal: qualifyingSubtotal,
+      productTierQualifies: productTierQualifies,
+      activeTiers: activeTiers,
+    };
+  }
 
   var PROXY_URL = root.dataset.proxyUrl || "/apps/cart-gift-tiers";
   var SHOP_CURRENCY = root.dataset.shopCurrency || "USD";
-  var GIFT_TIER_ATTRIBUTE_KEY = "__cart_gift_tier";
   var FALLBACK_POLL_MS = 4000;
   var CART_MUTATION_URL_PATTERN = /\/cart\/(add|change|update|clear)\.js/;
 
@@ -197,10 +217,11 @@
 
   // ── Modal ─────────────────────────────────────────────────────────────
 
-  // One gallery main image up top (the product's own default photo), a
-  // thumbnail strip below it built from each variant's own image (not the
-  // generic product photo set) — clicking a thumbnail is just another way
-  // to pick a variant, equivalent to clicking its pill. Both stay in sync.
+  // One gallery main image up top, with a thumbnail strip below it built
+  // from the product's own full photo set — always the same gallery
+  // regardless of which variant is selected, since a picked variant (pills,
+  // below) and a browsed photo are independent actions. See the photo
+  // carousel block further down for why.
   function renderProduct(tier, product, onFulfilled) {
     var productTemplate = document.getElementById("cart-gift-tiers-product-template");
     var pillTemplate = document.getElementById("cart-gift-tiers-pill-template");
@@ -260,7 +281,6 @@
       if (fromUserClick) titleTouched = true;
       updateTitle();
       if (priceEl) priceEl.textContent = formatMoney(variant.price);
-      if (variant.image) setMainImage(variant.image, variant.title);
       highlightSelected();
     }
 
@@ -271,21 +291,27 @@
     );
     if (selected && priceEl) priceEl.textContent = formatMoney(selected.price);
 
-    var variantsWithImages = variants.filter(function (variant) {
-      return Boolean(variant.image);
-    });
-    if (variantsWithImages.length > 1 && thumbTemplate) {
+    // The photo carousel always shows the product's own full image gallery
+    // (not per-variant images) — sizes rarely have distinct photos per
+    // variant, and even for flavors this keeps browsing photos and picking
+    // a variant as two independent actions instead of an inconsistent mix.
+    var productImages = Array.isArray(product.images) ? product.images : [];
+    if (productImages.length > 1 && thumbTemplate) {
       thumbsRow.hidden = false;
-      variantsWithImages.forEach(function (variant) {
+      productImages.forEach(function (image, index) {
         var thumbFragment = thumbTemplate.content.cloneNode(true);
         var thumbButton = thumbFragment.querySelector(".cart-gift-tiers-gallery__thumb");
         var thumbImage = thumbFragment.querySelector("img");
-        thumbImage.src = variant.image;
-        thumbImage.alt = variant.title || product.title || "";
+        thumbImage.src = image.url;
+        thumbImage.alt = image.altText || product.title || "";
+        if (index === 0) thumbButton.classList.add("is-active");
         thumbButton.addEventListener("click", function () {
-          selectVariant(variant, true);
+          setMainImage(image.url, image.altText || product.title);
+          thumbsContainer.querySelectorAll(".cart-gift-tiers-gallery__thumb").forEach(function (btn) {
+            btn.classList.remove("is-active");
+          });
+          thumbButton.classList.add("is-active");
         });
-        selectables.push({ variant: variant, button: thumbButton });
         thumbsContainer.appendChild(thumbFragment);
       });
 
@@ -430,11 +456,17 @@
 
   // ── Tier evaluation (mirrors applyCartSubtotalFreeGiftRule and
   // applyProductTriggerFreeGiftRule) ───────────────────────────────────
+  //
+  // Takes tierConfig explicitly (rather than reading the module-level
+  // variable) so it stays a pure function of its arguments — see the
+  // exports at the bottom of this file, which let cart-gift-tiers.test.js
+  // exercise this exact logic (including the tier-id-collision regression)
+  // without needing a DOM at all.
 
-  function activeTiers(cart) {
+  function activeTiers(cart, config) {
     var subtotal = qualifyingSubtotal(cart);
 
-    var subtotalTiers = tierConfig.tiers.filter(function (tier) {
+    var subtotalTiers = config.tiers.filter(function (tier) {
       return tier.qualifyingType !== "product";
     });
     var qualifyingSubtotalTiers = subtotalTiers.filter(function (tier) {
@@ -444,7 +476,7 @@
     var activeSubtotalTiers = [];
     if (qualifyingSubtotalTiers.length > 0) {
       activeSubtotalTiers =
-        tierConfig.stackingMode === "cumulative"
+        config.stackingMode === "cumulative"
           ? qualifyingSubtotalTiers
           : [
               qualifyingSubtotalTiers.reduce(function (best, tier) {
@@ -456,7 +488,7 @@
     // Every qualifying product tier applies at once — each is tied to a
     // different trigger product, not a competing spend level, so there's
     // no "highest tier" reduction to do here.
-    var activeProductTiers = tierConfig.tiers.filter(function (tier) {
+    var activeProductTiers = config.tiers.filter(function (tier) {
       return tier.qualifyingType === "product" && productTierQualifies(tier, cart);
     });
 
@@ -473,7 +505,7 @@
 
     fetchCart()
       .then(function (cart) {
-        var active = activeTiers(cart);
+        var active = activeTiers(cart, tierConfig);
         var activeIds = active.map(function (t) {
           return t.id;
         });
@@ -559,4 +591,16 @@
     checkCart();
     setInterval(checkCart, FALLBACK_POLL_MS);
   });
+
+  return {
+    giftTierOf: giftTierOf,
+    qualifyingSubtotal: qualifyingSubtotal,
+    productTierQualifies: productTierQualifies,
+    activeTiers: activeTiers,
+  };
 })();
+
+export var giftTierOf = cartGiftTiersInternals.giftTierOf;
+export var qualifyingSubtotal = cartGiftTiersInternals.qualifyingSubtotal;
+export var productTierQualifies = cartGiftTiersInternals.productTierQualifies;
+export var activeTiers = cartGiftTiersInternals.activeTiers;

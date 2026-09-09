@@ -92,7 +92,7 @@
 </template>
 
 {{ 'cart-gift-tiers.css' | asset_url | stylesheet_tag }}
-<script src="{{ 'cart-gift-tiers.js' | asset_url }}" defer="defer"></script>
+<script type="module" src="{{ 'cart-gift-tiers.js' | asset_url }}"></script>
 
 {% schema %}
 {

@@ -448,10 +448,38 @@ function makeRuleId(type: PromoRuleType) {
 }
 
 function makeDefaultRule(type: PromoRuleType): PromoRuleFormValues {
-  return {
+  const base: PromoRuleFormValues = {
     ...DEFAULT_RULES[type],
     id: makeRuleId(type),
   };
+
+  // DEFAULT_RULES' seed tiers use a fixed "tier-1" id — fine within a single
+  // rule, but cart_subtotal_free_gift and product_trigger_free_gift share
+  // the same __cart_gift_tier storefront mechanism (see the superRefine on
+  // hpnPromoConfigSchema), so two freshly-created rules of either type would
+  // otherwise collide on that same "tier-1" id. Mint a fresh unique suffix
+  // here, every time a new rule is created, so that can't happen.
+  const suffix = Date.now().toString(36);
+  if (base.giftTiers) {
+    return {
+      ...base,
+      giftTiers: base.giftTiers.map((tier, index) => ({
+        ...tier,
+        id: `tier-${index + 1}-${suffix}`,
+      })),
+    };
+  }
+  if (base.productGiftTiers) {
+    return {
+      ...base,
+      productGiftTiers: base.productGiftTiers.map((tier, index) => ({
+        ...tier,
+        id: `tier-${index + 1}-${suffix}`,
+      })),
+    };
+  }
+
+  return base;
 }
 
 function getGidTail(gid: string) {

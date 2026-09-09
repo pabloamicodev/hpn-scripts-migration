@@ -466,4 +466,114 @@ describe("hpnPromoConfigSchema", () => {
       },
     });
   });
+
+  // -------------------------------------------------------------------------
+  // Regression: a cart_subtotal_free_gift tier and a product_trigger_free_gift
+  // tier sharing an id (e.g. both left on the form's default "tier-1") make
+  // the storefront widget treat them as the same tier via its
+  // activeIds.indexOf(tier.id) check -- satisfying one (e.g. the product
+  // trigger) makes the OTHER (e.g. an $85 subtotal tier) look active too,
+  // even though its own condition was never met. See extensions/
+  // cart-gift-tiers/assets/cart-gift-tiers.test.js for the widget-side logic
+  // this config-level guard is protecting.
+  // -------------------------------------------------------------------------
+
+  function cartSubtotalFreeGiftRule(tierId: string, overrides: Record<string, unknown> = {}) {
+    return {
+      id: "cart-subtotal-free-gift",
+      type: "cart_subtotal_free_gift" as const,
+      enabled: true,
+      tiers: [
+        {
+          id: tierId,
+          minimumSubtotal: 85,
+          giftVariantIds: [V(1)],
+          maxFreeUnits: 1,
+          discountPercentage: 100,
+        },
+      ],
+      stackingMode: "highest_tier_only" as const,
+      message: "Free t-shirt",
+      ...overrides,
+    };
+  }
+
+  function productTriggerFreeGiftRule(tierId: string, overrides: Record<string, unknown> = {}) {
+    return {
+      id: "product-trigger-free-gift",
+      type: "product_trigger_free_gift" as const,
+      enabled: true,
+      tiers: [
+        {
+          id: tierId,
+          triggerProductIds: [P(1)],
+          giftVariantIds: [V(2)],
+          maxFreeUnits: 1,
+          discountPercentage: 100,
+        },
+      ],
+      message: "Free ebook",
+      ...overrides,
+    };
+  }
+
+  function configWith(rules: unknown[]) {
+    return {
+      version: 1,
+      rules,
+      combinesWith: { orderDiscounts: true, productDiscounts: true, shippingDiscounts: true },
+    };
+  }
+
+  it("rejects a cart_subtotal_free_gift and product_trigger_free_gift tier sharing an id", () => {
+    fail(
+      hpnPromoConfigSchema,
+      configWith([cartSubtotalFreeGiftRule("tier-1"), productTriggerFreeGiftRule("tier-1")]),
+    );
+  });
+
+  it("accepts the same two rules once their tier ids are made unique", () => {
+    ok(
+      hpnPromoConfigSchema,
+      configWith([
+        cartSubtotalFreeGiftRule("tier-1-shirt"),
+        productTriggerFreeGiftRule("tier-1-cookbook"),
+      ]),
+    );
+  });
+
+  it("rejects two tiers within the SAME rule sharing an id", () => {
+    fail(
+      hpnPromoConfigSchema,
+      configWith([
+        cartSubtotalFreeGiftRule("tier-1", {
+          tiers: [
+            { id: "tier-1", minimumSubtotal: 50, giftVariantIds: [V(1)], maxFreeUnits: 1, discountPercentage: 100 },
+            { id: "tier-1", minimumSubtotal: 100, giftVariantIds: [V(2)], maxFreeUnits: 1, discountPercentage: 100 },
+          ],
+        }),
+      ]),
+    );
+  });
+
+  it("does not flag unrelated rule types reusing an id cart-gift tiers happen to use", () => {
+    // Only cart_subtotal_free_gift/product_trigger_free_gift tiers share the
+    // __cart_gift_tier storefront mechanism -- a loyalty_tier rule (keyed by
+    // minOrders, not a synthetic id) reusing "tier-1" as its own rule id is
+    // unrelated and must not trip this check.
+    ok(
+      hpnPromoConfigSchema,
+      configWith([
+        cartSubtotalFreeGiftRule("tier-1"),
+        {
+          id: "tier-1",
+          type: "loyalty_tier" as const,
+          enabled: true,
+          targetProductIds: [P(9)],
+          tiers: [{ minOrders: 1, discountPercentage: 10 }],
+          message: "loyalty",
+        },
+      ]),
+    );
+  });
 });

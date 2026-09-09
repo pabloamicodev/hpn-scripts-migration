@@ -413,15 +413,53 @@ export const hpnPromoRuleSchema = z.discriminatedUnion("type", [
   productTriggerFreeGiftRuleSchema,
 ]);
 
-export const hpnPromoConfigSchema = z.object({
-  version: z.literal(1),
-  rules: z.array(hpnPromoRuleSchema).min(0),
-  combinesWith: z.object({
-    orderDiscounts: z.boolean(),
-    productDiscounts: z.boolean(),
-    shippingDiscounts: z.boolean(),
-  }),
-});
+export const hpnPromoConfigSchema = z
+  .object({
+    version: z.literal(1),
+    rules: z.array(hpnPromoRuleSchema).min(0),
+    combinesWith: z.object({
+      orderDiscounts: z.boolean(),
+      productDiscounts: z.boolean(),
+      shippingDiscounts: z.boolean(),
+    }),
+  })
+  .superRefine((config, ctx) => {
+    // cart_subtotal_free_gift and product_trigger_free_gift both work the
+    // same way: the storefront widget adds the gift variant and tags its
+    // __cart_gift_tier line property with the tier's own id, and the
+    // widget's own qualification check (extensions/cart-gift-tiers/assets/
+    // cart-gift-tiers.js's activeIds.indexOf(tier.id)) only ever looks at
+    // that id string — it has no idea which rule a tier came from. Two
+    // tiers sharing an id (e.g. both left on the form's default "tier-1")
+    // make the widget treat them as the same tier, so satisfying one
+    // silently opens/adds the other regardless of whether ITS OWN
+    // condition (a different subtotal, a different trigger product) is
+    // actually met. IDs must be unique across every tier of both rule
+    // types combined — including two tiers of the SAME rule, which would
+    // confuse that rule's own Function handler (applyCartSubtotalFreeGiftRule
+    // / applyProductTriggerFreeGiftRule) the same way.
+    const firstSeenInRuleId = new Map<string, string>();
+    for (const rule of config.rules) {
+      if (rule.type !== "cart_subtotal_free_gift" && rule.type !== "product_trigger_free_gift") {
+        continue;
+      }
+      for (const tier of rule.tiers) {
+        const existingRuleId = firstSeenInRuleId.get(tier.id);
+        if (existingRuleId) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message:
+              existingRuleId === rule.id
+                ? `Tier id "${tier.id}" is used more than once within rule "${rule.id}" — gift tier ids must be unique.`
+                : `Tier id "${tier.id}" is used by both "${existingRuleId}" and "${rule.id}" — gift tier ids must be unique across every cart_subtotal_free_gift/product_trigger_free_gift rule, or the storefront widget will confuse them.`,
+            path: ["rules"],
+          });
+        } else {
+          firstSeenInRuleId.set(tier.id, rule.id);
+        }
+      }
+    }
+  });
 
 // ---------------------------------------------------------------------------
 // Derived types

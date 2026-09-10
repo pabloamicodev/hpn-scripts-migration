@@ -1944,7 +1944,12 @@ describe("cart_subtotal_free_gift", () => {
     };
   }
 
-  function paidLine(id, amount, quantity = 1) {
+  function paidLine(
+    id,
+    amount,
+    quantity = 1,
+    { productId = PRODUCT_IDS.unrelated, volumeDiscountTiers = null } = {},
+  ) {
     return {
       id,
       quantity,
@@ -1952,7 +1957,13 @@ describe("cart_subtotal_free_gift", () => {
       merchandise: {
         __typename: "ProductVariant",
         id: VARIANT_IDS.unrelated,
-        product: { id: PRODUCT_IDS.unrelated },
+        product: {
+          id: productId,
+          volumeDiscountTiers:
+            volumeDiscountTiers == null
+              ? null
+              : { jsonValue: volumeDiscountTiers },
+        },
       },
     };
   }
@@ -2019,6 +2030,66 @@ describe("cart_subtotal_free_gift", () => {
     );
 
     expect(result).toEqual({ operations: [] });
+  });
+
+  it("does not discount the gift when a volume tier lowers $89.07 to $71.26", () => {
+    const volumeTiers = [
+      { qty: 1, percent: 0, discount_label: "" },
+      { qty: 2, percent: 15, discount_label: "2+ for 15% off" },
+      { qty: 3, percent: 20, discount_label: "3+ for 20% off" },
+    ];
+    const result = runWithCart(
+      [
+        paidLine("atlas", "89.07", 3, {
+          productId: "gid://shopify/Product/7139577004117",
+          volumeDiscountTiers: volumeTiers,
+        }),
+        giftLine("shirt", SHAKER_VARIANT, "tier-50", { amount: "29.99" }),
+      ],
+      config({
+        tiers: [
+          {
+            id: "tier-50",
+            minimumSubtotal: 85,
+            giftVariantIds: [SHAKER_VARIANT],
+            maxFreeUnits: 1,
+            discountPercentage: 100,
+          },
+        ],
+      }),
+      119.06,
+    );
+
+    expect(result).toEqual({ operations: [] });
+  });
+
+  it("still discounts the gift when the post-volume subtotal reaches the threshold", () => {
+    const result = runWithCart(
+      [
+        paidLine("paid", "106.25", 3, {
+          productId: "gid://shopify/Product/volume-tier-product",
+          volumeDiscountTiers: [
+            { qty: 1, percent: 0 },
+            { qty: 3, percent: 20 },
+          ],
+        }),
+        giftLine("gift", SHAKER_VARIANT, "tier-50", { amount: "29.99" }),
+      ],
+      config({
+        tiers: [
+          {
+            id: "tier-50",
+            minimumSubtotal: 85,
+            giftVariantIds: [SHAKER_VARIANT],
+            maxFreeUnits: 1,
+            discountPercentage: 100,
+          },
+        ],
+      }),
+      136.24,
+    );
+
+    expect(candidates(result)).toHaveLength(1);
   });
 
   it("does not discount the same variant added from its own PDP (untagged)", () => {

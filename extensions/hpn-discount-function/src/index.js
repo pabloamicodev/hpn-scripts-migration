@@ -697,6 +697,89 @@ function applyQuizBundlePriceMatchRule(rule, lines, candidates) {
  * automatically on the next recalculation — same as every other
  * anchor-gated rule in this file.
  */
+function readVolumeDiscountTiers(raw) {
+  let value = raw;
+  if (typeof raw === "string") {
+    try {
+      value = JSON.parse(raw);
+    } catch {
+      return [];
+    }
+  }
+  if (!Array.isArray(value)) return [];
+
+  return value.filter(
+    (tier) =>
+      tier &&
+      typeof tier === "object" &&
+      Number.isInteger(tier.qty) &&
+      tier.qty > 0 &&
+      typeof tier.percent === "number" &&
+      Number.isFinite(tier.percent) &&
+      tier.percent >= 0,
+  );
+}
+
+function moneyAmountToCents(value) {
+  const amount = Number(value);
+  return Number.isFinite(amount) ? Math.round(amount * 100) : null;
+}
+
+/**
+ * Shopify runs separate Discount Functions concurrently, so this Function's
+ * cart costs do not contain the output of Checkout Redo's volume-discount
+ * Function. Mirror that Function's product grouping and tier selection here
+ * solely for subtotal qualification; the actual volume discount remains
+ * owned and emitted by Checkout Redo.
+ */
+function projectedVolumeDiscountCents(lines) {
+  const groups = new Map();
+
+  for (const line of lines) {
+    if (line.cartGiftTierAttribute?.value) continue;
+    if (line.volumeDiscountBundleItemAttribute?.value === "true") continue;
+    if (line.volumeDiscountNektarGlp1Attribute?.value) continue;
+
+    const product = line.merchandise?.product;
+    const tiers = readVolumeDiscountTiers(
+      product?.volumeDiscountTiers?.jsonValue,
+    );
+    if (tiers.length === 0) continue;
+
+    const lineTotalCents = moneyAmountToCents(line.cost?.totalAmount?.amount);
+    if (lineTotalCents === null || lineTotalCents <= 0) continue;
+
+    const productId = product?.id;
+    if (!productId) continue;
+
+    const group = groups.get(productId) ?? {
+      quantity: 0,
+      subtotalCents: 0,
+      tiers: [],
+    };
+    group.quantity += line.quantity;
+    group.subtotalCents += lineTotalCents;
+    group.tiers.push(...tiers);
+    groups.set(productId, group);
+  }
+
+  let discountCents = 0;
+  for (const group of groups.values()) {
+    const bestTier = group.tiers
+      .filter((tier) => tier.percent > 0 && group.quantity >= tier.qty)
+      .sort((a, b) => b.qty - a.qty || b.percent - a.percent)[0];
+    if (!bestTier) continue;
+
+    // Same rounding as checkout-redo-engine's volume-discount Function:
+    // Math.round(subtotalInDollars * percent) / 100.
+    discountCents += Math.round(
+      (group.subtotalCents * bestTier.percent) / 100,
+    );
+  }
+
+  return discountCents;
+}
+
 function applyCartSubtotalFreeGiftRule(
   rule,
   cart,
@@ -706,15 +789,21 @@ function applyCartSubtotalFreeGiftRule(
 ) {
   if (!Array.isArray(rule.tiers) || rule.tiers.length === 0) return;
 
-  const rawSubtotal = parseFloat(cart.cost?.subtotalAmount?.amount ?? "0");
-  if (isNaN(rawSubtotal)) return;
+  const rawSubtotalCents = moneyAmountToCents(
+    cart.cost?.subtotalAmount?.amount,
+  );
+  if (rawSubtotalCents === null) return;
 
-  const giftLineCost = lines.reduce((sum, line) => {
+  const giftLineCostCents = lines.reduce((sum, line) => {
     if (!line.cartGiftTierAttribute?.value) return sum;
-    const amount = parseFloat(line.cost?.totalAmount?.amount ?? "0");
-    return sum + (isNaN(amount) ? 0 : amount);
+    const amountCents = moneyAmountToCents(line.cost?.totalAmount?.amount);
+    return sum + (amountCents ?? 0);
   }, 0);
-  const qualifyingSubtotal = rawSubtotal - giftLineCost;
+  const volumeDiscountCents = projectedVolumeDiscountCents(lines);
+  const qualifyingSubtotalCents = Math.max(
+    0,
+    rawSubtotalCents - giftLineCostCents - volumeDiscountCents,
+  );
 
   const qualifyingTiers = rule.tiers.filter(
     (tier) =>
@@ -722,7 +811,7 @@ function applyCartSubtotalFreeGiftRule(
       typeof tier.minimumSubtotal === "number" &&
       Array.isArray(tier.giftVariantIds) &&
       tier.giftVariantIds.length > 0 &&
-      qualifyingSubtotal >= tier.minimumSubtotal,
+      qualifyingSubtotalCents >= Math.round(tier.minimumSubtotal * 100),
   );
   if (qualifyingTiers.length === 0) return;
 

@@ -2563,6 +2563,7 @@ export function PromoRuleForm({
 
                   <button
                     type="button"
+                    style={{ marginTop: "16px" }}
                     onClick={() =>
                       setValue(
                         "giftTiers",
@@ -2570,7 +2571,8 @@ export function PromoRuleForm({
                         { shouldDirty: true },
                       )
                     }
-                    className="btn btn--small btn--danger"
+                    className="btn btn--small btn--danger "
+                     
                   >
                     Remove tier
                   </button>

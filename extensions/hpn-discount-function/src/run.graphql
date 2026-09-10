@@ -58,12 +58,21 @@ query RunInput {
       quizExpectedPaidCountAttribute: attribute(key: "_quiz_expected_paid_count") {
         value
       }
+      volumeDiscountBundleItemAttribute: attribute(key: "_bundle_item") {
+        value
+      }
+      volumeDiscountNektarGlp1Attribute: attribute(key: "_nektar_glp1") {
+        value
+      }
       merchandise {
         __typename
         ... on ProductVariant {
           id
           product {
             id
+            volumeDiscountTiers: metafield(namespace: "custom", key: "volume_discount_tiers") {
+              jsonValue
+            }
           }
         }
       }

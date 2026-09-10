@@ -68,6 +68,60 @@ describe("qualifyingSubtotal", () => {
     const cart = { items: [{ product_id: 1, line_price: 1000, properties: {} }] };
     expect(qualifyingSubtotal(cart)).toBeCloseTo(10);
   });
+
+  it("uses the discounted cart subtotal instead of original line prices", () => {
+    const cart = {
+      items_subtotal_price: 7126,
+      items: [
+        {
+          product_id: 7139577004117,
+          original_line_price: 8907,
+          final_line_price: 7126,
+          properties: {},
+        },
+      ],
+    };
+
+    expect(qualifyingSubtotal(cart)).toBeCloseTo(71.26);
+  });
+
+  it("subtracts a full-price tagged gift from the reported cart subtotal", () => {
+    const cart = {
+      items_subtotal_price: 10125,
+      items: [
+        {
+          product_id: 7139577004117,
+          original_line_price: 8907,
+          final_line_price: 7126,
+          properties: {},
+        },
+        {
+          product_id: 7512584192085,
+          original_line_price: 2999,
+          final_line_price: 2999,
+          properties: { __cart_gift_tier: "tier-1" },
+        },
+      ],
+    };
+
+    expect(qualifyingSubtotal(cart)).toBeCloseTo(71.26);
+  });
+
+  it("does not fall back to an original price when final_line_price is zero", () => {
+    const cart = {
+      items: [
+        {
+          product_id: 1,
+          original_line_price: 2999,
+          line_price: 0,
+          final_line_price: 0,
+          properties: {},
+        },
+      ],
+    };
+
+    expect(qualifyingSubtotal(cart)).toBe(0);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -120,6 +174,26 @@ describe("activeTiers", () => {
       tiers: [{ id: "tier-1", qualifyingType: "subtotal", minimumSubtotal: 85 }],
     };
     const cart = { items: [paidItem(1, 4999)] };
+    expect(activeTiers(cart, config)).toEqual([]);
+  });
+
+  it("does not activate from an original subtotal discounted below the threshold", () => {
+    const config = {
+      stackingMode: "highest_tier_only",
+      tiers: [{ id: "tier-1", qualifyingType: "subtotal", minimumSubtotal: 85 }],
+    };
+    const cart = {
+      items_subtotal_price: 7126,
+      items: [
+        {
+          product_id: 7139577004117,
+          original_line_price: 8907,
+          final_line_price: 7126,
+          properties: {},
+        },
+      ],
+    };
+
     expect(activeTiers(cart, config)).toEqual([]);
   });
 

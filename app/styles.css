@@ -1021,6 +1021,7 @@ textarea:focus-visible {
 .form-group {
   display: grid;
   gap: var(--space-2);
+  grid-column: span 2;
 }
 
 .shipping-profile-options {
@@ -1351,11 +1352,17 @@ input[type="radio"] {
   background: var(--surface);
 }
 
+.product-id-chip{
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: start;
+}
+
 .selection-summary {
   display: grid;
   grid-template-columns: 56px minmax(0, 1fr);
   gap: 12px;
   min-inline-size: 0;
+  grid-column: span 2;
 }
 
 .selection-summary__media {

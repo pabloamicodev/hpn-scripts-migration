@@ -148,15 +148,50 @@ var cartGiftTiersInternals = (function () {
     return item.properties && item.properties[GIFT_TIER_ATTRIBUTE_KEY];
   }
 
+  function moneyCents(value) {
+    return typeof value === "number" && Number.isFinite(value) ? value : null;
+  }
+
+  function finalLinePrice(item) {
+    // A legitimate fully-discounted line is 0, so these fields must be
+    // checked explicitly instead of chained with `||` (which would fall
+    // through to the pre-discount price for a free line).
+    var finalCents = moneyCents(item.final_line_price);
+    if (finalCents !== null) return finalCents;
+
+    var lineCents = moneyCents(item.line_price);
+    if (lineCents !== null) return lineCents;
+
+    return moneyCents(item.original_line_price) || 0;
+  }
+
   function qualifyingSubtotal(cart) {
     // /cart.js expresses every money value in the shop's smallest currency
     // unit (cents for USD) — tier.minimumSubtotal is a plain dollar amount
     // (same convention the discount function uses via the Admin GraphQL
     // API's decimal MoneyV2 strings), so this must convert before comparing.
-    var cents = cart.items.reduce(function (sum, item) {
-      if (giftTierOf(item)) return sum;
-      return sum + (item.original_line_price || item.line_price || 0);
-    }, 0);
+    //
+    // items_subtotal_price/final_line_price include product discounts already
+    // applied to the Ajax cart (including Checkout Redo volume tiers). Using
+    // original_line_price here incorrectly treated a $89.07 line discounted
+    // to $71.26 as qualifying for an $85 gift.
+    var reportedSubtotal = moneyCents(cart.items_subtotal_price);
+    var items = Array.isArray(cart.items) ? cart.items : [];
+    var cents;
+
+    if (reportedSubtotal !== null) {
+      var giftCents = items.reduce(function (sum, item) {
+        return giftTierOf(item) ? sum + finalLinePrice(item) : sum;
+      }, 0);
+      cents = Math.max(0, reportedSubtotal - giftCents);
+    } else {
+      // Backward-compatible fallback for partial/test cart payloads.
+      cents = items.reduce(function (sum, item) {
+        if (giftTierOf(item)) return sum;
+        return sum + finalLinePrice(item);
+      }, 0);
+    }
+
     return cents / 100;
   }
 
@@ -174,22 +209,33 @@ var cartGiftTiersInternals = (function () {
   }
 
   function addGiftVariant(variantId, tierId) {
-    var properties = {};
-    properties[GIFT_TIER_ATTRIBUTE_KEY] = tierId;
+    // Re-read the cart immediately before mutating it. A picker can remain
+    // open while another tab/cart drawer changes the subtotal, and the first
+    // qualification check may otherwise be stale by the time the shopper
+    // chooses a size.
+    return fetchCart().then(function (cart) {
+      var stillQualifies = activeTiers(cart, tierConfig).some(function (tier) {
+        return tier.id === tierId;
+      });
+      if (!stillQualifies) return false;
 
-    return fetch("/cart/add.js", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
-      credentials: "same-origin",
-      body: JSON.stringify({
-        items: [{ id: String(variantId), quantity: 1, properties: properties }],
-      }),
-    }).then(function (response) {
-      if (!response.ok) throw new Error("Shopify rejected the gift variant.");
-      return response;
+      var properties = {};
+      properties[GIFT_TIER_ATTRIBUTE_KEY] = tierId;
+
+      return fetch("/cart/add.js", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        credentials: "same-origin",
+        body: JSON.stringify({
+          items: [{ id: String(variantId), quantity: 1, properties: properties }],
+        }),
+      }).then(function (response) {
+        if (!response.ok) throw new Error("Shopify rejected the gift variant.");
+        return true;
+      });
     });
   }
 
@@ -222,7 +268,7 @@ var cartGiftTiersInternals = (function () {
   // regardless of which variant is selected, since a picked variant (pills,
   // below) and a browsed photo are independent actions. See the photo
   // carousel block further down for why.
-  function renderProduct(tier, product, onFulfilled) {
+  function renderProduct(tier, product, onFulfilled, onEligibilityLost) {
     var productTemplate = document.getElementById("cart-gift-tiers-product-template");
     var pillTemplate = document.getElementById("cart-gift-tiers-pill-template");
     var thumbTemplate = document.getElementById("cart-gift-tiers-thumb-template");
@@ -352,7 +398,12 @@ var cartGiftTiersInternals = (function () {
         addButton.disabled = true;
         pendingTierIds.add(tier.id);
         addGiftVariant(selected.id, tier.id)
-          .then(function () {
+          .then(function (added) {
+            if (!added) {
+              addButton.disabled = false;
+              onEligibilityLost();
+              return;
+            }
             notifyThemeCartChanged();
             onFulfilled();
           })
@@ -391,6 +442,7 @@ var cartGiftTiersInternals = (function () {
     var subtitle = fragment.querySelector("#cart-gift-tiers-modal-subtitle");
     var description = fragment.querySelector("#cart-gift-tiers-modal-description");
     var variantChosen = false;
+    var eligibilityLost = false;
 
     if (tier.message) {
       subtitle.textContent = tier.message;
@@ -404,7 +456,7 @@ var cartGiftTiersInternals = (function () {
         : "Select the flavor, size, or option you want as your gift.";
 
     function closeModal() {
-      if (!variantChosen) dismissedTierIds.add(tier.id);
+      if (!variantChosen && !eligibilityLost) dismissedTierIds.add(tier.id);
       if (dialog.open) dialog.close();
     }
 
@@ -428,6 +480,10 @@ var cartGiftTiersInternals = (function () {
         variantChosen = true;
         fulfilledTierIds.add(tier.id);
         closeModal();
+      }, function () {
+        eligibilityLost = true;
+        closeModal();
+        checkCart();
       });
       if (productFragment) productsContainer.appendChild(productFragment);
     });
@@ -537,7 +593,8 @@ var cartGiftTiersInternals = (function () {
             if (variants.length === 1) {
               pendingTierIds.add(tier.id);
               addGiftVariant(variants[0].id, tier.id)
-                .then(function () {
+                .then(function (added) {
+                  if (!added) return;
                   fulfilledTierIds.add(tier.id);
                   notifyThemeCartChanged();
                 })

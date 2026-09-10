@@ -3,7 +3,6 @@ query RunInput {
     cost {
       subtotalAmount {
         amount
-        currencyCode
       }
     }
     sourceAttribute: attribute(key: "source") {
@@ -25,11 +24,9 @@ query RunInput {
       cost {
         totalAmount {
           amount
-          currencyCode
         }
         amountPerQuantity {
           amount
-          currencyCode
         }
       }
       sellingPlanAllocation {

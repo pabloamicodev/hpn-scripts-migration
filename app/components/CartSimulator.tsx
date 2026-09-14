@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { Trash2 } from "lucide-react";
 
 import {
   evaluateConfig,
@@ -11,6 +12,7 @@ import {
   ProductPicker,
   type ProductPickerSelection,
 } from "./ProductPicker";
+import { ProductVariantCard } from "./ProductVariantCard";
 
 interface CartSimulatorProps {
   config: HpnPromoConfig;
@@ -229,6 +231,19 @@ export function CartSimulator({ config, activeRuleId }: CartSimulatorProps) {
 
   const fixtures = useMemo(() => getFixturesFromConfig(config), [config]);
 
+  const cartProductGroups = useMemo(() => {
+    const groups = new Map<string, SimulatorCartLine[]>();
+
+    for (const line of cartLines) {
+      const productId = line.merchandise.product.id;
+      const group = groups.get(productId);
+      if (group) group.push(line);
+      else groups.set(productId, [line]);
+    }
+
+    return Array.from(groups.entries());
+  }, [cartLines]);
+
   const activeRule = useMemo(() => {
     if (!activeRuleId) return null;
     return config.rules.find((rule) => rule.id === activeRuleId) ?? null;
@@ -266,6 +281,25 @@ export function CartSimulator({ config, activeRuleId }: CartSimulatorProps) {
     if (cartLines.length === 0) return [];
     return evaluateConfig(testConfig, cartLines, evalContext);
   }, [cartLines, testConfig, evalContext]);
+
+  const discountProductGroups = useMemo(() => {
+    const linesById = new Map(cartLines.map((line) => [line.id, line]));
+    const groups = new Map<
+      string,
+      Array<{ action: DiscountAction; line?: SimulatorCartLine; index: number }>
+    >();
+
+    results.forEach((action, index) => {
+      const line = linesById.get(action.lineId);
+      const groupId = line?.merchandise.product.id ?? `action-${index}`;
+      const group = groups.get(groupId);
+      const discount = { action, line, index };
+      if (group) group.push(discount);
+      else groups.set(groupId, [discount]);
+    });
+
+    return Array.from(groups.entries());
+  }, [cartLines, results]);
 
   const totalQuantity = cartLines.reduce((sum, line) => sum + line.quantity, 0);
   const discountedQuantity = results.reduce(
@@ -498,44 +532,59 @@ export function CartSimulator({ config, activeRuleId }: CartSimulatorProps) {
             </div>
 
             <div className="cart-line-grid">
-              {cartLines.map((line) => (
-                <article key={line.id} className="cart-line-card">
-                  <ProductThumb
-                    imageUrl={line.imageUrl}
-                    title={getLineProductTitle(line)}
-                  />
+              {cartProductGroups.map(([productId, lines]) => {
+                const productLine =
+                  lines.find((line) => line.productTitle) ?? lines[0];
+                const imageLine = lines.find((line) => line.imageUrl);
+                const variantCount = new Set(
+                  lines.map((line) => line.merchandise.id),
+                ).size;
+                const productQuantity = lines.reduce(
+                  (sum, line) => sum + line.quantity,
+                  0,
+                );
 
-                  <div className="cart-line-card__body">
-                    <div className="cart-line-card__title-row">
-                      <div>
-                        <h4>{getLineProductTitle(line)}</h4>
-                        <p>
-                          {line.variantTitle ?? "Variant"} · Qty {line.quantity}
-                        </p>
-                      </div>
-                      {line.price && (
-                        <span className="status-badge status-badge--inactive">
-                          ${line.price}
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="cart-line-meta">
-                      {line.sku && <span>SKU {line.sku}</span>}
-                      <span>Product {getGidTail(line.merchandise.product.id)}</span>
-                      <span>Variant {getGidTail(line.merchandise.id)}</span>
-                    </div>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => removeCartLine(line.id)}
-                    className="btn btn--small btn--danger"
+                return (
+                  <ProductVariantCard
+                    key={productId}
+                    productId={productId}
+                    productTitle={getLineProductTitle(productLine)}
+                    imageUrl={imageLine?.imageUrl}
+                    imageAlt={imageLine?.imageAlt}
+                    summary={`${variantCount} variant${variantCount === 1 ? "" : "s"}, ${lines.length} line${lines.length === 1 ? "" : "s"}, ${productQuantity} unit${productQuantity === 1 ? "" : "s"}`}
                   >
-                    Remove
-                  </button>
-                </article>
-              ))}
+                    {lines.map((line) => (
+                      <li key={line.id} className="product-variant-group__row">
+                        <div className="selection-summary__body">
+                          <strong>{line.variantTitle ?? "Variant"}</strong>
+                          <span className="product-variant-group__meta">
+                            Qty {line.quantity}
+                            {line.price ? ` · $${line.price}` : ""}
+                          </span>
+                          <span className="product-variant-group__meta">
+                            Variant ID {getGidTail(line.merchandise.id)}
+                            {line.sku ? ` · SKU ${line.sku}` : ""}
+                          </span>
+                          <span className="product-variant-group__meta">
+                            {line.sellingPlanAllocation
+                              ? "Subscription"
+                              : "One-time purchase"}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => removeCartLine(line.id)}
+                          className="btn btn--small btn--danger"
+                          aria-label={`Remove ${getLineProductTitle(line)} ${line.variantTitle ?? "variant"} cart line ${line.id}`}
+                        >
+                          <Trash2 size={14} aria-hidden="true" />
+                          Remove
+                        </button>
+                      </li>
+                    ))}
+                  </ProductVariantCard>
+                );
+              })}
 
               {cartLines.length === 0 && (
                 <div className="cart-line-empty">
@@ -705,27 +754,67 @@ export function CartSimulator({ config, activeRuleId }: CartSimulatorProps) {
             Discounts applied ({results.length})
           </h3>
 
-          <div className="summary-grid">
-            {results.map((action: DiscountAction, index) => {
-              const line = cartLines.find(
-                (cartLine) => cartLine.merchandise.id === action.variantId,
+          <div className="product-id-list">
+            {discountProductGroups.map(([groupId, discounts]) => {
+              const productLine = discounts[0].line;
+              if (!productLine) {
+                const { action } = discounts[0];
+                return (
+                  <div key={groupId} className="summary-tile">
+                    <p className="summary-tile__label">
+                      {formatDiscountAction(action)}
+                    </p>
+                    <p className="summary-tile__value">
+                      {getGidTail(action.variantId)}
+                    </p>
+                    <p className="summary-tile__note">
+                      Qty {action.discountedQuantity} · {action.message}
+                    </p>
+                  </div>
+                );
+              }
+
+              const imageLine = discounts.find(
+                ({ line }) => line?.imageUrl,
+              )?.line;
+              const variantCount = new Set(
+                discounts.map(({ action }) => action.variantId),
+              ).size;
+              const productDiscountedQuantity = discounts.reduce(
+                (sum, { action }) => sum + action.discountedQuantity,
+                0,
               );
 
               return (
-                <div
-                  key={`${action.variantId}-${index}`}
-                  className="summary-tile"
+                <ProductVariantCard
+                  key={groupId}
+                  productId={productLine.merchandise.product.id}
+                  productTitle={getLineProductTitle(productLine)}
+                  imageUrl={imageLine?.imageUrl}
+                  imageAlt={imageLine?.imageAlt}
+                  summary={`${variantCount} variant${variantCount === 1 ? "" : "s"}, ${discounts.length} discount action${discounts.length === 1 ? "" : "s"}, ${productDiscountedQuantity} unit${productDiscountedQuantity === 1 ? "" : "s"} discounted`}
                 >
-                  <p className="summary-tile__label">
-                    {formatDiscountAction(action)}
-                  </p>
-                  <p className="summary-tile__value">
-                    {line ? getLineProductTitle(line) : getGidTail(action.variantId)}
-                  </p>
-                  <p className="summary-tile__note">
-                    Qty {action.discountedQuantity} · {action.message}
-                  </p>
-                </div>
+                  {discounts.map(({ action, line, index }) => (
+                    <li
+                      key={`${action.lineId}-${index}`}
+                      className="product-variant-group__row"
+                    >
+                      <div className="selection-summary__body">
+                        <strong>{line?.variantTitle ?? "Variant"}</strong>
+                        <span className="product-variant-group__meta">
+                          Variant ID {getGidTail(action.variantId)}
+                        </span>
+                        <span className="product-variant-group__meta">
+                          {formatDiscountAction(action)} · Qty{" "}
+                          {action.discountedQuantity}
+                        </span>
+                        <span className="product-variant-group__meta">
+                          {action.message}
+                        </span>
+                      </div>
+                    </li>
+                  ))}
+                </ProductVariantCard>
               );
             })}
           </div>

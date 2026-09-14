@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
+import { Trash2 } from "lucide-react";
 
 import { hpnPromoRuleSchema, type HpnPromoRule } from "../lib/validations";
 import { ProductPicker, type ProductPickerSelection } from "./ProductPicker";
+import { ProductVariantCard } from "./ProductVariantCard";
 import {
   HPN_PRODUCTS,
   HPN_PROMO_MESSAGES,
@@ -2507,7 +2509,7 @@ export function PromoRuleForm({
             <span className="form-label">Tiers</span>
 
             {(giftTiers ?? []).map((tier, idx) => (
-              <div key={tier.id} className="product-id-chip">
+              <div key={tier.id} className="gift-tier">
                 <div className="target-discount-row">
                   <label className="form-label">
                     Minimum cart subtotal ($)
@@ -2664,7 +2666,7 @@ export function PromoRuleForm({
             <span className="form-label">Tiers</span>
 
             {(productGiftTiers ?? []).map((tier, idx) => (
-              <div key={tier.id} className="product-id-chip">
+              <div key={tier.id} className="gift-tier gift-tier--product-trigger">
                 <div className="target-discount-row">
                   <label className="form-label">Max free units</label>
                   <input
@@ -2963,11 +2965,22 @@ function ProductIdListSelector({
   productIds: string[];
   metaById?: Record<string, SelectedProductMeta>;
   emptyText: string;
-  itemLabel?: string;
+  itemLabel?: "Product" | "Variant";
   addLabel?: string;
   onPick: () => void;
   onRemove: (productId: string) => void;
 }) {
+  const groupVariantsByProduct = itemLabel === "Variant";
+  const selectionGroups = new Map<string, string[]>();
+  for (const id of productIds) {
+    const groupId = groupVariantsByProduct
+      ? metaById?.[id]?.productId || id
+      : id;
+    const group = selectionGroups.get(groupId);
+    if (group) group.push(id);
+    else selectionGroups.set(groupId, [id]);
+  }
+
   return (
     <div className="product-id-selector">
       <button type="button" onClick={onPick} className="product-picker-trigger">
@@ -2980,26 +2993,94 @@ function ProductIdListSelector({
 
       {productIds.length > 0 && (
         <div className="product-id-list">
-          {productIds.map((productId) => (
-            <div key={productId} className="product-id-chip">
-              <SelectionSummary
-                id={productId}
-                itemLabel={itemLabel}
-                meta={metaById?.[productId]}
-              />
+          {Array.from(selectionGroups, ([groupId, ids]) => {
+            const productId = ids[0];
+            const meta = metaById?.[productId];
 
-              <button
-                type="button"
-                onClick={() => onRemove(productId)}
-                className="btn btn--small btn--danger"
-              >
-                Remove
-              </button>
-            </div>
-          ))}
+            if (groupVariantsByProduct && meta?.productId) {
+              return (
+                <ProductVariantGroup
+                  key={groupId}
+                  variantIds={ids}
+                  meta={meta}
+                  metaById={metaById}
+                  onRemove={onRemove}
+                />
+              );
+            }
+
+            return (
+              <div key={groupId} className="product-id-chip">
+                <SelectionSummary
+                  id={productId}
+                  itemLabel={itemLabel}
+                  meta={metaById?.[productId]}
+                />
+
+                <button
+                  type="button"
+                  onClick={() => onRemove(productId)}
+                  className="btn btn--small btn--danger"
+                >
+                  Remove
+                </button>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
+  );
+}
+
+function ProductVariantGroup({
+  variantIds,
+  meta,
+  metaById,
+  onRemove,
+}: {
+  variantIds: string[];
+  meta: SelectedProductMeta;
+  metaById?: Record<string, SelectedProductMeta>;
+  onRemove: (variantId: string) => void;
+}) {
+  return (
+    <ProductVariantCard
+      productId={meta.productId}
+      productTitle={meta.productTitle}
+      imageUrl={meta.imageUrl}
+      imageAlt={meta.imageAlt}
+      summary={`${variantIds.length} ${variantIds.length === 1 ? "variant" : "variants"} added`}
+    >
+      {variantIds.map((variantId) => {
+        const variant = metaById?.[variantId];
+        const title = variant?.variantTitle || `Variant ${getGidTail(variantId)}`;
+        return (
+          <li key={variantId} className="product-variant-group__row">
+            <div className="selection-summary__body">
+              <strong>{title}</strong>
+              <span className="product-variant-group__meta">
+                Variant ID {getGidTail(variantId)}
+              </span>
+              {variant?.sku && (
+                <span className="product-variant-group__meta">
+                  SKU {variant.sku}
+                </span>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={() => onRemove(variantId)}
+              className="btn btn--small btn--danger"
+              aria-label={`Remove variant ${title}`}
+            >
+              <Trash2 size={14} aria-hidden="true" />
+              Remove
+            </button>
+          </li>
+        );
+      })}
+    </ProductVariantCard>
   );
 }
 

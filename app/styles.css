@@ -1429,6 +1429,96 @@ input[type="radio"] {
   gap: 8px;
 }
 
+.gift-tier {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+  align-items: start;
+  gap: 20px;
+  min-inline-size: 0;
+  padding-block: 16px;
+  border-block-end: 1px solid var(--border);
+}
+
+.gift-tier > .form-group {
+  grid-column: auto;
+  min-inline-size: 0;
+}
+
+.gift-tier--product-trigger > .target-discount-row {
+  grid-row: span 2;
+}
+
+.gift-tier--product-trigger > .form-group {
+  grid-column: 2;
+}
+
+.product-variant-group {
+  min-inline-size: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-small);
+  background: var(--surface);
+}
+
+.product-variant-group__toggle {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) 18px;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border-radius: inherit;
+  list-style: none;
+  cursor: pointer;
+}
+
+.product-variant-group__toggle::-webkit-details-marker {
+  display: none;
+}
+
+.product-variant-group__toggle:hover {
+  background: var(--surface-subdued);
+}
+
+.product-variant-group__toggle:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.product-variant-group[open] .product-variant-group__chevron {
+  transform: rotate(180deg);
+}
+
+.product-variant-group strong {
+  overflow-wrap: anywhere;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.product-variant-group__meta {
+  color: var(--text-subdued);
+  overflow-wrap: anywhere;
+  font-size: 11px;
+}
+
+.product-variant-group__count {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.product-variant-group__list {
+  margin: 0;
+  padding: 0 12px;
+  list-style: none;
+}
+
+.product-variant-group__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding-block: 12px;
+  border-block-start: 1px solid var(--border);
+}
+
 .product-id-chip .mono {
   overflow-wrap: anywhere;
   font-size: 11px;
@@ -2186,6 +2276,16 @@ input[type="radio"] {
 }
 
 @container (max-width: 560px) {
+  .gift-tier {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .gift-tier--product-trigger > .target-discount-row,
+  .gift-tier--product-trigger > .form-group {
+    grid-row: auto;
+    grid-column: auto;
+  }
+
   .product-id-card,
   .product-id-chip {
     grid-template-columns: 1fr;

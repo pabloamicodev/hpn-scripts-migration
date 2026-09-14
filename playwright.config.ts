@@ -1,4 +1,4 @@
-import { defineConfig } from "@playwright/test";
+import { defineConfig, devices } from "@playwright/test";
 
 export default defineConfig({
   testDir: "./tests/e2e",
@@ -7,6 +7,8 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   reporter: process.env.CI ? "github" : "list",
   use: {
+    // Shopify rejects the default headless user agent before authentication.
+    userAgent: devices["Desktop Chrome"].userAgent,
     baseURL: process.env.E2E_BASE_URL,
     trace: "retain-on-failure",
     screenshot: "only-on-failure",

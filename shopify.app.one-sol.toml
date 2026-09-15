@@ -5,7 +5,7 @@ application_url = "https://hpn-scripts-migration.vercel.app"
 embedded = true
 
 [access_scopes]
-scopes = "write_discounts,read_products,write_selling_plans"
+scopes = "write_discounts,read_products,write_products,write_purchase_options"
 
 [auth]
 redirect_urls = [

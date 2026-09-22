@@ -5,6 +5,7 @@ const links = [
   { href: "/app/promos", label: "Promos" },
   { href: "/app/discount", label: "Discount" },
   { href: "/app/subscription-pricing", label: "Subscription Pricing" },
+  { href: "/app/skio-shipping-tiers", label: "Skio Shipping" },
   { href: "/app/discounts-overview", label: "All Discounts" },
   { href: "/app/graphql", label: "GraphQL" },
   { href: "/app/settings", label: "Settings" },

@@ -16,6 +16,12 @@
       "routes/app.promos.new": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/app.promos.$id": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/app.discount": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/app.subscription-pricing": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/app.subscription-pricing.new": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/app.subscription-pricing.$id": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/app.skio-shipping-tiers": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/app.skio-shipping-tiers.new": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/app.skio-shipping-tiers.$id": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/app.graphql.execute": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/app.graphql": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/app.settings": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
@@ -92,6 +98,60 @@
         "parentId": "routes/app",
         "file": "app/routes/app.discount.tsx",
         "path": "discount",
+        "config": {
+          "runtime": "nodejs"
+        }
+      },
+      "routes/app.subscription-pricing": {
+        "id": "routes/app.subscription-pricing",
+        "parentId": "routes/app",
+        "file": "app/routes/app.subscription-pricing.tsx",
+        "path": "subscription-pricing",
+        "config": {
+          "runtime": "nodejs"
+        }
+      },
+      "routes/app.subscription-pricing.new": {
+        "id": "routes/app.subscription-pricing.new",
+        "parentId": "routes/app",
+        "file": "app/routes/app.subscription-pricing.new.tsx",
+        "path": "subscription-pricing/new",
+        "config": {
+          "runtime": "nodejs"
+        }
+      },
+      "routes/app.subscription-pricing.$id": {
+        "id": "routes/app.subscription-pricing.$id",
+        "parentId": "routes/app",
+        "file": "app/routes/app.subscription-pricing.$id.tsx",
+        "path": "subscription-pricing/:id",
+        "config": {
+          "runtime": "nodejs"
+        }
+      },
+      "routes/app.skio-shipping-tiers": {
+        "id": "routes/app.skio-shipping-tiers",
+        "parentId": "routes/app",
+        "file": "app/routes/app.skio-shipping-tiers.tsx",
+        "path": "skio-shipping-tiers",
+        "config": {
+          "runtime": "nodejs"
+        }
+      },
+      "routes/app.skio-shipping-tiers.new": {
+        "id": "routes/app.skio-shipping-tiers.new",
+        "parentId": "routes/app",
+        "file": "app/routes/app.skio-shipping-tiers.new.tsx",
+        "path": "skio-shipping-tiers/new",
+        "config": {
+          "runtime": "nodejs"
+        }
+      },
+      "routes/app.skio-shipping-tiers.$id": {
+        "id": "routes/app.skio-shipping-tiers.$id",
+        "parentId": "routes/app",
+        "file": "app/routes/app.skio-shipping-tiers.$id.tsx",
+        "path": "skio-shipping-tiers/:id",
         "config": {
           "runtime": "nodejs"
         }
@@ -258,6 +318,42 @@
         "file": "routes/app.discount.tsx",
         "path": "discount"
       },
+      "routes/app.subscription-pricing": {
+        "id": "routes/app.subscription-pricing",
+        "parentId": "routes/app",
+        "file": "routes/app.subscription-pricing.tsx",
+        "path": "subscription-pricing"
+      },
+      "routes/app.subscription-pricing.new": {
+        "id": "routes/app.subscription-pricing.new",
+        "parentId": "routes/app",
+        "file": "routes/app.subscription-pricing.new.tsx",
+        "path": "subscription-pricing/new"
+      },
+      "routes/app.subscription-pricing.$id": {
+        "id": "routes/app.subscription-pricing.$id",
+        "parentId": "routes/app",
+        "file": "routes/app.subscription-pricing.$id.tsx",
+        "path": "subscription-pricing/:id"
+      },
+      "routes/app.skio-shipping-tiers": {
+        "id": "routes/app.skio-shipping-tiers",
+        "parentId": "routes/app",
+        "file": "routes/app.skio-shipping-tiers.tsx",
+        "path": "skio-shipping-tiers"
+      },
+      "routes/app.skio-shipping-tiers.new": {
+        "id": "routes/app.skio-shipping-tiers.new",
+        "parentId": "routes/app",
+        "file": "routes/app.skio-shipping-tiers.new.tsx",
+        "path": "skio-shipping-tiers/new"
+      },
+      "routes/app.skio-shipping-tiers.$id": {
+        "id": "routes/app.skio-shipping-tiers.$id",
+        "parentId": "routes/app",
+        "file": "routes/app.skio-shipping-tiers.$id.tsx",
+        "path": "skio-shipping-tiers/:id"
+      },
       "routes/app.graphql.execute": {
         "id": "routes/app.graphql.execute",
         "parentId": "routes/app",
@@ -366,6 +462,30 @@
               {
                 "file": "routes/app.discount.tsx",
                 "path": "discount"
+              },
+              {
+                "file": "routes/app.subscription-pricing.tsx",
+                "path": "subscription-pricing"
+              },
+              {
+                "file": "routes/app.subscription-pricing.new.tsx",
+                "path": "subscription-pricing/new"
+              },
+              {
+                "file": "routes/app.subscription-pricing.$id.tsx",
+                "path": "subscription-pricing/:id"
+              },
+              {
+                "file": "routes/app.skio-shipping-tiers.tsx",
+                "path": "skio-shipping-tiers"
+              },
+              {
+                "file": "routes/app.skio-shipping-tiers.new.tsx",
+                "path": "skio-shipping-tiers/new"
+              },
+              {
+                "file": "routes/app.skio-shipping-tiers.$id.tsx",
+                "path": "skio-shipping-tiers/:id"
               },
               {
                 "file": "routes/app.graphql.execute.tsx",

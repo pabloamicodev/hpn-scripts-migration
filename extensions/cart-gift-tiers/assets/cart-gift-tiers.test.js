@@ -8,7 +8,7 @@ import { describe, expect, it } from "vitest";
 // A dynamic import (not a static one) is required so this stub actually
 // runs first — static imports are hoisted above any other top-level code.
 globalThis.document = { getElementById: () => null };
-const { activeTiers, giftTierOf, productTierQualifies, qualifyingSubtotal } =
+const { activeTiers, giftTierOf, productTierQualifies, qualifyingSubtotal, giftUnitsInCart, cartLinesHash } =
   await import("./cart-gift-tiers.js");
 
 function paidItem(productId, cents) {
@@ -259,5 +259,43 @@ describe("activeTiers", () => {
     const cart = { items: [paidItem(1, 4999)] };
 
     expect(activeTiers(cart, config)).toEqual([cookbookTier]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// giftUnitsInCart / cartLinesHash (no-reopen guards)
+// ---------------------------------------------------------------------------
+
+describe("giftUnitsInCart", () => {
+  it("counts quantity of lines tagged for the tier only", () => {
+    const cart = {
+      items: [
+        { ...giftItem(1, 0, "t1"), key: "a", quantity: 1 },
+        { ...giftItem(2, 0, "t1"), key: "b", quantity: 2 },
+        { ...giftItem(3, 0, "t2"), key: "c", quantity: 5 },
+        { ...paidItem(4, 100), key: "d", quantity: 3 },
+      ],
+    };
+    expect(giftUnitsInCart(cart, "t1")).toBe(3);
+    expect(giftUnitsInCart(cart, "t9")).toBe(0);
+  });
+});
+
+describe("cartLinesHash", () => {
+  const items = [
+    { key: "a", quantity: 1 },
+    { key: "b", quantity: 2 },
+  ];
+
+  it("ignores attributes and note, so attribute-only updates hash the same", () => {
+    expect(cartLinesHash({ items, attributes: {} })).toBe(
+      cartLinesHash({ items, attributes: { landing: "x" }, note: "hi" }),
+    );
+  });
+
+  it("changes when a line is added or a quantity changes", () => {
+    const base = cartLinesHash({ items });
+    expect(cartLinesHash({ items: [...items, { key: "c", quantity: 1 }] })).not.toBe(base);
+    expect(cartLinesHash({ items: [items[0], { key: "b", quantity: 3 }] })).not.toBe(base);
   });
 });

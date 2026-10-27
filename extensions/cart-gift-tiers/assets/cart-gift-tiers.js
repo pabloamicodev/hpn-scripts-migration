@@ -45,6 +45,8 @@ var cartGiftTiersInternals = (function () {
       qualifyingSubtotal: qualifyingSubtotal,
       productTierQualifies: productTierQualifies,
       activeTiers: activeTiers,
+      giftUnitsInCart: giftUnitsInCart,
+      cartLinesHash: cartLinesHash,
     };
   }
 
@@ -67,6 +69,7 @@ var cartGiftTiersInternals = (function () {
   var modalQueue = [];
   var modalOpen = false;
 
+  var lastLinesHash = null;
   var checking = false;
   var recheckAfter = false;
 
@@ -148,6 +151,28 @@ var cartGiftTiersInternals = (function () {
     return item.properties && item.properties[GIFT_TIER_ATTRIBUTE_KEY];
   }
 
+  // Gift units already in the cart for a tier (quantity-aware).
+  function giftUnitsInCart(cart, tierId) {
+    return (Array.isArray(cart && cart.items) ? cart.items : []).reduce(function (sum, item) {
+      return giftTierOf(item) === tierId ? sum + (Number(item.quantity) || 0) : sum;
+    }, 0);
+  }
+
+  function maxFreeUnits(tier) {
+    var n = Number(tier && tier.maxFreeUnits);
+    return Number.isFinite(n) && n >= 1 ? n : 1;
+  }
+
+  // Identity of the cart's lines only, so attribute/note-only
+  // /cart/update.js calls (e.g. a theme tracker) hash the same.
+  function cartLinesHash(cart) {
+    return (Array.isArray(cart && cart.items) ? cart.items : [])
+      .map(function (item) {
+        return item.key + ":" + item.quantity;
+      })
+      .join("|");
+  }
+
   function moneyCents(value) {
     return typeof value === "number" && Number.isFinite(value) ? value : null;
   }
@@ -218,6 +243,12 @@ var cartGiftTiersInternals = (function () {
         return tier.id === tierId;
       });
       if (!stillQualifies) return false;
+
+      // Already holds the tier's gift(s): treat as fulfilled, never add more.
+      var tierNow = tierConfig.tiers.find(function (tier) {
+        return tier.id === tierId;
+      });
+      if (giftUnitsInCart(cart, tierId) >= maxFreeUnits(tierNow)) return true;
 
       var properties = {};
       properties[GIFT_TIER_ATTRIBUTE_KEY] = tierId;
@@ -394,7 +425,7 @@ var cartGiftTiersInternals = (function () {
 
     if (addButton) {
       addButton.addEventListener("click", function () {
-        if (!selected) return;
+        if (!selected || addButton.disabled || pendingTierIds.has(tier.id)) return;
         addButton.disabled = true;
         pendingTierIds.add(tier.id);
         addGiftVariant(selected.id, tier.id)
@@ -496,7 +527,12 @@ var cartGiftTiersInternals = (function () {
 
   function processModalQueue() {
     if (modalOpen || modalQueue.length === 0) return;
-    openModalForTier(modalQueue.shift());
+    var next = modalQueue.shift();
+    if (fulfilledTierIds.has(next.id)) {
+      processModalQueue();
+      return;
+    }
+    openModalForTier(next);
   }
 
   function enqueueModal(tier) {
@@ -561,6 +597,10 @@ var cartGiftTiersInternals = (function () {
 
     fetchCart()
       .then(function (cart) {
+        var linesHash = cartLinesHash(cart);
+        if (linesHash === lastLinesHash) return;
+        lastLinesHash = linesHash;
+
         var active = activeTiers(cart, tierConfig);
         var activeIds = active.map(function (t) {
           return t.id;
@@ -573,7 +613,7 @@ var cartGiftTiersInternals = (function () {
           var isActive = activeIds.indexOf(tier.id) !== -1;
 
           if (isActive) {
-            if (line) {
+            if (line || giftUnitsInCart(cart, tier.id) >= maxFreeUnits(tier)) {
               fulfilledTierIds.add(tier.id);
               return;
             }
@@ -598,7 +638,9 @@ var cartGiftTiersInternals = (function () {
                   fulfilledTierIds.add(tier.id);
                   notifyThemeCartChanged();
                 })
-                .catch(function () {})
+                .catch(function () {
+                  lastLinesHash = null;
+                })
                 .finally(function () {
                   pendingTierIds.delete(tier.id);
                 });
@@ -612,7 +654,9 @@ var cartGiftTiersInternals = (function () {
             if (line) {
               removeLine(line.key)
                 .then(notifyThemeCartChanged)
-                .catch(function () {});
+                .catch(function () {
+                  lastLinesHash = null;
+                });
             }
           }
         });
@@ -654,6 +698,8 @@ var cartGiftTiersInternals = (function () {
     qualifyingSubtotal: qualifyingSubtotal,
     productTierQualifies: productTierQualifies,
     activeTiers: activeTiers,
+    giftUnitsInCart: giftUnitsInCart,
+    cartLinesHash: cartLinesHash,
   };
 })();
 
@@ -661,3 +707,5 @@ export var giftTierOf = cartGiftTiersInternals.giftTierOf;
 export var qualifyingSubtotal = cartGiftTiersInternals.qualifyingSubtotal;
 export var productTierQualifies = cartGiftTiersInternals.productTierQualifies;
 export var activeTiers = cartGiftTiersInternals.activeTiers;
+export var giftUnitsInCart = cartGiftTiersInternals.giftUnitsInCart;
+export var cartLinesHash = cartGiftTiersInternals.cartLinesHash;

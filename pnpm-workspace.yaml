@@ -45,3 +45,9 @@ overrides:
   vite@>=7.0.0 <8.0.0: ^7.3.7
   vite@>=8.0.0 <9.0.0: ^8.2.4
   '@vitest/mocker': ^4.1.12
+
+# minimatch GHSA-g3hv-75wg-m249: only reached through eslint and graphql-config build tooling, never at
+# runtime; the only patched line is 11.x, which breaks them. Drop once they upgrade.
+auditConfig:
+  ignoreGhsas:
+    - GHSA-g3hv-75wg-m249
